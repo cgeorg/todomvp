@@ -1,0 +1,23 @@
+{
+  "name": "todomvp",
+  "version": "0.1.0",
+  "description": "Minimum Viable Pizza",
+  "main": "script.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "webpack --module-bind \"js=babel-loader\" src/app.js script.js",
+    "develop": "webpack --module-bind \"js=babel-loader\" -d -w src/app.js script.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cyclejs": "^0.14.4",
+    "lodash": "^3.3.1",
+    "rx": "^2.4.1"
+  },
+  "devDependencies": {
+    "babel-core": "^4.6.6",
+    "babel-loader": "^4.0.0",
+    "webpack": "^1.7.2"
+  }
+}
