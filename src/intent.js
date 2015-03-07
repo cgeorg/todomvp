@@ -1,14 +1,23 @@
 import Cycle from 'cyclejs';
 
 export default Intent = Cycle.createIntent(User => ({
-  'numServings$': User.event$('body', 'load').map(ev => 36),
-  'servingSize$': User.event$('body', 'load').map(ev => 20.1),
-  'pizzas$': User.event$('body', 'load').map(ev => [
-    {name: 'Large', diameter: 16, cost: 12.95},
-    {name: 'Medium', diameter: 14, cost: 9.95},
-    {name: 'Small', diameter: 12, cost: 8.95}
-  ]),
-  'sortBy$': User.event$('th', 'click').map(
+
+  sortBy$: User.event$('th', 'click').map(
       ev => ev.target.getAttribute('data-order')
-  ).filter(order => !!order)
+  ).filter(order => !!order),
+
+  selectMenu$: User.event$('.menu', 'change').map(
+      ev => ev.target.options[ev.target.selectedIndex].value
+  ),
+
+  eaterAdd$:   User.event$('.new-eater', 'keypress').filter(ev => ev.keyCode === 13).map(
+      ev => ev.target.value.match(/(.*):\s*(\d+)/)
+  ).filter(match => match).map(
+      match => ({name: match[1], servings: parseInt(match[2], 10)})
+  ),
+
+  eaterUpdate$: User.event$('.edit-servings', 'keypress').filter(ev => ev.keyCode === 13).map(
+      ev => ({id: ev.target.getAttribute('data-id'), servings: parseInt(ev.target.value, 10)})
+  ).filter(update => !isNan(update.servings))
+
 }));
