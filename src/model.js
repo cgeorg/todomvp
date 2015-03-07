@@ -54,7 +54,7 @@ function calculatePurchaseOptions(model) {
     .value();
 }
 
-export default Model = Cycle.createModel((Intent, Initial) => {
+var Model = Cycle.createModel((Intent, Initial) => {
 
   var sortByMod$ = Intent.get('sortBy$')
     .map(sortBy => model => {
@@ -93,3 +93,5 @@ export default Model = Cycle.createModel((Intent, Initial) => {
               .share()
   }
 });
+
+export default Model;

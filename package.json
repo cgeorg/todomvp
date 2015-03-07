@@ -2,13 +2,13 @@
   "name": "todomvp",
   "version": "0.1.0",
   "description": "Minimum Viable Pizza",
-  "main": "script.js",
+  "main": "dist/script.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack --module-bind \"js=babel-loader\" --devtool source-map src/app.js script.js",
-    "develop": "webpack --module-bind \"js=babel-loader\" -d -w src/app.js script.js"
+    "build": "webpack --config webpack.js.conf --devtool source-map -p src/app.js dist/script.js",
+    "develop": "webpack --config webpack.js.conf -w -d src/app.js script.js"
   },
-  "author": "",
+  "author": "Chris Marasti-Georg",
   "license": "ISC",
   "dependencies": {
     "cyclejs": "^0.15.0",

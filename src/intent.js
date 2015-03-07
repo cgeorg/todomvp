@@ -1,6 +1,6 @@
 import Cycle from 'cyclejs';
 
-export default Intent = Cycle.createIntent(User => ({
+var Intent = Cycle.createIntent(User => ({
 
   sortBy$: User.event$('th', 'click').map(
       ev => ev.target.getAttribute('data-order')
@@ -21,3 +21,5 @@ export default Intent = Cycle.createIntent(User => ({
   ).filter(update => !isNan(update.servings))
 
 }));
+
+export default Intent;

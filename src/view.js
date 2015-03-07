@@ -70,7 +70,7 @@ function renderEater(eater) {
   ]);
 }
 
-export default View = Cycle.createView(Model =>
+var View = Cycle.createView(Model =>
     ({
       vtree$: Model.get('model$').map(model =>
         Cycle.h('div', [
@@ -81,3 +81,5 @@ export default View = Cycle.createView(Model =>
         ]))
     })
 );
+
+export default View;

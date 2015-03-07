@@ -30,7 +30,7 @@ function getDefaultServing() {
   return Math.floor(Math.pow(menus['Monte Cellos'][0].diameter/2, 2) * Math.PI * 100 / menus['Monte Cellos'][0].cuts)/100;
 }
 
-export default modelSource = Cycle.createDataFlowSource({
+var ModelSource = Cycle.createDataFlowSource({
   model$: Rx.Observable.just({
     menus: menus,
     eaters: [
@@ -44,3 +44,5 @@ export default modelSource = Cycle.createDataFlowSource({
     sortBy: 'order'
   })
 });
+
+export default ModelSource;
