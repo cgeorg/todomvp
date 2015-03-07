@@ -3,7 +3,7 @@ import _ from 'lodash';
 
 function renderOptions(model) {
   return [
-    Cycle.h('h2', 'Let\'s get one of these'),
+    Cycle.h('h2', 'Let\'s get one of these:'),
     Cycle.h('table', [
       Cycle.h('thead', [
         Cycle.h('tr', [
@@ -34,11 +34,16 @@ function renderOption(servingSize, option) {
       .map((arr, name) => `${arr.length} ${name}`)
       .value()
       .join(', ')),
-    Cycle.h('td', `${Math.round(option.total / servingSize * 100) / 100}`),
+    Cycle.h('td', [
+      option.mostPizza ? Cycle.h('span.most-pizza', {title: 'Most Pizza!'}) : null,
+      `${Math.round(option.total / servingSize * 100) / 100}`
+    ]),
     Cycle.h('td', `${Math.round(option.cost * 100) / 100}`),
-    Cycle.h('td', `${option.order}`),
-    option.special ? Cycle.h('td', option.special) : undefined
-  ]);
+    Cycle.h('td', [
+        option.bestDeal ? Cycle.h('span.best-deal', {title: 'Best Deal!'}) : null,
+        `${option.order}`
+      ])
+    ]);
 }
 
 function renderMenuSelection(model) {
@@ -54,7 +59,7 @@ function renderEaters(model) {
     Cycle.h('h2', 'Who\'s eating?'),
     Cycle.h('ul', [
       model.eaters.map(renderEater),
-      Cycle.h('input.new-eater')
+      Cycle.h('li', Cycle.h('input.new-eater'))
     ])
   ];
 }

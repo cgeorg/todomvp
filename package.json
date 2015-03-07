@@ -5,15 +5,14 @@
   "main": "script.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "webpack --module-bind \"js=babel-loader\" src/app.js script.js",
+    "build": "webpack --module-bind \"js=babel-loader\" --devtool source-map src/app.js script.js",
     "develop": "webpack --module-bind \"js=babel-loader\" -d -w src/app.js script.js"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cyclejs": "^0.14.4",
-    "lodash": "^3.3.1",
-    "rx": "^2.4.1"
+    "cyclejs": "^0.15.0",
+    "lodash": "^3.3.1"
   },
   "devDependencies": {
     "babel-core": "^4.6.6",

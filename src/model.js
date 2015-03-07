@@ -47,9 +47,9 @@ function calculatePurchaseOptions(model) {
     .sortBy(sortBy)
     .take(10)
     .sortBy('total')
-    .tap(options => options.length && (options[options.length - 1].special = 'Most pizza! '))
+    .tap(options => options.length && (options[options.length - 1].mostPizza = true))
     .sortBy('ratio')
-    .tap(options => options.length && (options[0].special = (options[0].special ? options[0].special : '') + 'Best deal!'))
+    .tap(options => options.length && (options[0].bestDeal = true))
     .sortBy(sortBy)
     .value();
 }

@@ -33,7 +33,12 @@ function getDefaultServing() {
 export default modelSource = Cycle.createDataFlowSource({
   model$: Rx.Observable.just({
     menus: menus,
-    eaters: [{name: 'CMG', servings: 3}],
+    eaters: [
+      {name: 'Doug', servings: 3},
+      {name: 'Woolner', servings: 4},
+      {name: 'CMG', servings: 4},
+      {name: 'Gabo', servings: 3}
+    ],
     servingSize: getDefaultServing(),
     selectedMenu: menus['Monte Cellos'],
     sortBy: 'order'
