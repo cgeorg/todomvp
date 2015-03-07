@@ -31,12 +31,12 @@ export default Model = Cycle.createModel(Intent => ({
   'purchaseOptions$': Cycle.Rx.Observable.combineLatest(
     Intent.get('numServings$').startWith(27),
     Intent.get('servingSize$').startWith(20.1),
-    Intent.get('pizzas$').startWith(parmaPizza),
+    Intent.get('pizzas$').startWith(mcPizza),
     Intent.get('sortBy$').startWith('order'),
     function (numServings, servingSize, pizzas, sortBy) {
       var totalSize = numServings * servingSize;
 
-      //generate permutations stupidly
+      pizzas = _.sortBy(pizzas, 'diameter').reverse();
 
       function updateTotal(option) {
         option.total = _(option.pizzas)
@@ -45,37 +45,36 @@ export default Model = Cycle.createModel(Intent => ({
           .map(r => r * r)
           .map(r2 => r2 * Math.PI)
           .reduce((sum, area) => area + sum);
-
-        option.cost = _(option.pizzas)
-          .map('cost')
-          .reduce((sum, cost) => sum + cost);
       }
 
-      function addPizza(option, options) {
+      function addPizza(option, options, index) {
+        index = index || 0;
         if (option.total > totalSize) {
           options.push(option);
         } else {
-          pizzas.forEach(function (pizza) {
+          for (let i = index; i < pizzas.length; ++i) {
             var newOp = {pizzas: _.clone(option.pizzas)};
-            newOp.pizzas.push(pizza);
+            newOp.pizzas.push(pizzas[i]);
             updateTotal(newOp);
-            addPizza(newOp, options);
-          });
+            addPizza(newOp, options, i);
+          }
         }
         return options;
       }
 
       return _(addPizza({pizzas: [], total: 0}, []))
         .flatten()
+        .tap(options => console.log(`Found ${options.length} options`))
         .forEach(option => {
-          option.pizzas = _.sortBy(option.pizzas, 'diameter').reverse();
+          option.cost = _(option.pizzas)
+            .map('cost')
+            .reduce((sum, cost) => sum + cost);
           option.ratio = option.cost / option.total;
         })
         .sortBy('ratio')
         .forEach((option, index) => option.order = index + 1)
-        .uniq(true, option => _.map(option.pizzas, 'name').join())
         .sortBy('total')
-        .forEach((option, index) => option.order += 2 * index + 1)
+        .forEach((option, index) => option.order += index)
         .sortBy(sortBy)
         .take(10)
         .sortBy('total')

@@ -97,10 +97,10 @@
 	  return {
 	    servingSize$: Intent.get("servingSize$").startWith(20.1),
 	    sortBy$: Intent.get("sortBy$").startWith("order"),
-	    purchaseOptions$: Cycle.Rx.Observable.combineLatest(Intent.get("numServings$").startWith(27), Intent.get("servingSize$").startWith(20.1), Intent.get("pizzas$").startWith(parmaPizza), Intent.get("sortBy$").startWith("order"), function (numServings, servingSize, pizzas, sortBy) {
+	    purchaseOptions$: Cycle.Rx.Observable.combineLatest(Intent.get("numServings$").startWith(27), Intent.get("servingSize$").startWith(20.1), Intent.get("pizzas$").startWith(mcPizza), Intent.get("sortBy$").startWith("order"), function (numServings, servingSize, pizzas, sortBy) {
 	      var totalSize = numServings * servingSize;
 	
-	      //generate permutations stupidly
+	      pizzas = _.sortBy(pizzas, "diameter").reverse();
 	
 	      function updateTotal(option) {
 	        option.total = _(option.pizzas).map("diameter").map(function (d) {
@@ -112,35 +112,34 @@
 	        }).reduce(function (sum, area) {
 	          return area + sum;
 	        });
-	
-	        option.cost = _(option.pizzas).map("cost").reduce(function (sum, cost) {
-	          return sum + cost;
-	        });
 	      }
 	
-	      function addPizza(option, options) {
+	      function addPizza(option, options, index) {
+	        index = index || 0;
 	        if (option.total > totalSize) {
 	          options.push(option);
 	        } else {
-	          pizzas.forEach(function (pizza) {
+	          for (var i = index; i < pizzas.length; ++i) {
 	            var newOp = { pizzas: _.clone(option.pizzas) };
-	            newOp.pizzas.push(pizza);
+	            newOp.pizzas.push(pizzas[i]);
 	            updateTotal(newOp);
-	            addPizza(newOp, options);
-	          });
+	            addPizza(newOp, options, i);
+	          }
 	        }
 	        return options;
 	      }
 	
-	      return _(addPizza({ pizzas: [], total: 0 }, [])).flatten().forEach(function (option) {
-	        option.pizzas = _.sortBy(option.pizzas, "diameter").reverse();
+	      return _(addPizza({ pizzas: [], total: 0 }, [])).flatten().tap(function (options) {
+	        return console.log("Found " + options.length + " options");
+	      }).forEach(function (option) {
+	        option.cost = _(option.pizzas).map("cost").reduce(function (sum, cost) {
+	          return sum + cost;
+	        });
 	        option.ratio = option.cost / option.total;
 	      }).sortBy("ratio").forEach(function (option, index) {
 	        return option.order = index + 1;
-	      }).uniq(true, function (option) {
-	        return _.map(option.pizzas, "name").join();
 	      }).sortBy("total").forEach(function (option, index) {
-	        return option.order += 2 * index + 1;
+	        return option.order += index;
 	      }).sortBy(sortBy).take(10).sortBy("total").tap(function (options) {
 	        return options[options.length - 1].special = "Most pizza! ";
 	      }).sortBy("ratio").tap(function (options) {
@@ -404,9 +403,9 @@
 	"";
 	
 	var Rx = __webpack_require__(/*! rx */ 15);
-	var errors = __webpack_require__(/*! ./errors */ 16);
-	var InputProxy = __webpack_require__(/*! ./input-proxy */ 17);
-	var Utils = __webpack_require__(/*! ./utils */ 18);
+	var errors = __webpack_require__(/*! ./errors */ 19);
+	var InputProxy = __webpack_require__(/*! ./input-proxy */ 20);
+	var Utils = __webpack_require__(/*! ./utils */ 21);
 	var CycleInterfaceError = errors.CycleInterfaceError;
 	
 	function replicate(source, subject) {
@@ -599,12 +598,12 @@
 	
 	var VDOM = {
 	  h: __webpack_require__(/*! virtual-dom */ 14).h,
-	  diff: __webpack_require__(/*! virtual-dom/diff */ 19),
-	  patch: __webpack_require__(/*! virtual-dom/patch */ 20)
+	  diff: __webpack_require__(/*! virtual-dom/diff */ 16),
+	  patch: __webpack_require__(/*! virtual-dom/patch */ 17)
 	};
 	var Rx = __webpack_require__(/*! rx */ 15);
 	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 6);
-	var CustomElements = __webpack_require__(/*! ./custom-elements */ 21);
+	var CustomElements = __webpack_require__(/*! ./custom-elements */ 18);
 	
 	function isElement(o) {
 	  return typeof HTMLElement === "object" ? o instanceof HTMLElement || o instanceof DocumentFragment : //DOM2
@@ -789,7 +788,7 @@
 	"";
 	
 	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 6);
-	var errors = __webpack_require__(/*! ./errors */ 16);
+	var errors = __webpack_require__(/*! ./errors */ 19);
 	
 	function createModel(definitionFn) {
 	  var model = new DataFlowNode(definitionFn);
@@ -813,7 +812,7 @@
 	
 	var Rx = __webpack_require__(/*! rx */ 15);
 	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 6);
-	var errors = __webpack_require__(/*! ./errors */ 16);
+	var errors = __webpack_require__(/*! ./errors */ 19);
 	
 	function checkVTree$(view) {
 	  if (view.get("vtree$") === null || typeof view.get("vtree$").subscribe !== "function") {
@@ -883,7 +882,7 @@
 	"";
 	
 	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 6);
-	var errors = __webpack_require__(/*! ./errors */ 16);
+	var errors = __webpack_require__(/*! ./errors */ 19);
 	
 	function createIntent(definitionFn) {
 	  var intent = new DataFlowNode(definitionFn);
@@ -905,8 +904,8 @@
 
 	"";
 	
-	var diff = __webpack_require__(/*! ./diff.js */ 19);
-	var patch = __webpack_require__(/*! ./patch.js */ 20);
+	var diff = __webpack_require__(/*! ./diff.js */ 16);
+	var patch = __webpack_require__(/*! ./patch.js */ 17);
 	var h = __webpack_require__(/*! ./h.js */ 22);
 	var create = __webpack_require__(/*! ./create-element.js */ 23);
 	
@@ -929,99 +928,6 @@
 
 /***/ },
 /* 16 */
-/*!*********************************!*\
-  !*** ./~/cyclejs/src/errors.js ***!
-  \*********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	function CycleInterfaceError(message, missingMember) {
-	  this.name = "CycleInterfaceError";
-	  this.message = message || "";
-	  this.missingMember = missingMember || "";
-	}
-	CycleInterfaceError.prototype = Error.prototype;
-	
-	function customInterfaceErrorMessageInInject(dataFlowNode, message) {
-	  var originalInject = dataFlowNode.inject;
-	  dataFlowNode.inject = function inject() {
-	    try {
-	      return originalInject.apply({}, arguments);
-	    } catch (err) {
-	      if (err.name === "CycleInterfaceError") {
-	        throw new CycleInterfaceError(message + err.missingMember, err.missingMember);
-	      } else {
-	        throw err;
-	      }
-	    }
-	  };
-	  return dataFlowNode;
-	}
-	
-	module.exports = {
-	  CycleInterfaceError: CycleInterfaceError,
-	  customInterfaceErrorMessageInInject: customInterfaceErrorMessageInInject
-	};
-
-/***/ },
-/* 17 */
-/*!**************************************!*\
-  !*** ./~/cyclejs/src/input-proxy.js ***!
-  \**************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var Rx = __webpack_require__(/*! rx */ 15);
-	
-	function InputProxy() {
-	  this.proxiedProps = {};
-	  // For any DataFlowNode
-	  this.get = function getFromProxy(streamKey) {
-	    if (typeof this.proxiedProps[streamKey] === "undefined") {
-	      this.proxiedProps[streamKey] = new Rx.Subject();
-	    }
-	    return this.proxiedProps[streamKey];
-	  };
-	  // For the DOMUser
-	  this.event$ = function event$FromProxy(selector, eventName) {
-	    if (typeof this.proxiedProps[selector] === "undefined") {
-	      this.proxiedProps[selector] = {
-	        _hasEvent$: true
-	      };
-	    }
-	    if (typeof this.proxiedProps[selector][eventName] === "undefined") {
-	      this.proxiedProps[selector][eventName] = new Rx.Subject();
-	    }
-	    return this.proxiedProps[selector][eventName];
-	  };
-	}
-	
-	module.exports = InputProxy;
-
-/***/ },
-/* 18 */
-/*!********************************!*\
-  !*** ./~/cyclejs/src/utils.js ***!
-  \********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	function endsWithDolarSign(str) {
-	  if (typeof str !== "string") {
-	    return false;
-	  }
-	  return str.indexOf("$", str.length - 1) !== -1;
-	}
-	
-	module.exports = {
-	  endsWithDolarSign: endsWithDolarSign
-	};
-
-/***/ },
-/* 19 */
 /*!*****************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/diff.js ***!
   \*****************************************/
@@ -1029,12 +935,12 @@
 
 	"";
 	
-	var diff = __webpack_require__(/*! ./vtree/diff.js */ 25);
+	var diff = __webpack_require__(/*! ./vtree/diff.js */ 26);
 	
 	module.exports = diff;
 
 /***/ },
-/* 20 */
+/* 17 */
 /*!******************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/patch.js ***!
   \******************************************/
@@ -1042,12 +948,12 @@
 
 	"";
 	
-	var patch = __webpack_require__(/*! ./vdom/patch.js */ 26);
+	var patch = __webpack_require__(/*! ./vdom/patch.js */ 25);
 	
 	module.exports = patch;
 
 /***/ },
-/* 21 */
+/* 18 */
 /*!******************************************!*\
   !*** ./~/cyclejs/src/custom-elements.js ***!
   \******************************************/
@@ -1055,8 +961,8 @@
 
 	"";
 	
-	var InputProxy = __webpack_require__(/*! ./input-proxy */ 17);
-	var Utils = __webpack_require__(/*! ./utils */ 18);
+	var InputProxy = __webpack_require__(/*! ./input-proxy */ 20);
+	var Utils = __webpack_require__(/*! ./utils */ 21);
 	var Rx = __webpack_require__(/*! rx */ 15);
 	
 	function makeDispatchFunction(element, eventName) {
@@ -1165,6 +1071,99 @@
 	};
 
 /***/ },
+/* 19 */
+/*!*********************************!*\
+  !*** ./~/cyclejs/src/errors.js ***!
+  \*********************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	function CycleInterfaceError(message, missingMember) {
+	  this.name = "CycleInterfaceError";
+	  this.message = message || "";
+	  this.missingMember = missingMember || "";
+	}
+	CycleInterfaceError.prototype = Error.prototype;
+	
+	function customInterfaceErrorMessageInInject(dataFlowNode, message) {
+	  var originalInject = dataFlowNode.inject;
+	  dataFlowNode.inject = function inject() {
+	    try {
+	      return originalInject.apply({}, arguments);
+	    } catch (err) {
+	      if (err.name === "CycleInterfaceError") {
+	        throw new CycleInterfaceError(message + err.missingMember, err.missingMember);
+	      } else {
+	        throw err;
+	      }
+	    }
+	  };
+	  return dataFlowNode;
+	}
+	
+	module.exports = {
+	  CycleInterfaceError: CycleInterfaceError,
+	  customInterfaceErrorMessageInInject: customInterfaceErrorMessageInInject
+	};
+
+/***/ },
+/* 20 */
+/*!**************************************!*\
+  !*** ./~/cyclejs/src/input-proxy.js ***!
+  \**************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var Rx = __webpack_require__(/*! rx */ 15);
+	
+	function InputProxy() {
+	  this.proxiedProps = {};
+	  // For any DataFlowNode
+	  this.get = function getFromProxy(streamKey) {
+	    if (typeof this.proxiedProps[streamKey] === "undefined") {
+	      this.proxiedProps[streamKey] = new Rx.Subject();
+	    }
+	    return this.proxiedProps[streamKey];
+	  };
+	  // For the DOMUser
+	  this.event$ = function event$FromProxy(selector, eventName) {
+	    if (typeof this.proxiedProps[selector] === "undefined") {
+	      this.proxiedProps[selector] = {
+	        _hasEvent$: true
+	      };
+	    }
+	    if (typeof this.proxiedProps[selector][eventName] === "undefined") {
+	      this.proxiedProps[selector][eventName] = new Rx.Subject();
+	    }
+	    return this.proxiedProps[selector][eventName];
+	  };
+	}
+	
+	module.exports = InputProxy;
+
+/***/ },
+/* 21 */
+/*!********************************!*\
+  !*** ./~/cyclejs/src/utils.js ***!
+  \********************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	function endsWithDolarSign(str) {
+	  if (typeof str !== "string") {
+	    return false;
+	  }
+	  return str.indexOf("$", str.length - 1) !== -1;
+	}
+	
+	module.exports = {
+	  endsWithDolarSign: endsWithDolarSign
+	};
+
+/***/ },
 /* 22 */
 /*!**************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/h.js ***!
@@ -1173,7 +1172,7 @@
 
 	"";
 	
-	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 29);
+	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 28);
 	
 	module.exports = h;
 
@@ -1186,7 +1185,7 @@
 
 	"";
 	
-	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 28);
+	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 29);
 	
 	module.exports = createElement;
 
@@ -1213,22 +1212,105 @@
 /***/ },
 /* 25 */
 /*!***********************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vdom/patch.js ***!
+  \***********************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var document = __webpack_require__(/*! global/document */ 47);
+	var isArray = __webpack_require__(/*! x-is-array */ 45);
+	
+	var domIndex = __webpack_require__(/*! ./dom-index */ 30);
+	var patchOp = __webpack_require__(/*! ./patch-op */ 31);
+	module.exports = patch;
+	
+	function patch(rootNode, patches) {
+	    return patchRecursive(rootNode, patches);
+	}
+	
+	function patchRecursive(rootNode, patches, renderOptions) {
+	    var indices = patchIndices(patches);
+	
+	    if (indices.length === 0) {
+	        return rootNode;
+	    }
+	
+	    var index = domIndex(rootNode, patches.a, indices);
+	    var ownerDocument = rootNode.ownerDocument;
+	
+	    if (!renderOptions) {
+	        renderOptions = { patch: patchRecursive };
+	        if (ownerDocument !== document) {
+	            renderOptions.document = ownerDocument;
+	        }
+	    }
+	
+	    for (var i = 0; i < indices.length; i++) {
+	        var nodeIndex = indices[i];
+	        rootNode = applyPatch(rootNode, index[nodeIndex], patches[nodeIndex], renderOptions);
+	    }
+	
+	    return rootNode;
+	}
+	
+	function applyPatch(rootNode, domNode, patchList, renderOptions) {
+	    if (!domNode) {
+	        return rootNode;
+	    }
+	
+	    var newNode;
+	
+	    if (isArray(patchList)) {
+	        for (var i = 0; i < patchList.length; i++) {
+	            newNode = patchOp(patchList[i], domNode, renderOptions);
+	
+	            if (domNode === rootNode) {
+	                rootNode = newNode;
+	            }
+	        }
+	    } else {
+	        newNode = patchOp(patchList, domNode, renderOptions);
+	
+	        if (domNode === rootNode) {
+	            rootNode = newNode;
+	        }
+	    }
+	
+	    return rootNode;
+	}
+	
+	function patchIndices(patches) {
+	    var indices = [];
+	
+	    for (var key in patches) {
+	        if (key !== "a") {
+	            indices.push(Number(key));
+	        }
+	    }
+	
+	    return indices;
+	}
+
+/***/ },
+/* 26 */
+/*!***********************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vtree/diff.js ***!
   \***********************************************/
 /***/ function(module, exports, __webpack_require__) {
 
 	"";
 	
-	var isArray = __webpack_require__(/*! x-is-array */ 40);
+	var isArray = __webpack_require__(/*! x-is-array */ 45);
 	
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 30);
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 31);
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 32);
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 33);
-	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 34);
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 36);
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 32);
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 33);
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 34);
+	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 37);
 	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk */ 35);
 	
-	var diffProps = __webpack_require__(/*! ./diff-props */ 36);
+	var diffProps = __webpack_require__(/*! ./diff-props */ 38);
 	
 	module.exports = diff;
 	
@@ -1531,89 +1613,6 @@
 	}
 
 /***/ },
-/* 26 */
-/*!***********************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/patch.js ***!
-  \***********************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var document = __webpack_require__(/*! global/document */ 47);
-	var isArray = __webpack_require__(/*! x-is-array */ 40);
-	
-	var domIndex = __webpack_require__(/*! ./dom-index */ 37);
-	var patchOp = __webpack_require__(/*! ./patch-op */ 38);
-	module.exports = patch;
-	
-	function patch(rootNode, patches) {
-	    return patchRecursive(rootNode, patches);
-	}
-	
-	function patchRecursive(rootNode, patches, renderOptions) {
-	    var indices = patchIndices(patches);
-	
-	    if (indices.length === 0) {
-	        return rootNode;
-	    }
-	
-	    var index = domIndex(rootNode, patches.a, indices);
-	    var ownerDocument = rootNode.ownerDocument;
-	
-	    if (!renderOptions) {
-	        renderOptions = { patch: patchRecursive };
-	        if (ownerDocument !== document) {
-	            renderOptions.document = ownerDocument;
-	        }
-	    }
-	
-	    for (var i = 0; i < indices.length; i++) {
-	        var nodeIndex = indices[i];
-	        rootNode = applyPatch(rootNode, index[nodeIndex], patches[nodeIndex], renderOptions);
-	    }
-	
-	    return rootNode;
-	}
-	
-	function applyPatch(rootNode, domNode, patchList, renderOptions) {
-	    if (!domNode) {
-	        return rootNode;
-	    }
-	
-	    var newNode;
-	
-	    if (isArray(patchList)) {
-	        for (var i = 0; i < patchList.length; i++) {
-	            newNode = patchOp(patchList[i], domNode, renderOptions);
-	
-	            if (domNode === rootNode) {
-	                rootNode = newNode;
-	            }
-	        }
-	    } else {
-	        newNode = patchOp(patchList, domNode, renderOptions);
-	
-	        if (domNode === rootNode) {
-	            rootNode = newNode;
-	        }
-	    }
-	
-	    return rootNode;
-	}
-	
-	function patchIndices(patches) {
-	    var indices = [];
-	
-	    for (var key in patches) {
-	        if (key !== "a") {
-	            indices.push(Number(key));
-	        }
-	    }
-	
-	    return indices;
-	}
-
-/***/ },
 /* 27 */
 /*!**********************************************************!*\
   !*** (webpack)/~/node-libs-browser/~/process/browser.js ***!
@@ -1687,60 +1686,6 @@
 
 /***/ },
 /* 28 */
-/*!********************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/create-element.js ***!
-  \********************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var document = __webpack_require__(/*! global/document */ 47);
-	
-	var applyProperties = __webpack_require__(/*! ./apply-properties */ 39);
-	
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 31);
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 32);
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 33);
-	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 35);
-	
-	module.exports = createElement;
-	
-	function createElement(vnode, opts) {
-	    var doc = opts ? opts.document || document : document;
-	    var warn = opts ? opts.warn : null;
-	
-	    vnode = handleThunk(vnode).a;
-	
-	    if (isWidget(vnode)) {
-	        return vnode.init();
-	    } else if (isVText(vnode)) {
-	        return doc.createTextNode(vnode.text);
-	    } else if (!isVNode(vnode)) {
-	        if (warn) {
-	            warn("Item is not a valid virtual dom node", vnode);
-	        }
-	        return null;
-	    }
-	
-	    var node = vnode.namespace === null ? doc.createElement(vnode.tagName) : doc.createElementNS(vnode.namespace, vnode.tagName);
-	
-	    var props = vnode.properties;
-	    applyProperties(node, props);
-	
-	    var children = vnode.children;
-	
-	    for (var i = 0; i < children.length; i++) {
-	        var childNode = createElement(children[i], opts);
-	        if (childNode) {
-	            node.appendChild(childNode);
-	        }
-	    }
-	
-	    return node;
-	}
-
-/***/ },
-/* 29 */
 /*!**************************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/index.js ***!
   \**************************************************************/
@@ -1748,19 +1693,19 @@
 
 	"";
 	
-	var isArray = __webpack_require__(/*! x-is-array */ 40);
+	var isArray = __webpack_require__(/*! x-is-array */ 45);
 	
-	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 41);
-	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 42);
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 31);
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 32);
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 33);
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 43);
-	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 34);
+	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 39);
+	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 40);
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 32);
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 33);
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 34);
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 41);
+	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 37);
 	
-	var parseTag = __webpack_require__(/*! ./parse-tag.js */ 44);
-	var softSetHook = __webpack_require__(/*! ./hooks/soft-set-hook.js */ 45);
-	var evHook = __webpack_require__(/*! ./hooks/ev-hook.js */ 46);
+	var parseTag = __webpack_require__(/*! ./parse-tag.js */ 42);
+	var softSetHook = __webpack_require__(/*! ./hooks/soft-set-hook.js */ 43);
+	var evHook = __webpack_require__(/*! ./hooks/ev-hook.js */ 44);
 	
 	module.exports = h;
 	
@@ -1870,219 +1815,61 @@
 	}
 
 /***/ },
+/* 29 */
+/*!********************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vdom/create-element.js ***!
+  \********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var document = __webpack_require__(/*! global/document */ 47);
+	
+	var applyProperties = __webpack_require__(/*! ./apply-properties */ 46);
+	
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 32);
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 33);
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 34);
+	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 35);
+	
+	module.exports = createElement;
+	
+	function createElement(vnode, opts) {
+	    var doc = opts ? opts.document || document : document;
+	    var warn = opts ? opts.warn : null;
+	
+	    vnode = handleThunk(vnode).a;
+	
+	    if (isWidget(vnode)) {
+	        return vnode.init();
+	    } else if (isVText(vnode)) {
+	        return doc.createTextNode(vnode.text);
+	    } else if (!isVNode(vnode)) {
+	        if (warn) {
+	            warn("Item is not a valid virtual dom node", vnode);
+	        }
+	        return null;
+	    }
+	
+	    var node = vnode.namespace === null ? doc.createElement(vnode.tagName) : doc.createElementNS(vnode.namespace, vnode.tagName);
+	
+	    var props = vnode.properties;
+	    applyProperties(node, props);
+	
+	    var children = vnode.children;
+	
+	    for (var i = 0; i < children.length; i++) {
+	        var childNode = createElement(children[i], opts);
+	        if (childNode) {
+	            node.appendChild(childNode);
+	        }
+	    }
+	
+	    return node;
+	}
+
+/***/ },
 /* 30 */
-/*!*************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
-  \*************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var version = __webpack_require__(/*! ./version */ 48);
-	
-	VirtualPatch.NONE = 0;
-	VirtualPatch.VTEXT = 1;
-	VirtualPatch.VNODE = 2;
-	VirtualPatch.WIDGET = 3;
-	VirtualPatch.PROPS = 4;
-	VirtualPatch.ORDER = 5;
-	VirtualPatch.INSERT = 6;
-	VirtualPatch.REMOVE = 7;
-	VirtualPatch.THUNK = 8;
-	
-	module.exports = VirtualPatch;
-	
-	function VirtualPatch(type, vNode, patch) {
-	    this.type = Number(type);
-	    this.vNode = vNode;
-	    this.patch = patch;
-	}
-	
-	VirtualPatch.prototype.version = version;
-	VirtualPatch.prototype.type = "VirtualPatch";
-
-/***/ },
-/* 31 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vnode.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var version = __webpack_require__(/*! ./version */ 48);
-	
-	module.exports = isVirtualNode;
-	
-	function isVirtualNode(x) {
-	    return x && x.type === "VirtualNode" && x.version === version;
-	}
-
-/***/ },
-/* 32 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vtext.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var version = __webpack_require__(/*! ./version */ 48);
-	
-	module.exports = isVirtualText;
-	
-	function isVirtualText(x) {
-	    return x && x.type === "VirtualText" && x.version === version;
-	}
-
-/***/ },
-/* 33 */
-/*!****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-widget.js ***!
-  \****************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	module.exports = isWidget;
-	
-	function isWidget(w) {
-	    return w && w.type === "Widget";
-	}
-
-/***/ },
-/* 34 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	module.exports = isThunk;
-	
-	function isThunk(t) {
-	    return t && t.type === "Thunk";
-	}
-
-/***/ },
-/* 35 */
-/*!*******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/handle-thunk.js ***!
-  \*******************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 31);
-	var isVText = __webpack_require__(/*! ./is-vtext */ 32);
-	var isWidget = __webpack_require__(/*! ./is-widget */ 33);
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 34);
-	
-	module.exports = handleThunk;
-	
-	function handleThunk(a, b) {
-	    var renderedA = a;
-	    var renderedB = b;
-	
-	    if (isThunk(b)) {
-	        renderedB = renderThunk(b, a);
-	    }
-	
-	    if (isThunk(a)) {
-	        renderedA = renderThunk(a, null);
-	    }
-	
-	    return {
-	        a: renderedA,
-	        b: renderedB
-	    };
-	}
-	
-	function renderThunk(thunk, previous) {
-	    var renderedThunk = thunk.vnode;
-	
-	    if (!renderedThunk) {
-	        renderedThunk = thunk.vnode = thunk.render(previous);
-	    }
-	
-	    if (!(isVNode(renderedThunk) || isVText(renderedThunk) || isWidget(renderedThunk))) {
-	        throw new Error("thunk did not return a valid node");
-	    }
-	
-	    return renderedThunk;
-	}
-
-/***/ },
-/* 36 */
-/*!*****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
-  \*****************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var isObject = __webpack_require__(/*! is-object */ 51);
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 43);
-	
-	module.exports = diffProps;
-	
-	function diffProps(a, b) {
-	    var diff;
-	
-	    for (var aKey in a) {
-	        if (!(aKey in b)) {
-	            diff = diff || {};
-	            diff[aKey] = undefined;
-	        }
-	
-	        var aValue = a[aKey];
-	        var bValue = b[aKey];
-	
-	        if (aValue === bValue) {
-	            continue;
-	        } else if (isObject(aValue) && isObject(bValue)) {
-	            if (getPrototype(bValue) !== getPrototype(aValue)) {
-	                diff = diff || {};
-	                diff[aKey] = bValue;
-	            } else if (isHook(bValue)) {
-	                diff = diff || {};
-	                diff[aKey] = bValue;
-	            } else {
-	                var objectDiff = diffProps(aValue, bValue);
-	                if (objectDiff) {
-	                    diff = diff || {};
-	                    diff[aKey] = objectDiff;
-	                }
-	            }
-	        } else {
-	            diff = diff || {};
-	            diff[aKey] = bValue;
-	        }
-	    }
-	
-	    for (var bKey in b) {
-	        if (!(bKey in a)) {
-	            diff = diff || {};
-	            diff[bKey] = b[bKey];
-	        }
-	    }
-	
-	    return diff;
-	}
-	
-	function getPrototype(value) {
-	    if (Object.getPrototypeOf) {
-	        return Object.getPrototypeOf(value);
-	    } else if (value.__proto__) {
-	        return value.__proto__;
-	    } else if (value.constructor) {
-	        return value.constructor.prototype;
-	    }
-	}
-
-/***/ },
-/* 37 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/dom-index.js ***!
   \***************************************************/
@@ -2176,7 +1963,7 @@
 	}
 
 /***/ },
-/* 38 */
+/* 31 */
 /*!**************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/patch-op.js ***!
   \**************************************************/
@@ -2184,13 +1971,13 @@
 
 	"";
 	
-	var applyProperties = __webpack_require__(/*! ./apply-properties */ 39);
+	var applyProperties = __webpack_require__(/*! ./apply-properties */ 46);
 	
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 33);
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 30);
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 34);
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 36);
 	
-	var render = __webpack_require__(/*! ./create-element */ 28);
-	var updateWidget = __webpack_require__(/*! ./update-widget */ 49);
+	var render = __webpack_require__(/*! ./create-element */ 29);
+	var updateWidget = __webpack_require__(/*! ./update-widget */ 48);
 	
 	module.exports = applyPatch;
 	
@@ -2368,7 +2155,476 @@
 	}
 
 /***/ },
+/* 32 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vnode.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var version = __webpack_require__(/*! ./version */ 49);
+	
+	module.exports = isVirtualNode;
+	
+	function isVirtualNode(x) {
+	    return x && x.type === "VirtualNode" && x.version === version;
+	}
+
+/***/ },
+/* 33 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vtext.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var version = __webpack_require__(/*! ./version */ 49);
+	
+	module.exports = isVirtualText;
+	
+	function isVirtualText(x) {
+	    return x && x.type === "VirtualText" && x.version === version;
+	}
+
+/***/ },
+/* 34 */
+/*!****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-widget.js ***!
+  \****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	module.exports = isWidget;
+	
+	function isWidget(w) {
+	    return w && w.type === "Widget";
+	}
+
+/***/ },
+/* 35 */
+/*!*******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/handle-thunk.js ***!
+  \*******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 32);
+	var isVText = __webpack_require__(/*! ./is-vtext */ 33);
+	var isWidget = __webpack_require__(/*! ./is-widget */ 34);
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 37);
+	
+	module.exports = handleThunk;
+	
+	function handleThunk(a, b) {
+	    var renderedA = a;
+	    var renderedB = b;
+	
+	    if (isThunk(b)) {
+	        renderedB = renderThunk(b, a);
+	    }
+	
+	    if (isThunk(a)) {
+	        renderedA = renderThunk(a, null);
+	    }
+	
+	    return {
+	        a: renderedA,
+	        b: renderedB
+	    };
+	}
+	
+	function renderThunk(thunk, previous) {
+	    var renderedThunk = thunk.vnode;
+	
+	    if (!renderedThunk) {
+	        renderedThunk = thunk.vnode = thunk.render(previous);
+	    }
+	
+	    if (!(isVNode(renderedThunk) || isVText(renderedThunk) || isWidget(renderedThunk))) {
+	        throw new Error("thunk did not return a valid node");
+	    }
+	
+	    return renderedThunk;
+	}
+
+/***/ },
+/* 36 */
+/*!*************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
+  \*************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var version = __webpack_require__(/*! ./version */ 49);
+	
+	VirtualPatch.NONE = 0;
+	VirtualPatch.VTEXT = 1;
+	VirtualPatch.VNODE = 2;
+	VirtualPatch.WIDGET = 3;
+	VirtualPatch.PROPS = 4;
+	VirtualPatch.ORDER = 5;
+	VirtualPatch.INSERT = 6;
+	VirtualPatch.REMOVE = 7;
+	VirtualPatch.THUNK = 8;
+	
+	module.exports = VirtualPatch;
+	
+	function VirtualPatch(type, vNode, patch) {
+	    this.type = Number(type);
+	    this.vNode = vNode;
+	    this.patch = patch;
+	}
+	
+	VirtualPatch.prototype.version = version;
+	VirtualPatch.prototype.type = "VirtualPatch";
+
+/***/ },
+/* 37 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	module.exports = isThunk;
+	
+	function isThunk(t) {
+	    return t && t.type === "Thunk";
+	}
+
+/***/ },
+/* 38 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var isObject = __webpack_require__(/*! is-object */ 51);
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 41);
+	
+	module.exports = diffProps;
+	
+	function diffProps(a, b) {
+	    var diff;
+	
+	    for (var aKey in a) {
+	        if (!(aKey in b)) {
+	            diff = diff || {};
+	            diff[aKey] = undefined;
+	        }
+	
+	        var aValue = a[aKey];
+	        var bValue = b[aKey];
+	
+	        if (aValue === bValue) {
+	            continue;
+	        } else if (isObject(aValue) && isObject(bValue)) {
+	            if (getPrototype(bValue) !== getPrototype(aValue)) {
+	                diff = diff || {};
+	                diff[aKey] = bValue;
+	            } else if (isHook(bValue)) {
+	                diff = diff || {};
+	                diff[aKey] = bValue;
+	            } else {
+	                var objectDiff = diffProps(aValue, bValue);
+	                if (objectDiff) {
+	                    diff = diff || {};
+	                    diff[aKey] = objectDiff;
+	                }
+	            }
+	        } else {
+	            diff = diff || {};
+	            diff[aKey] = bValue;
+	        }
+	    }
+	
+	    for (var bKey in b) {
+	        if (!(bKey in a)) {
+	            diff = diff || {};
+	            diff[bKey] = b[bKey];
+	        }
+	    }
+	
+	    return diff;
+	}
+	
+	function getPrototype(value) {
+	    if (Object.getPrototypeOf) {
+	        return Object.getPrototypeOf(value);
+	    } else if (value.__proto__) {
+	        return value.__proto__;
+	    } else if (value.constructor) {
+	        return value.constructor.prototype;
+	    }
+	}
+
+/***/ },
 /* 39 */
+/*!************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/vnode.js ***!
+  \************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var version = __webpack_require__(/*! ./version */ 49);
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 32);
+	var isWidget = __webpack_require__(/*! ./is-widget */ 34);
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 37);
+	var isVHook = __webpack_require__(/*! ./is-vhook */ 41);
+	
+	module.exports = VirtualNode;
+	
+	var noProperties = {};
+	var noChildren = [];
+	
+	function VirtualNode(tagName, properties, children, key, namespace) {
+	    this.tagName = tagName;
+	    this.properties = properties || noProperties;
+	    this.children = children || noChildren;
+	    this.key = key != null ? String(key) : undefined;
+	    this.namespace = typeof namespace === "string" ? namespace : null;
+	
+	    var count = children && children.length || 0;
+	    var descendants = 0;
+	    var hasWidgets = false;
+	    var hasThunks = false;
+	    var descendantHooks = false;
+	    var hooks;
+	
+	    for (var propName in properties) {
+	        if (properties.hasOwnProperty(propName)) {
+	            var property = properties[propName];
+	            if (isVHook(property) && property.unhook) {
+	                if (!hooks) {
+	                    hooks = {};
+	                }
+	
+	                hooks[propName] = property;
+	            }
+	        }
+	    }
+	
+	    for (var i = 0; i < count; i++) {
+	        var child = children[i];
+	        if (isVNode(child)) {
+	            descendants += child.count || 0;
+	
+	            if (!hasWidgets && child.hasWidgets) {
+	                hasWidgets = true;
+	            }
+	
+	            if (!hasThunks && child.hasThunks) {
+	                hasThunks = true;
+	            }
+	
+	            if (!descendantHooks && (child.hooks || child.descendantHooks)) {
+	                descendantHooks = true;
+	            }
+	        } else if (!hasWidgets && isWidget(child)) {
+	            if (typeof child.destroy === "function") {
+	                hasWidgets = true;
+	            }
+	        } else if (!hasThunks && isThunk(child)) {
+	            hasThunks = true;
+	        }
+	    }
+	
+	    this.count = count + descendants;
+	    this.hasWidgets = hasWidgets;
+	    this.hasThunks = hasThunks;
+	    this.hooks = hooks;
+	    this.descendantHooks = descendantHooks;
+	}
+	
+	VirtualNode.prototype.version = version;
+	VirtualNode.prototype.type = "VirtualNode";
+
+/***/ },
+/* 40 */
+/*!************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/vtext.js ***!
+  \************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var version = __webpack_require__(/*! ./version */ 49);
+	
+	module.exports = VirtualText;
+	
+	function VirtualText(text) {
+	    this.text = String(text);
+	}
+	
+	VirtualText.prototype.version = version;
+	VirtualText.prototype.type = "VirtualText";
+
+/***/ },
+/* 41 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vhook.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	module.exports = isHook;
+	
+	function isHook(hook) {
+	  return hook && (typeof hook.hook === "function" && !hook.hasOwnProperty("hook") || typeof hook.unhook === "function" && !hook.hasOwnProperty("unhook"));
+	}
+
+/***/ },
+/* 42 */
+/*!******************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/parse-tag.js ***!
+  \******************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var split = __webpack_require__(/*! browser-split */ 52);
+	
+	var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/;
+	var notClassId = /^\.|#/;
+	
+	module.exports = parseTag;
+	
+	function parseTag(tag, props) {
+	    if (!tag) {
+	        return "DIV";
+	    }
+	
+	    var noId = !props.hasOwnProperty("id");
+	
+	    var tagParts = split(tag, classIdSplit);
+	    var tagName = null;
+	
+	    if (notClassId.test(tagParts[1])) {
+	        tagName = "DIV";
+	    }
+	
+	    var classes, part, type, i;
+	
+	    for (i = 0; i < tagParts.length; i++) {
+	        part = tagParts[i];
+	
+	        if (!part) {
+	            continue;
+	        }
+	
+	        type = part.charAt(0);
+	
+	        if (!tagName) {
+	            tagName = part;
+	        } else if (type === ".") {
+	            classes = classes || [];
+	            classes.push(part.substring(1, part.length));
+	        } else if (type === "#" && noId) {
+	            props.id = part.substring(1, part.length);
+	        }
+	    }
+	
+	    if (classes) {
+	        if (props.className) {
+	            classes.push(props.className);
+	        }
+	
+	        props.className = classes.join(" ");
+	    }
+	
+	    return props.namespace ? tagName : tagName.toUpperCase();
+	}
+
+/***/ },
+/* 43 */
+/*!****************************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js ***!
+  \****************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	module.exports = SoftSetHook;
+	
+	function SoftSetHook(value) {
+	    if (!(this instanceof SoftSetHook)) {
+	        return new SoftSetHook(value);
+	    }
+	
+	    this.value = value;
+	}
+	
+	SoftSetHook.prototype.hook = function (node, propertyName) {
+	    if (node[propertyName] !== this.value) {
+	        node[propertyName] = this.value;
+	    }
+	};
+
+/***/ },
+/* 44 */
+/*!**********************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/ev-hook.js ***!
+  \**********************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var EvStore = __webpack_require__(/*! ev-store */ 53);
+	
+	module.exports = EvHook;
+	
+	function EvHook(value) {
+	    if (!(this instanceof EvHook)) {
+	        return new EvHook(value);
+	    }
+	
+	    this.value = value;
+	}
+	
+	EvHook.prototype.hook = function (node, propertyName) {
+	    var es = EvStore(node);
+	    var propName = propertyName.substr(3);
+	
+	    es[propName] = this.value;
+	};
+	
+	EvHook.prototype.unhook = function (node, propertyName) {
+	    var es = EvStore(node);
+	    var propName = propertyName.substr(3);
+	
+	    es[propName] = undefined;
+	};
+
+/***/ },
+/* 45 */
+/*!*******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/x-is-array/index.js ***!
+  \*******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	var nativeIsArray = Array.isArray;
+	var toString = Object.prototype.toString;
+	
+	module.exports = nativeIsArray || isArray;
+	
+	function isArray(obj) {
+	    return toString.call(obj) === "[object Array]";
+	}
+
+/***/ },
+/* 46 */
 /*!**********************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/apply-properties.js ***!
   \**********************************************************/
@@ -2377,7 +2633,7 @@
 	"";
 	
 	var isObject = __webpack_require__(/*! is-object */ 51);
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook.js */ 43);
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook.js */ 41);
 	
 	module.exports = applyProperties;
 	
@@ -2472,263 +2728,6 @@
 	}
 
 /***/ },
-/* 40 */
-/*!*******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/x-is-array/index.js ***!
-  \*******************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var nativeIsArray = Array.isArray;
-	var toString = Object.prototype.toString;
-	
-	module.exports = nativeIsArray || isArray;
-	
-	function isArray(obj) {
-	    return toString.call(obj) === "[object Array]";
-	}
-
-/***/ },
-/* 41 */
-/*!************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/vnode.js ***!
-  \************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var version = __webpack_require__(/*! ./version */ 48);
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 31);
-	var isWidget = __webpack_require__(/*! ./is-widget */ 33);
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 34);
-	var isVHook = __webpack_require__(/*! ./is-vhook */ 43);
-	
-	module.exports = VirtualNode;
-	
-	var noProperties = {};
-	var noChildren = [];
-	
-	function VirtualNode(tagName, properties, children, key, namespace) {
-	    this.tagName = tagName;
-	    this.properties = properties || noProperties;
-	    this.children = children || noChildren;
-	    this.key = key != null ? String(key) : undefined;
-	    this.namespace = typeof namespace === "string" ? namespace : null;
-	
-	    var count = children && children.length || 0;
-	    var descendants = 0;
-	    var hasWidgets = false;
-	    var hasThunks = false;
-	    var descendantHooks = false;
-	    var hooks;
-	
-	    for (var propName in properties) {
-	        if (properties.hasOwnProperty(propName)) {
-	            var property = properties[propName];
-	            if (isVHook(property) && property.unhook) {
-	                if (!hooks) {
-	                    hooks = {};
-	                }
-	
-	                hooks[propName] = property;
-	            }
-	        }
-	    }
-	
-	    for (var i = 0; i < count; i++) {
-	        var child = children[i];
-	        if (isVNode(child)) {
-	            descendants += child.count || 0;
-	
-	            if (!hasWidgets && child.hasWidgets) {
-	                hasWidgets = true;
-	            }
-	
-	            if (!hasThunks && child.hasThunks) {
-	                hasThunks = true;
-	            }
-	
-	            if (!descendantHooks && (child.hooks || child.descendantHooks)) {
-	                descendantHooks = true;
-	            }
-	        } else if (!hasWidgets && isWidget(child)) {
-	            if (typeof child.destroy === "function") {
-	                hasWidgets = true;
-	            }
-	        } else if (!hasThunks && isThunk(child)) {
-	            hasThunks = true;
-	        }
-	    }
-	
-	    this.count = count + descendants;
-	    this.hasWidgets = hasWidgets;
-	    this.hasThunks = hasThunks;
-	    this.hooks = hooks;
-	    this.descendantHooks = descendantHooks;
-	}
-	
-	VirtualNode.prototype.version = version;
-	VirtualNode.prototype.type = "VirtualNode";
-
-/***/ },
-/* 42 */
-/*!************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/vtext.js ***!
-  \************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var version = __webpack_require__(/*! ./version */ 48);
-	
-	module.exports = VirtualText;
-	
-	function VirtualText(text) {
-	    this.text = String(text);
-	}
-	
-	VirtualText.prototype.version = version;
-	VirtualText.prototype.type = "VirtualText";
-
-/***/ },
-/* 43 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vhook.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	module.exports = isHook;
-	
-	function isHook(hook) {
-	  return hook && (typeof hook.hook === "function" && !hook.hasOwnProperty("hook") || typeof hook.unhook === "function" && !hook.hasOwnProperty("unhook"));
-	}
-
-/***/ },
-/* 44 */
-/*!******************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/parse-tag.js ***!
-  \******************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var split = __webpack_require__(/*! browser-split */ 52);
-	
-	var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/;
-	var notClassId = /^\.|#/;
-	
-	module.exports = parseTag;
-	
-	function parseTag(tag, props) {
-	    if (!tag) {
-	        return "DIV";
-	    }
-	
-	    var noId = !props.hasOwnProperty("id");
-	
-	    var tagParts = split(tag, classIdSplit);
-	    var tagName = null;
-	
-	    if (notClassId.test(tagParts[1])) {
-	        tagName = "DIV";
-	    }
-	
-	    var classes, part, type, i;
-	
-	    for (i = 0; i < tagParts.length; i++) {
-	        part = tagParts[i];
-	
-	        if (!part) {
-	            continue;
-	        }
-	
-	        type = part.charAt(0);
-	
-	        if (!tagName) {
-	            tagName = part;
-	        } else if (type === ".") {
-	            classes = classes || [];
-	            classes.push(part.substring(1, part.length));
-	        } else if (type === "#" && noId) {
-	            props.id = part.substring(1, part.length);
-	        }
-	    }
-	
-	    if (classes) {
-	        if (props.className) {
-	            classes.push(props.className);
-	        }
-	
-	        props.className = classes.join(" ");
-	    }
-	
-	    return props.namespace ? tagName : tagName.toUpperCase();
-	}
-
-/***/ },
-/* 45 */
-/*!****************************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js ***!
-  \****************************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	module.exports = SoftSetHook;
-	
-	function SoftSetHook(value) {
-	    if (!(this instanceof SoftSetHook)) {
-	        return new SoftSetHook(value);
-	    }
-	
-	    this.value = value;
-	}
-	
-	SoftSetHook.prototype.hook = function (node, propertyName) {
-	    if (node[propertyName] !== this.value) {
-	        node[propertyName] = this.value;
-	    }
-	};
-
-/***/ },
-/* 46 */
-/*!**********************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/ev-hook.js ***!
-  \**********************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	var EvStore = __webpack_require__(/*! ev-store */ 53);
-	
-	module.exports = EvHook;
-	
-	function EvHook(value) {
-	    if (!(this instanceof EvHook)) {
-	        return new EvHook(value);
-	    }
-	
-	    this.value = value;
-	}
-	
-	EvHook.prototype.hook = function (node, propertyName) {
-	    var es = EvStore(node);
-	    var propName = propertyName.substr(3);
-	
-	    es[propName] = this.value;
-	};
-	
-	EvHook.prototype.unhook = function (node, propertyName) {
-	    var es = EvStore(node);
-	    var propName = propertyName.substr(3);
-	
-	    es[propName] = undefined;
-	};
-
-/***/ },
 /* 47 */
 /*!******************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/global/document.js ***!
@@ -2755,17 +2754,6 @@
 
 /***/ },
 /* 48 */
-/*!**************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/version.js ***!
-  \**************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"";
-	
-	module.exports = "1";
-
-/***/ },
-/* 49 */
 /*!*******************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/update-widget.js ***!
   \*******************************************************/
@@ -2773,7 +2761,7 @@
 
 	"";
 	
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 33);
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 34);
 	
 	module.exports = updateWidget;
 	
@@ -2788,6 +2776,17 @@
 	
 	    return false;
 	}
+
+/***/ },
+/* 49 */
+/*!**************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/version.js ***!
+  \**************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"";
+	
+	module.exports = "1";
 
 /***/ },
 /* 50 */
