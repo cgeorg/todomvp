@@ -81,7 +81,7 @@
 	
 	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 5));
 	
-	var _ = _interopRequire(__webpack_require__(/*! lodash */ 6));
+	var _ = _interopRequire(__webpack_require__(/*! lodash */ 14));
 	
 	function calculatePurchaseOptions(model) {
 	  var servingSize = model.servingSize;
@@ -194,7 +194,7 @@
 	
 	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 5));
 	
-	var _ = _interopRequire(__webpack_require__(/*! lodash */ 6));
+	var _ = _interopRequire(__webpack_require__(/*! lodash */ 14));
 	
 	function renderOptions(model) {
 	  return [Cycle.h("h2", "Let's get one of these:"), Cycle.h("table", [Cycle.h("thead", [Cycle.h("tr", [Cycle.h("th", "Pizzas"), Cycle.h("th", {
@@ -313,23 +313,28 @@
 	
 	 */
 	
-	var menus = {
-	  "Monte Cellos": [{ name: "Large", diameter: 16, cuts: 10, cost: 12.95 }, { name: "Medium", diameter: 14, cost: 9.95 }, { name: "Small", diameter: 12, cost: 8.95 }],
-	  "Pizza Parma": [{ name: "XLarge", diameter: 18, cost: 13.99 }, { name: "Large", diameter: 16, cost: 12.99 }, { name: "Medium", diameter: 14, cost: 10.99 }, { name: "Small", diameter: 10, cost: 8.99 }]
+	var menus = window && window.menus || [{
+	  _id: "54fca86fe976eead6c54544c",
+	  name: "Monte Cellos Local",
+	  pizzas: [{ name: "Large", diameter: 16, cuts: 10, cost: 12.95 }, { name: "Medium", diameter: 14, cost: 9.95 }, { name: "Small", diameter: 12, cost: 8.95 }]
+	}, {
+	  _id: "54fca8a1e976eead6c54544d",
+	  name: "Pizza Parma Local",
+	  pizzas: [{ name: "XLarge", diameter: 18, cost: 13.99 }, { name: "Large", diameter: 16, cost: 12.99 }, { name: "Medium", diameter: 14, cost: 10.99 }, { name: "Small", diameter: 10, cost: 8.99 }]
+	}];
+	
+	var gathering = window && window.gathering || {
+	  eaters: [{ name: "Doug MG", servings: 3 }, { name: "Woolner MG", servings: 4 }, { name: "CMG MG", servings: 4 }, { name: "Gabo MG", servings: 3 }],
+	  servingSize: 20.1,
+	  menu: "54fca86fe976eead6c54544c"
 	};
 	
 	function getDefaultServing() {
-	  return Math.floor(Math.pow(menus["Monte Cellos"][0].diameter / 2, 2) * Math.PI * 100 / menus["Monte Cellos"][0].cuts) / 100;
+	  return Math.floor(Math.pow(menus[0][0].diameter / 2, 2) * Math.PI * 100 / menus[0][0].cuts) / 100;
 	}
 	
 	var ModelSource = Cycle.createDataFlowSource({
-	  model$: Rx.Observable.just({
-	    menus: menus,
-	    eaters: [{ name: "Doug", servings: 3 }, { name: "Woolner", servings: 4 }, { name: "CMG", servings: 4 }, { name: "Gabo", servings: 3 }],
-	    servingSize: getDefaultServing(),
-	    selectedMenu: menus["Monte Cellos"],
-	    sortBy: "order"
-	  })
+	  model$: Rx.Observable.just(gathering)
 	});
 	
 	module.exports = ModelSource;
@@ -344,11 +349,11 @@
 	'use strict';
 	var VirtualDOM = __webpack_require__(/*! virtual-dom */ 15);
 	var Rx = __webpack_require__(/*! rx */ 16);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var DataFlowSource = __webpack_require__(/*! ./data-flow-source */ 8);
-	var DataFlowSink = __webpack_require__(/*! ./data-flow-sink */ 9);
-	var DOMUser = __webpack_require__(/*! ./dom-user */ 10);
-	var PropertyHook = __webpack_require__(/*! ./property-hook */ 11);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 6);
+	var DataFlowSource = __webpack_require__(/*! ./data-flow-source */ 7);
+	var DataFlowSink = __webpack_require__(/*! ./data-flow-sink */ 8);
+	var DOMUser = __webpack_require__(/*! ./dom-user */ 9);
+	var PropertyHook = __webpack_require__(/*! ./property-hook */ 10);
 	
 	var Cycle = {
 	  /**
@@ -403,7 +408,7 @@
 	   * `inject(intent)` function.
 	   * @function createModel
 	   */
-	  createModel: __webpack_require__(/*! ./create-model */ 12),
+	  createModel: __webpack_require__(/*! ./create-model */ 11),
 	
 	  /**
 	   * Returns a DataFlowNode representing a View, having some Model as input.
@@ -418,7 +423,7 @@
 	   * `inject(model)` function.
 	   * @function createView
 	   */
-	  createView: __webpack_require__(/*! ./create-view */ 13),
+	  createView: __webpack_require__(/*! ./create-view */ 12),
 	
 	  /**
 	   * Returns a DataFlowNode representing an Intent, having some View as input.
@@ -431,7 +436,7 @@
 	   * `inject(view)` function.
 	   * @function createIntent
 	   */
-	  createIntent: __webpack_require__(/*! ./create-intent */ 14),
+	  createIntent: __webpack_require__(/*! ./create-intent */ 13),
 	
 	  /**
 	   * Returns a DOMUser (a DataFlowNode) bound to a DOM container element. Contains an
@@ -502,6 +507,535 @@
 
 /***/ },
 /* 6 */
+/*!*****************************************!*\
+  !*** ./~/cyclejs/src/data-flow-node.js ***!
+  \*****************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	var Rx = __webpack_require__(/*! rx */ 16);
+	var errors = __webpack_require__(/*! ./errors */ 17);
+	var InputProxy = __webpack_require__(/*! ./input-proxy */ 26);
+	var Utils = __webpack_require__(/*! ./utils */ 27);
+	var CycleInterfaceError = errors.CycleInterfaceError;
+	
+	function replicate(source, subject) {
+	  if (typeof source === 'undefined') {
+	    throw new Error('Cannot replicate() if source is undefined.');
+	  }
+	  return source.subscribe(
+	    function replicationOnNext(x) {
+	      subject.onNext(x);
+	    },
+	    function replicationOnError(err) {
+	      subject.onError(err);
+	      console.error(err);
+	    }
+	  );
+	}
+	
+	function checkOutputObject(output) {
+	  if (typeof output !== 'object') {
+	    throw new Error('A DataFlowNode should always return an object.');
+	  }
+	}
+	
+	function createStreamNamesArray(output) {
+	  var array = [];
+	  for (var streamName in output) { if (output.hasOwnProperty(streamName)) {
+	    if (Utils.endsWithDollarSign(streamName)) {
+	      array.push(streamName);
+	    }
+	  }}
+	  return array;
+	}
+	
+	var replicateAll;
+	
+	function DataFlowNode(definitionFn) {
+	  if (arguments.length !== 1 || typeof definitionFn !== 'function') {
+	    throw new Error('DataFlowNode expects the definitionFn as the only argument.');
+	  }
+	  var proxies = [];
+	  for (var i = 0; i < definitionFn.length; i++) {
+	    proxies[i] = new InputProxy();
+	  }
+	  var wasInjected = false;
+	  var output = definitionFn.apply(this, proxies);
+	  checkOutputObject(output);
+	  this.outputStreams = createStreamNamesArray(output);
+	  this.get = function get(streamName) {
+	    return output[streamName] || null;
+	  };
+	  this.clone = function clone() {
+	    return new DataFlowNode(definitionFn);
+	  };
+	  this.inject = function inject() {
+	    if (wasInjected) {
+	      console.warn('DataFlowNode has already been injected an input.');
+	    }
+	    if (definitionFn.length !== arguments.length) {
+	      console.warn('The call to inject() should provide the inputs that this ' +
+	        'DataFlowNode expects according to its definition function.');
+	    }
+	    for (var i = 0; i < definitionFn.length; i++) {
+	      replicateAll(arguments[i], proxies[i]);
+	    }
+	    wasInjected = true;
+	    if (arguments.length === 1) {
+	      return arguments[0];
+	    } else if (arguments.length > 1) {
+	      return Array.prototype.slice.call(arguments);
+	    } else {
+	      return null;
+	    }
+	  };
+	  return this;
+	}
+	
+	function replicateAllEvent$(input, selector, proxyObj) {
+	  for (var eventName in proxyObj) { if (proxyObj.hasOwnProperty(eventName)) {
+	    if (eventName !== '_hasEvent$') {
+	      var event$ = input.event$(selector, eventName);
+	      if (event$ !== null) {
+	        replicate(event$, proxyObj[eventName]);
+	      }
+	    }
+	  }}
+	}
+	
+	replicateAll = function replicateAll(input, proxy) {
+	  if (!input || !proxy) { return; }
+	
+	  for (var key in proxy.proxiedProps) { if (proxy.proxiedProps.hasOwnProperty(key)) {
+	    var proxiedProperty = proxy.proxiedProps[key];
+	    if (typeof input.event$ === 'function' && proxiedProperty._hasEvent$) {
+	      replicateAllEvent$(input, key, proxiedProperty);
+	    } else if (!input.hasOwnProperty(key) && input instanceof InputProxy) {
+	      replicate(input.get(key), proxiedProperty);
+	    } else if (typeof input.get === 'function' && input.get(key) !== null) {
+	      replicate(input.get(key), proxiedProperty);
+	    } else if (typeof input === 'object' && input.hasOwnProperty(key)) {
+	      if (!input[key]) {
+	        input[key] = new Rx.Subject();
+	      }
+	      replicate(input[key], proxiedProperty);
+	    } else {
+	      throw new CycleInterfaceError('Input should have the required property ' +
+	        key, String(key)
+	      );
+	    }
+	  }}
+	};
+	
+	module.exports = DataFlowNode;
+
+
+/***/ },
+/* 7 */
+/*!*******************************************!*\
+  !*** ./~/cyclejs/src/data-flow-source.js ***!
+  \*******************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	function DataFlowSource(outputObject) {
+	  if (arguments.length !== 1) {
+	    throw new Error('DataFlowSource expects only one argument: the output object.');
+	  }
+	  if (typeof outputObject !== 'object') {
+	    throw new Error('DataFlowSource expects the constructor argument to be the ' +
+	      'output object.'
+	    );
+	  }
+	
+	  for (var key in outputObject) { if (outputObject.hasOwnProperty(key)) {
+	    this[key] = outputObject[key];
+	  }}
+	  this.inject = function injectDataFlowSource() {
+	    throw new Error('A DataFlowSource cannot be injected. Use a DataFlowNode instead.');
+	  };
+	  return this;
+	}
+	
+	module.exports = DataFlowSource;
+
+
+/***/ },
+/* 8 */
+/*!*****************************************!*\
+  !*** ./~/cyclejs/src/data-flow-sink.js ***!
+  \*****************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	function makeLightweightInputProxies(args) {
+	  return Array.prototype
+	    .slice.call(args)
+	    .map(function (arg) {
+	      return {
+	        get: function get(streamName) {
+	          if (typeof arg.get === 'function') {
+	            return arg.get(streamName);
+	          } else {
+	            return arg[streamName] || null;
+	          }
+	        }
+	      };
+	    });
+	}
+	
+	function DataFlowSink(definitionFn) {
+	  if (arguments.length !== 1) {
+	    throw new Error('DataFlowSink expects only one argument: the definition function.');
+	  }
+	  if (typeof definitionFn !== 'function') {
+	    throw new Error('DataFlowSink expects the argument to be the definition function.');
+	  }
+	  definitionFn.displayName += '(DataFlowSink defFn)';
+	  this.inject = function injectIntoDataFlowSink() {
+	    var proxies = makeLightweightInputProxies(arguments);
+	    return definitionFn.apply({}, proxies);
+	  };
+	  return this;
+	}
+	
+	module.exports = DataFlowSink;
+
+
+/***/ },
+/* 9 */
+/*!***********************************!*\
+  !*** ./~/cyclejs/src/dom-user.js ***!
+  \***********************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	var VDOM = {
+	  h: __webpack_require__(/*! virtual-dom */ 15).h,
+	  diff: __webpack_require__(/*! virtual-dom/diff */ 18),
+	  patch: __webpack_require__(/*! virtual-dom/patch */ 19)
+	};
+	var Rx = __webpack_require__(/*! rx */ 16);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 6);
+	var CustomElements = __webpack_require__(/*! ./custom-elements */ 28);
+	
+	function isElement(o) {
+	  return (
+	    typeof HTMLElement === 'object' ?
+	      o instanceof HTMLElement || o instanceof DocumentFragment : //DOM2
+	      o && typeof o === 'object' && o !== null &&
+	        (o.nodeType === 1 || o.nodeType === 11) &&
+	        typeof o.nodeName === 'string'
+	  );
+	}
+	
+	function getArrayOfAllWidgetRootElemStreams(vtree) {
+	  if (vtree.type === 'Widget' && vtree._rootElem$) {
+	    return [vtree._rootElem$];
+	  }
+	  // Or replace children recursively
+	  var array = [];
+	  if (Array.isArray(vtree.children)) {
+	    for (var i = vtree.children.length - 1; i >= 0; i--) {
+	      array = array.concat(getArrayOfAllWidgetRootElemStreams(vtree.children[i]));
+	    }
+	  }
+	  return array;
+	}
+	
+	function defineRootElemStream(user) {
+	  // Create rootElem stream and automatic className correction
+	  var originalClasses = (user._domContainer.className || '').trim().split(/\s+/);
+	  user._rawRootElem$ = new Rx.Subject();
+	  user._rootElem$ = user._rawRootElem$
+	    .map(function fixRootElemClassName(rootElem) {
+	      var previousClasses = rootElem.className.trim().split(/\s+/);
+	      var missingClasses = originalClasses.filter(function (clss) {
+	        return previousClasses.indexOf(clss) < 0;
+	      });
+	      rootElem.className = previousClasses.concat(missingClasses).join(' ');
+	      return rootElem;
+	    })
+	    .shareReplay(1);
+	}
+	
+	function DOMUser(container) {
+	  // Find and prepare the container
+	  this._domContainer = (typeof container === 'string') ?
+	    document.querySelector(container) :
+	    container;
+	  // Check pre-conditions
+	  if (typeof container === 'string' && this._domContainer === null) {
+	    throw new Error('Cannot render into unknown element \'' + container + '\'');
+	  } else if (!isElement(this._domContainer)) {
+	    throw new Error('Given container is not a DOM element neither a selector string.');
+	  }
+	  defineRootElemStream(this);
+	  // Create DataFlowNode with rendering logic
+	  var self = this;
+	  DataFlowNode.call(this, function injectIntoDOMUser(view) {
+	    return self._renderEvery(view.get('vtree$'));
+	  });
+	}
+	
+	DOMUser.prototype = Object.create(DataFlowNode.prototype);
+	
+	DOMUser.prototype._renderEvery = function renderEvery(vtree$) {
+	  var self = this;
+	  // Select the correct rootElem
+	  var rootElem;
+	  if (self._domContainer.cycleCustomElementProperties) {
+	    rootElem = self._domContainer;
+	  } else {
+	    rootElem = document.createElement('div');
+	    self._domContainer.innerHTML = '';
+	    self._domContainer.appendChild(rootElem);
+	  }
+	  // TODO Refactor/rework. Unclear why, but setTimeout this is necessary.
+	  setTimeout(function () {
+	    self._rawRootElem$.onNext(rootElem);
+	  }, 0);
+	  // Reactively render the vtree$ into the rootElem
+	  return vtree$
+	    .startWith(VDOM.h())
+	    .map(function renderingPreprocessing(vtree) {
+	      return self._replaceCustomElements(vtree);
+	    })
+	    .pairwise()
+	    .subscribe(function renderDiffAndPatch(pair) {
+	      var oldVTree = pair[0];
+	      var newVTree = pair[1];
+	      if (typeof newVTree === 'undefined') { return; }
+	
+	      var arrayOfAll = getArrayOfAllWidgetRootElemStreams(newVTree);
+	      if (arrayOfAll.length > 0) {
+	        Rx.Observable.combineLatest(arrayOfAll, function () { return 0; }).first()
+	          .subscribe(function () { self._rawRootElem$.onNext(rootElem); });
+	      }
+	      var cycleCustomElementProperties = rootElem.cycleCustomElementProperties;
+	      try {
+	        rootElem = VDOM.patch(rootElem, VDOM.diff(oldVTree, newVTree));
+	      } catch (err) {
+	        console.error(err);
+	      }
+	      rootElem.cycleCustomElementProperties = cycleCustomElementProperties;
+	      if (arrayOfAll.length === 0) {
+	        self._rawRootElem$.onNext(rootElem);
+	      }
+	    });
+	};
+	
+	DOMUser.prototype._replaceCustomElements = function replaceCustomElements(vtree) {
+	  // Silently ignore corner cases
+	  if (!vtree || !DOMUser._customElements || vtree.type === 'VirtualText') {
+	    return vtree;
+	  }
+	  var tagName = (vtree.tagName || '').toUpperCase();
+	  // Replace vtree itself
+	  if (tagName && DOMUser._customElements.hasOwnProperty(tagName)) {
+	    return new DOMUser._customElements[tagName](vtree);
+	  }
+	  // Or replace children recursively
+	  if (Array.isArray(vtree.children)) {
+	    for (var i = vtree.children.length - 1; i >= 0; i--) {
+	      vtree.children[i] = this._replaceCustomElements(vtree.children[i]);
+	    }
+	  }
+	  return vtree;
+	};
+	
+	DOMUser.prototype.event$ = function event$(selector, eventName) {
+	  if (typeof selector !== 'string') {
+	    throw new Error('DOMUser.event$ expects first argument to be a string as a ' +
+	      'CSS selector');
+	  }
+	  if (typeof eventName !== 'string') {
+	    throw new Error('DOMUser.event$ expects second argument to be a string ' +
+	      'representing the event type to listen for.');
+	  }
+	
+	  return this._rootElem$.flatMapLatest(function flatMapDOMUserEventStream(rootElem) {
+	    if (!rootElem) {
+	      return Rx.Observable.empty();
+	    }
+	    var klass = selector.replace('.', '');
+	    if (rootElem.className.search(new RegExp('\\b' + klass + '\\b')) >= 0) {
+	      return Rx.Observable.fromEvent(rootElem, eventName);
+	    }
+	    var targetElements = rootElem.querySelectorAll(selector);
+	    if (targetElements && targetElements.length > 0) {
+	      return Rx.Observable.fromEvent(targetElements, eventName);
+	    } else {
+	      return Rx.Observable.empty();
+	    }
+	  });
+	};
+	
+	DOMUser.registerCustomElement = function registerCustomElement(tagName, definitionFn) {
+	  if (typeof tagName !== 'string' || typeof definitionFn !== 'function') {
+	    throw new Error('registerCustomElement requires parameters `tagName` and ' +
+	      '`definitionFn`.');
+	  }
+	  tagName = tagName.toUpperCase();
+	  if (DOMUser._customElements && DOMUser._customElements.hasOwnProperty(tagName)) {
+	    throw new Error('Cannot register custom element `' + tagName + '` ' +
+	      'for the DOMUser because that tagName is already registered.');
+	  }
+	
+	  var WidgetClass = CustomElements.makeConstructor();
+	  WidgetClass.prototype.init = CustomElements.makeInit(tagName, definitionFn);
+	  WidgetClass.prototype.update = CustomElements.makeUpdate();
+	  DOMUser._customElements = DOMUser._customElements || {};
+	  DOMUser._customElements[tagName] = WidgetClass;
+	};
+	
+	module.exports = DOMUser;
+
+
+/***/ },
+/* 10 */
+/*!****************************************!*\
+  !*** ./~/cyclejs/src/property-hook.js ***!
+  \****************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	function PropertyHook(fn) {
+	  this.fn = fn;
+	}
+	PropertyHook.prototype.hook = function () {
+	  this.fn.apply(this, arguments);
+	};
+	
+	module.exports = PropertyHook;
+
+
+/***/ },
+/* 11 */
+/*!***************************************!*\
+  !*** ./~/cyclejs/src/create-model.js ***!
+  \***************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 6);
+	var errors = __webpack_require__(/*! ./errors */ 17);
+	
+	function createModel(definitionFn) {
+	  var model = new DataFlowNode(definitionFn);
+	  model = errors.customInterfaceErrorMessageInInject(model,
+	    'Model expects Intent to have the required property '
+	  );
+	  model.clone = function cloneModel() { return createModel(definitionFn); };
+	  return model;
+	}
+	
+	module.exports = createModel;
+
+
+/***/ },
+/* 12 */
+/*!**************************************!*\
+  !*** ./~/cyclejs/src/create-view.js ***!
+  \**************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	var Rx = __webpack_require__(/*! rx */ 16);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 6);
+	var errors = __webpack_require__(/*! ./errors */ 17);
+	
+	function checkVTree$(view) {
+	  if (view.get('vtree$') === null ||
+	    typeof view.get('vtree$').subscribe !== 'function')
+	  {
+	    throw new Error('View must define `vtree$` Observable emitting virtual DOM elements');
+	  }
+	}
+	
+	function throwErrorIfNotVTree(vtree) {
+	  if (vtree.type !== 'VirtualNode' || vtree.tagName === 'undefined') {
+	    throw new Error('View `vtree$` must emit only VirtualNode instances. ' +
+	      'Hint: create them with Cycle.h()'
+	    );
+	  }
+	}
+	
+	function getCorrectedVtree$(view) {
+	  var newVtree$ = view.get('vtree$')
+	    .map(function (vtree) {
+	      if (vtree.type === 'Widget') { return vtree; }
+	      throwErrorIfNotVTree(vtree);
+	      return vtree;
+	    })
+	    .replay(null, 1);
+	  newVtree$.connect();
+	  return newVtree$;
+	}
+	
+	function overrideGet(view) {
+	  var oldGet = view.get;
+	  var newVtree$ = getCorrectedVtree$(view); // Is here because has connect() side effect
+	  view.get = function get(streamName) {
+	    if (streamName === 'vtree$') { // Override get('vtree$')
+	      return newVtree$;
+	    } else if (view[streamName]) {
+	      return view[streamName];
+	    } else {
+	      var result = oldGet.call(this, streamName);
+	      if (!result) {
+	        view[streamName] = new Rx.Subject();
+	        return view[streamName];
+	      } else {
+	        return result;
+	      }
+	    }
+	  };
+	}
+	
+	function createView(definitionFn) {
+	  var view = new DataFlowNode(definitionFn);
+	  view = errors.customInterfaceErrorMessageInInject(view,
+	    'View expects Model to have the required property '
+	  );
+	  checkVTree$(view);
+	  overrideGet(view);
+	  view.clone = function cloneView() { return createView(definitionFn); };
+	  return view;
+	}
+	
+	module.exports = createView;
+
+
+/***/ },
+/* 13 */
+/*!****************************************!*\
+  !*** ./~/cyclejs/src/create-intent.js ***!
+  \****************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 6);
+	var errors = __webpack_require__(/*! ./errors */ 17);
+	
+	function createIntent(definitionFn) {
+	  var intent = new DataFlowNode(definitionFn);
+	  intent = errors.customInterfaceErrorMessageInInject(intent,
+	    'Intent expects View to have the required property '
+	  );
+	  intent.clone = function cloneIntent() { return createIntent(definitionFn); };
+	  return intent;
+	}
+	
+	module.exports = createIntent;
+
+
+/***/ },
+/* 14 */
 /*!***************************!*\
   !*** ./~/lodash/index.js ***!
   \***************************/
@@ -11935,536 +12469,7 @@
 	  }
 	}.call(this));
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 23)(module), (function() { return this; }())))
-
-/***/ },
-/* 7 */
-/*!*****************************************!*\
-  !*** ./~/cyclejs/src/data-flow-node.js ***!
-  \*****************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var Rx = __webpack_require__(/*! rx */ 16);
-	var errors = __webpack_require__(/*! ./errors */ 17);
-	var InputProxy = __webpack_require__(/*! ./input-proxy */ 18);
-	var Utils = __webpack_require__(/*! ./utils */ 19);
-	var CycleInterfaceError = errors.CycleInterfaceError;
-	
-	function replicate(source, subject) {
-	  if (typeof source === 'undefined') {
-	    throw new Error('Cannot replicate() if source is undefined.');
-	  }
-	  return source.subscribe(
-	    function replicationOnNext(x) {
-	      subject.onNext(x);
-	    },
-	    function replicationOnError(err) {
-	      subject.onError(err);
-	      console.error(err);
-	    }
-	  );
-	}
-	
-	function checkOutputObject(output) {
-	  if (typeof output !== 'object') {
-	    throw new Error('A DataFlowNode should always return an object.');
-	  }
-	}
-	
-	function createStreamNamesArray(output) {
-	  var array = [];
-	  for (var streamName in output) { if (output.hasOwnProperty(streamName)) {
-	    if (Utils.endsWithDollarSign(streamName)) {
-	      array.push(streamName);
-	    }
-	  }}
-	  return array;
-	}
-	
-	var replicateAll;
-	
-	function DataFlowNode(definitionFn) {
-	  if (arguments.length !== 1 || typeof definitionFn !== 'function') {
-	    throw new Error('DataFlowNode expects the definitionFn as the only argument.');
-	  }
-	  var proxies = [];
-	  for (var i = 0; i < definitionFn.length; i++) {
-	    proxies[i] = new InputProxy();
-	  }
-	  var wasInjected = false;
-	  var output = definitionFn.apply(this, proxies);
-	  checkOutputObject(output);
-	  this.outputStreams = createStreamNamesArray(output);
-	  this.get = function get(streamName) {
-	    return output[streamName] || null;
-	  };
-	  this.clone = function clone() {
-	    return new DataFlowNode(definitionFn);
-	  };
-	  this.inject = function inject() {
-	    if (wasInjected) {
-	      console.warn('DataFlowNode has already been injected an input.');
-	    }
-	    if (definitionFn.length !== arguments.length) {
-	      console.warn('The call to inject() should provide the inputs that this ' +
-	        'DataFlowNode expects according to its definition function.');
-	    }
-	    for (var i = 0; i < definitionFn.length; i++) {
-	      replicateAll(arguments[i], proxies[i]);
-	    }
-	    wasInjected = true;
-	    if (arguments.length === 1) {
-	      return arguments[0];
-	    } else if (arguments.length > 1) {
-	      return Array.prototype.slice.call(arguments);
-	    } else {
-	      return null;
-	    }
-	  };
-	  return this;
-	}
-	
-	function replicateAllEvent$(input, selector, proxyObj) {
-	  for (var eventName in proxyObj) { if (proxyObj.hasOwnProperty(eventName)) {
-	    if (eventName !== '_hasEvent$') {
-	      var event$ = input.event$(selector, eventName);
-	      if (event$ !== null) {
-	        replicate(event$, proxyObj[eventName]);
-	      }
-	    }
-	  }}
-	}
-	
-	replicateAll = function replicateAll(input, proxy) {
-	  if (!input || !proxy) { return; }
-	
-	  for (var key in proxy.proxiedProps) { if (proxy.proxiedProps.hasOwnProperty(key)) {
-	    var proxiedProperty = proxy.proxiedProps[key];
-	    if (typeof input.event$ === 'function' && proxiedProperty._hasEvent$) {
-	      replicateAllEvent$(input, key, proxiedProperty);
-	    } else if (!input.hasOwnProperty(key) && input instanceof InputProxy) {
-	      replicate(input.get(key), proxiedProperty);
-	    } else if (typeof input.get === 'function' && input.get(key) !== null) {
-	      replicate(input.get(key), proxiedProperty);
-	    } else if (typeof input === 'object' && input.hasOwnProperty(key)) {
-	      if (!input[key]) {
-	        input[key] = new Rx.Subject();
-	      }
-	      replicate(input[key], proxiedProperty);
-	    } else {
-	      throw new CycleInterfaceError('Input should have the required property ' +
-	        key, String(key)
-	      );
-	    }
-	  }}
-	};
-	
-	module.exports = DataFlowNode;
-
-
-/***/ },
-/* 8 */
-/*!*******************************************!*\
-  !*** ./~/cyclejs/src/data-flow-source.js ***!
-  \*******************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	function DataFlowSource(outputObject) {
-	  if (arguments.length !== 1) {
-	    throw new Error('DataFlowSource expects only one argument: the output object.');
-	  }
-	  if (typeof outputObject !== 'object') {
-	    throw new Error('DataFlowSource expects the constructor argument to be the ' +
-	      'output object.'
-	    );
-	  }
-	
-	  for (var key in outputObject) { if (outputObject.hasOwnProperty(key)) {
-	    this[key] = outputObject[key];
-	  }}
-	  this.inject = function injectDataFlowSource() {
-	    throw new Error('A DataFlowSource cannot be injected. Use a DataFlowNode instead.');
-	  };
-	  return this;
-	}
-	
-	module.exports = DataFlowSource;
-
-
-/***/ },
-/* 9 */
-/*!*****************************************!*\
-  !*** ./~/cyclejs/src/data-flow-sink.js ***!
-  \*****************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	function makeLightweightInputProxies(args) {
-	  return Array.prototype
-	    .slice.call(args)
-	    .map(function (arg) {
-	      return {
-	        get: function get(streamName) {
-	          if (typeof arg.get === 'function') {
-	            return arg.get(streamName);
-	          } else {
-	            return arg[streamName] || null;
-	          }
-	        }
-	      };
-	    });
-	}
-	
-	function DataFlowSink(definitionFn) {
-	  if (arguments.length !== 1) {
-	    throw new Error('DataFlowSink expects only one argument: the definition function.');
-	  }
-	  if (typeof definitionFn !== 'function') {
-	    throw new Error('DataFlowSink expects the argument to be the definition function.');
-	  }
-	  definitionFn.displayName += '(DataFlowSink defFn)';
-	  this.inject = function injectIntoDataFlowSink() {
-	    var proxies = makeLightweightInputProxies(arguments);
-	    return definitionFn.apply({}, proxies);
-	  };
-	  return this;
-	}
-	
-	module.exports = DataFlowSink;
-
-
-/***/ },
-/* 10 */
-/*!***********************************!*\
-  !*** ./~/cyclejs/src/dom-user.js ***!
-  \***********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var VDOM = {
-	  h: __webpack_require__(/*! virtual-dom */ 15).h,
-	  diff: __webpack_require__(/*! virtual-dom/diff */ 20),
-	  patch: __webpack_require__(/*! virtual-dom/patch */ 21)
-	};
-	var Rx = __webpack_require__(/*! rx */ 16);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var CustomElements = __webpack_require__(/*! ./custom-elements */ 22);
-	
-	function isElement(o) {
-	  return (
-	    typeof HTMLElement === 'object' ?
-	      o instanceof HTMLElement || o instanceof DocumentFragment : //DOM2
-	      o && typeof o === 'object' && o !== null &&
-	        (o.nodeType === 1 || o.nodeType === 11) &&
-	        typeof o.nodeName === 'string'
-	  );
-	}
-	
-	function getArrayOfAllWidgetRootElemStreams(vtree) {
-	  if (vtree.type === 'Widget' && vtree._rootElem$) {
-	    return [vtree._rootElem$];
-	  }
-	  // Or replace children recursively
-	  var array = [];
-	  if (Array.isArray(vtree.children)) {
-	    for (var i = vtree.children.length - 1; i >= 0; i--) {
-	      array = array.concat(getArrayOfAllWidgetRootElemStreams(vtree.children[i]));
-	    }
-	  }
-	  return array;
-	}
-	
-	function defineRootElemStream(user) {
-	  // Create rootElem stream and automatic className correction
-	  var originalClasses = (user._domContainer.className || '').trim().split(/\s+/);
-	  user._rawRootElem$ = new Rx.Subject();
-	  user._rootElem$ = user._rawRootElem$
-	    .map(function fixRootElemClassName(rootElem) {
-	      var previousClasses = rootElem.className.trim().split(/\s+/);
-	      var missingClasses = originalClasses.filter(function (clss) {
-	        return previousClasses.indexOf(clss) < 0;
-	      });
-	      rootElem.className = previousClasses.concat(missingClasses).join(' ');
-	      return rootElem;
-	    })
-	    .shareReplay(1);
-	}
-	
-	function DOMUser(container) {
-	  // Find and prepare the container
-	  this._domContainer = (typeof container === 'string') ?
-	    document.querySelector(container) :
-	    container;
-	  // Check pre-conditions
-	  if (typeof container === 'string' && this._domContainer === null) {
-	    throw new Error('Cannot render into unknown element \'' + container + '\'');
-	  } else if (!isElement(this._domContainer)) {
-	    throw new Error('Given container is not a DOM element neither a selector string.');
-	  }
-	  defineRootElemStream(this);
-	  // Create DataFlowNode with rendering logic
-	  var self = this;
-	  DataFlowNode.call(this, function injectIntoDOMUser(view) {
-	    return self._renderEvery(view.get('vtree$'));
-	  });
-	}
-	
-	DOMUser.prototype = Object.create(DataFlowNode.prototype);
-	
-	DOMUser.prototype._renderEvery = function renderEvery(vtree$) {
-	  var self = this;
-	  // Select the correct rootElem
-	  var rootElem;
-	  if (self._domContainer.cycleCustomElementProperties) {
-	    rootElem = self._domContainer;
-	  } else {
-	    rootElem = document.createElement('div');
-	    self._domContainer.innerHTML = '';
-	    self._domContainer.appendChild(rootElem);
-	  }
-	  // TODO Refactor/rework. Unclear why, but setTimeout this is necessary.
-	  setTimeout(function () {
-	    self._rawRootElem$.onNext(rootElem);
-	  }, 0);
-	  // Reactively render the vtree$ into the rootElem
-	  return vtree$
-	    .startWith(VDOM.h())
-	    .map(function renderingPreprocessing(vtree) {
-	      return self._replaceCustomElements(vtree);
-	    })
-	    .pairwise()
-	    .subscribe(function renderDiffAndPatch(pair) {
-	      var oldVTree = pair[0];
-	      var newVTree = pair[1];
-	      if (typeof newVTree === 'undefined') { return; }
-	
-	      var arrayOfAll = getArrayOfAllWidgetRootElemStreams(newVTree);
-	      if (arrayOfAll.length > 0) {
-	        Rx.Observable.combineLatest(arrayOfAll, function () { return 0; }).first()
-	          .subscribe(function () { self._rawRootElem$.onNext(rootElem); });
-	      }
-	      var cycleCustomElementProperties = rootElem.cycleCustomElementProperties;
-	      try {
-	        rootElem = VDOM.patch(rootElem, VDOM.diff(oldVTree, newVTree));
-	      } catch (err) {
-	        console.error(err);
-	      }
-	      rootElem.cycleCustomElementProperties = cycleCustomElementProperties;
-	      if (arrayOfAll.length === 0) {
-	        self._rawRootElem$.onNext(rootElem);
-	      }
-	    });
-	};
-	
-	DOMUser.prototype._replaceCustomElements = function replaceCustomElements(vtree) {
-	  // Silently ignore corner cases
-	  if (!vtree || !DOMUser._customElements || vtree.type === 'VirtualText') {
-	    return vtree;
-	  }
-	  var tagName = (vtree.tagName || '').toUpperCase();
-	  // Replace vtree itself
-	  if (tagName && DOMUser._customElements.hasOwnProperty(tagName)) {
-	    return new DOMUser._customElements[tagName](vtree);
-	  }
-	  // Or replace children recursively
-	  if (Array.isArray(vtree.children)) {
-	    for (var i = vtree.children.length - 1; i >= 0; i--) {
-	      vtree.children[i] = this._replaceCustomElements(vtree.children[i]);
-	    }
-	  }
-	  return vtree;
-	};
-	
-	DOMUser.prototype.event$ = function event$(selector, eventName) {
-	  if (typeof selector !== 'string') {
-	    throw new Error('DOMUser.event$ expects first argument to be a string as a ' +
-	      'CSS selector');
-	  }
-	  if (typeof eventName !== 'string') {
-	    throw new Error('DOMUser.event$ expects second argument to be a string ' +
-	      'representing the event type to listen for.');
-	  }
-	
-	  return this._rootElem$.flatMapLatest(function flatMapDOMUserEventStream(rootElem) {
-	    if (!rootElem) {
-	      return Rx.Observable.empty();
-	    }
-	    var klass = selector.replace('.', '');
-	    if (rootElem.className.search(new RegExp('\\b' + klass + '\\b')) >= 0) {
-	      return Rx.Observable.fromEvent(rootElem, eventName);
-	    }
-	    var targetElements = rootElem.querySelectorAll(selector);
-	    if (targetElements && targetElements.length > 0) {
-	      return Rx.Observable.fromEvent(targetElements, eventName);
-	    } else {
-	      return Rx.Observable.empty();
-	    }
-	  });
-	};
-	
-	DOMUser.registerCustomElement = function registerCustomElement(tagName, definitionFn) {
-	  if (typeof tagName !== 'string' || typeof definitionFn !== 'function') {
-	    throw new Error('registerCustomElement requires parameters `tagName` and ' +
-	      '`definitionFn`.');
-	  }
-	  tagName = tagName.toUpperCase();
-	  if (DOMUser._customElements && DOMUser._customElements.hasOwnProperty(tagName)) {
-	    throw new Error('Cannot register custom element `' + tagName + '` ' +
-	      'for the DOMUser because that tagName is already registered.');
-	  }
-	
-	  var WidgetClass = CustomElements.makeConstructor();
-	  WidgetClass.prototype.init = CustomElements.makeInit(tagName, definitionFn);
-	  WidgetClass.prototype.update = CustomElements.makeUpdate();
-	  DOMUser._customElements = DOMUser._customElements || {};
-	  DOMUser._customElements[tagName] = WidgetClass;
-	};
-	
-	module.exports = DOMUser;
-
-
-/***/ },
-/* 11 */
-/*!****************************************!*\
-  !*** ./~/cyclejs/src/property-hook.js ***!
-  \****************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	function PropertyHook(fn) {
-	  this.fn = fn;
-	}
-	PropertyHook.prototype.hook = function () {
-	  this.fn.apply(this, arguments);
-	};
-	
-	module.exports = PropertyHook;
-
-
-/***/ },
-/* 12 */
-/*!***************************************!*\
-  !*** ./~/cyclejs/src/create-model.js ***!
-  \***************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var errors = __webpack_require__(/*! ./errors */ 17);
-	
-	function createModel(definitionFn) {
-	  var model = new DataFlowNode(definitionFn);
-	  model = errors.customInterfaceErrorMessageInInject(model,
-	    'Model expects Intent to have the required property '
-	  );
-	  model.clone = function cloneModel() { return createModel(definitionFn); };
-	  return model;
-	}
-	
-	module.exports = createModel;
-
-
-/***/ },
-/* 13 */
-/*!**************************************!*\
-  !*** ./~/cyclejs/src/create-view.js ***!
-  \**************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var Rx = __webpack_require__(/*! rx */ 16);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var errors = __webpack_require__(/*! ./errors */ 17);
-	
-	function checkVTree$(view) {
-	  if (view.get('vtree$') === null ||
-	    typeof view.get('vtree$').subscribe !== 'function')
-	  {
-	    throw new Error('View must define `vtree$` Observable emitting virtual DOM elements');
-	  }
-	}
-	
-	function throwErrorIfNotVTree(vtree) {
-	  if (vtree.type !== 'VirtualNode' || vtree.tagName === 'undefined') {
-	    throw new Error('View `vtree$` must emit only VirtualNode instances. ' +
-	      'Hint: create them with Cycle.h()'
-	    );
-	  }
-	}
-	
-	function getCorrectedVtree$(view) {
-	  var newVtree$ = view.get('vtree$')
-	    .map(function (vtree) {
-	      if (vtree.type === 'Widget') { return vtree; }
-	      throwErrorIfNotVTree(vtree);
-	      return vtree;
-	    })
-	    .replay(null, 1);
-	  newVtree$.connect();
-	  return newVtree$;
-	}
-	
-	function overrideGet(view) {
-	  var oldGet = view.get;
-	  var newVtree$ = getCorrectedVtree$(view); // Is here because has connect() side effect
-	  view.get = function get(streamName) {
-	    if (streamName === 'vtree$') { // Override get('vtree$')
-	      return newVtree$;
-	    } else if (view[streamName]) {
-	      return view[streamName];
-	    } else {
-	      var result = oldGet.call(this, streamName);
-	      if (!result) {
-	        view[streamName] = new Rx.Subject();
-	        return view[streamName];
-	      } else {
-	        return result;
-	      }
-	    }
-	  };
-	}
-	
-	function createView(definitionFn) {
-	  var view = new DataFlowNode(definitionFn);
-	  view = errors.customInterfaceErrorMessageInInject(view,
-	    'View expects Model to have the required property '
-	  );
-	  checkVTree$(view);
-	  overrideGet(view);
-	  view.clone = function cloneView() { return createView(definitionFn); };
-	  return view;
-	}
-	
-	module.exports = createView;
-
-
-/***/ },
-/* 14 */
-/*!****************************************!*\
-  !*** ./~/cyclejs/src/create-intent.js ***!
-  \****************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var errors = __webpack_require__(/*! ./errors */ 17);
-	
-	function createIntent(definitionFn) {
-	  var intent = new DataFlowNode(definitionFn);
-	  intent = errors.customInterfaceErrorMessageInInject(intent,
-	    'Intent expects View to have the required property '
-	  );
-	  intent.clone = function cloneIntent() { return createIntent(definitionFn); };
-	  return intent;
-	}
-	
-	module.exports = createIntent;
-
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 49)(module), (function() { return this; }())))
 
 /***/ },
 /* 15 */
@@ -12473,10 +12478,10 @@
   \******************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var diff = __webpack_require__(/*! ./diff.js */ 20)
-	var patch = __webpack_require__(/*! ./patch.js */ 21)
-	var h = __webpack_require__(/*! ./h.js */ 24)
-	var create = __webpack_require__(/*! ./create-element.js */ 25)
+	var diff = __webpack_require__(/*! ./diff.js */ 18)
+	var patch = __webpack_require__(/*! ./patch.js */ 19)
+	var h = __webpack_require__(/*! ./h.js */ 20)
+	var create = __webpack_require__(/*! ./create-element.js */ 21)
 	
 	module.exports = {
 	    diff: diff,
@@ -22227,7 +22232,7 @@
 	
 	}.call(this));
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 23)(module), (function() { return this; }()), __webpack_require__(/*! (webpack)/~/node-libs-browser/~/process/browser.js */ 28)))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 49)(module), (function() { return this; }()), __webpack_require__(/*! (webpack)/~/node-libs-browser/~/process/browser.js */ 51)))
 
 /***/ },
 /* 17 */
@@ -22269,278 +22274,69 @@
 
 /***/ },
 /* 18 */
-/*!**************************************!*\
-  !*** ./~/cyclejs/src/input-proxy.js ***!
-  \**************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var Rx = __webpack_require__(/*! rx */ 16);
-	
-	function InputProxy() {
-	  this.proxiedProps = {};
-	  // For any DataFlowNode
-	  this.get = function getFromProxy(streamKey) {
-	    if (typeof this.proxiedProps[streamKey] === 'undefined') {
-	      this.proxiedProps[streamKey] = new Rx.Subject();
-	    }
-	    return this.proxiedProps[streamKey];
-	  };
-	  // For the DOMUser
-	  this.event$ = function event$FromProxy(selector, eventName) {
-	    if (typeof this.proxiedProps[selector] === 'undefined') {
-	      this.proxiedProps[selector] = {
-	        _hasEvent$: true
-	      };
-	    }
-	    if (typeof this.proxiedProps[selector][eventName] === 'undefined') {
-	      this.proxiedProps[selector][eventName] = new Rx.Subject();
-	    }
-	    return this.proxiedProps[selector][eventName];
-	  };
-	}
-	
-	module.exports = InputProxy;
-
-
-/***/ },
-/* 19 */
-/*!********************************!*\
-  !*** ./~/cyclejs/src/utils.js ***!
-  \********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	function endsWithDollarSign(str) {
-	  if (typeof str !== 'string') {
-	    return false;
-	  }
-	  return str.indexOf('$', str.length - 1) !== -1;
-	}
-	
-	module.exports = {
-	  endsWithDollarSign: endsWithDollarSign
-	};
-
-
-/***/ },
-/* 20 */
 /*!*****************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/diff.js ***!
   \*****************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var diff = __webpack_require__(/*! ./vtree/diff.js */ 26)
+	var diff = __webpack_require__(/*! ./vtree/diff.js */ 22)
 	
 	module.exports = diff
 
 
 /***/ },
-/* 21 */
+/* 19 */
 /*!******************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/patch.js ***!
   \******************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var patch = __webpack_require__(/*! ./vdom/patch.js */ 27)
+	var patch = __webpack_require__(/*! ./vdom/patch.js */ 23)
 	
 	module.exports = patch
 
 
 /***/ },
-/* 22 */
-/*!******************************************!*\
-  !*** ./~/cyclejs/src/custom-elements.js ***!
-  \******************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var InputProxy = __webpack_require__(/*! ./input-proxy */ 18);
-	var Utils = __webpack_require__(/*! ./utils */ 19);
-	var Rx = __webpack_require__(/*! rx */ 16);
-	
-	function makeDispatchFunction(element, eventName) {
-	  return function dispatchCustomEvent(evData) {
-	    var event;
-	    try {
-	      event = new Event(eventName);
-	    } catch (err) {
-	      event = document.createEvent('Event');
-	      event.initEvent(eventName, true, true);
-	    }
-	    event.data = evData;
-	    element.dispatchEvent(event);
-	  };
-	}
-	
-	function subscribeDispatchers(element, eventStreams) {
-	  if (!eventStreams || typeof eventStreams !== 'object') { return; }
-	
-	  var disposables = new Rx.CompositeDisposable();
-	  for (var streamName in eventStreams) { if (eventStreams.hasOwnProperty(streamName)) {
-	    if (Utils.endsWithDollarSign(streamName) &&
-	      typeof eventStreams[streamName].subscribe === 'function')
-	    {
-	      var eventName = streamName.slice(0, -1);
-	      var disposable = eventStreams[streamName].subscribe(
-	        makeDispatchFunction(element, eventName)
-	      );
-	      disposables.add(disposable);
-	    }
-	  }}
-	  return disposables;
-	}
-	
-	function subscribeDispatchersWhenRootChanges(widget, eventStreams) {
-	  widget._rootElem$
-	    .distinctUntilChanged(Rx.helpers.identity,
-	      function comparer(x, y) { return x && y && x.isEqualNode && x.isEqualNode(y); }
-	    )
-	    .subscribe(function (rootElem) {
-	      if (widget.eventStreamsSubscriptions) {
-	        widget.eventStreamsSubscriptions.dispose();
-	      }
-	      widget.eventStreamsSubscriptions = subscribeDispatchers(rootElem, eventStreams);
-	    });
-	}
-	
-	function makeInputPropertiesProxy() {
-	  var inputProxy = new InputProxy();
-	  var oldGet = inputProxy.get;
-	  inputProxy.get = function get(streamName) {
-	    var result = oldGet.call(this, streamName);
-	    if (result && result.distinctUntilChanged) {
-	      return result.distinctUntilChanged();
-	    } else {
-	      return result;
-	    }
-	  };
-	  return inputProxy;
-	}
-	
-	function createContainerElement(tagName, vtreeProperties) {
-	  var elem = document.createElement('div');
-	  elem.className = vtreeProperties.className || '';
-	  elem.id = vtreeProperties.id || '';
-	  elem.className += ' cycleCustomElement-' + tagName.toUpperCase();
-	  elem.cycleCustomElementProperties = makeInputPropertiesProxy();
-	  return elem;
-	}
-	
-	function replicateUserRootElem$(user, widget) {
-	  user._rootElem$.subscribe(function (elem) { widget._rootElem$.onNext(elem); });
-	}
-	
-	function makeConstructor() {
-	  return function customElementConstructor(vtree) {
-	    this.type = 'Widget';
-	    this.properties = vtree.properties;
-	    this.key = vtree.key;
-	  };
-	}
-	
-	function makeInit(tagName, definitionFn) {
-	  var DOMUser = __webpack_require__(/*! ./dom-user */ 10);
-	  return function initCustomElement() {
-	    var widget = this;
-	    var element = createContainerElement(tagName, widget.properties);
-	    var user = new DOMUser(element);
-	    var eventStreams = definitionFn(user, element.cycleCustomElementProperties);
-	    widget._rootElem$ = new Rx.ReplaySubject(1);
-	    replicateUserRootElem$(user, widget);
-	    widget.eventStreamsSubscriptions = subscribeDispatchers(element, eventStreams);
-	    subscribeDispatchersWhenRootChanges(widget, eventStreams);
-	    widget.update(null, element);
-	    return element;
-	  };
-	}
-	
-	function makeUpdate() {
-	  return function updateCustomElement(prev, elem) {
-	    if (!elem) { return; }
-	    if (!elem.cycleCustomElementProperties) { return; }
-	    if (!(elem.cycleCustomElementProperties instanceof InputProxy)) { return; }
-	    if (!elem.cycleCustomElementProperties.proxiedProps) { return; }
-	
-	    var proxiedProps = elem.cycleCustomElementProperties.proxiedProps;
-	    for (var prop in proxiedProps) { if (proxiedProps.hasOwnProperty(prop)) {
-	      var propStreamName = prop;
-	      var propName = prop.slice(0, -1);
-	      if (this.properties.hasOwnProperty(propName)) {
-	        proxiedProps[propStreamName].onNext(this.properties[propName]);
-	      }
-	    }}
-	  };
-	}
-	
-	module.exports = {
-	  makeConstructor: makeConstructor,
-	  makeInit: makeInit,
-	  makeUpdate: makeUpdate
-	};
-
-
-/***/ },
-/* 23 */
-/*!***********************************!*\
-  !*** (webpack)/buildin/module.js ***!
-  \***********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = function(module) {
-		if(!module.webpackPolyfill) {
-			module.deprecate = function() {};
-			module.paths = [];
-			// module.parent = undefined by default
-			module.children = [];
-			module.webpackPolyfill = 1;
-		}
-		return module;
-	}
-
-
-/***/ },
-/* 24 */
+/* 20 */
 /*!**************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/h.js ***!
   \**************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 29)
+	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 24)
 	
 	module.exports = h
 
 
 /***/ },
-/* 25 */
+/* 21 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/create-element.js ***!
   \***************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 30)
+	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 25)
 	
 	module.exports = createElement
 
 
 /***/ },
-/* 26 */
+/* 22 */
 /*!***********************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vtree/diff.js ***!
   \***********************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isArray = __webpack_require__(/*! x-is-array */ 40)
+	var isArray = __webpack_require__(/*! x-is-array */ 44)
 	
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 31)
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 32)
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 33)
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 34)
-	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 35)
-	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk */ 36)
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 47)
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 30)
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 31)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 32)
+	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 40)
+	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk */ 33)
 	
-	var diffProps = __webpack_require__(/*! ./diff-props */ 37)
+	var diffProps = __webpack_require__(/*! ./diff-props */ 48)
 	
 	module.exports = diff
 	
@@ -22857,17 +22653,17 @@
 
 
 /***/ },
-/* 27 */
+/* 23 */
 /*!***********************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/patch.js ***!
   \***********************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var document = __webpack_require__(/*! global/document */ 47)
-	var isArray = __webpack_require__(/*! x-is-array */ 40)
+	var document = __webpack_require__(/*! global/document */ 34)
+	var isArray = __webpack_require__(/*! x-is-array */ 44)
 	
-	var domIndex = __webpack_require__(/*! ./dom-index */ 38)
-	var patchOp = __webpack_require__(/*! ./patch-op */ 39)
+	var domIndex = __webpack_require__(/*! ./dom-index */ 35)
+	var patchOp = __webpack_require__(/*! ./patch-op */ 36)
 	module.exports = patch
 	
 	function patch(rootNode, patches) {
@@ -22942,74 +22738,7 @@
 
 
 /***/ },
-/* 28 */
-/*!**********************************************************!*\
-  !*** (webpack)/~/node-libs-browser/~/process/browser.js ***!
-  \**********************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	// shim for using process in browser
-	
-	var process = module.exports = {};
-	var queue = [];
-	var draining = false;
-	
-	function drainQueue() {
-	    if (draining) {
-	        return;
-	    }
-	    draining = true;
-	    var currentQueue;
-	    var len = queue.length;
-	    while(len) {
-	        currentQueue = queue;
-	        queue = [];
-	        var i = -1;
-	        while (++i < len) {
-	            currentQueue[i]();
-	        }
-	        len = queue.length;
-	    }
-	    draining = false;
-	}
-	process.nextTick = function (fun) {
-	    queue.push(fun);
-	    if (!draining) {
-	        setTimeout(drainQueue, 0);
-	    }
-	};
-	
-	process.title = 'browser';
-	process.browser = true;
-	process.env = {};
-	process.argv = [];
-	process.version = ''; // empty string to avoid regexp issues
-	process.versions = {};
-	
-	function noop() {}
-	
-	process.on = noop;
-	process.addListener = noop;
-	process.once = noop;
-	process.off = noop;
-	process.removeListener = noop;
-	process.removeAllListeners = noop;
-	process.emit = noop;
-	
-	process.binding = function (name) {
-	    throw new Error('process.binding is not supported');
-	};
-	
-	// TODO(shtylman)
-	process.cwd = function () { return '/' };
-	process.chdir = function (dir) {
-	    throw new Error('process.chdir is not supported');
-	};
-	process.umask = function() { return 0; };
-
-
-/***/ },
-/* 29 */
+/* 24 */
 /*!**************************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/index.js ***!
   \**************************************************************/
@@ -23017,19 +22746,19 @@
 
 	'use strict';
 	
-	var isArray = __webpack_require__(/*! x-is-array */ 40);
+	var isArray = __webpack_require__(/*! x-is-array */ 44);
 	
-	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 41);
-	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 42);
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 32);
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 33);
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 34);
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 43);
-	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 35);
+	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 37);
+	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 38);
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 30);
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 31);
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 32);
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 39);
+	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 40);
 	
-	var parseTag = __webpack_require__(/*! ./parse-tag.js */ 44);
-	var softSetHook = __webpack_require__(/*! ./hooks/soft-set-hook.js */ 45);
-	var evHook = __webpack_require__(/*! ./hooks/ev-hook.js */ 46);
+	var parseTag = __webpack_require__(/*! ./parse-tag.js */ 41);
+	var softSetHook = __webpack_require__(/*! ./hooks/soft-set-hook.js */ 42);
+	var evHook = __webpack_require__(/*! ./hooks/ev-hook.js */ 43);
 	
 	module.exports = h;
 	
@@ -23153,20 +22882,20 @@
 
 
 /***/ },
-/* 30 */
+/* 25 */
 /*!********************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/create-element.js ***!
   \********************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var document = __webpack_require__(/*! global/document */ 47)
+	var document = __webpack_require__(/*! global/document */ 34)
 	
-	var applyProperties = __webpack_require__(/*! ./apply-properties */ 48)
+	var applyProperties = __webpack_require__(/*! ./apply-properties */ 29)
 	
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 32)
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 33)
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 34)
-	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 36)
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 30)
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 31)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 32)
+	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 33)
 	
 	module.exports = createElement
 	
@@ -23208,44 +22937,309 @@
 
 
 /***/ },
-/* 31 */
-/*!*************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
-  \*************************************************/
+/* 26 */
+/*!**************************************!*\
+  !*** ./~/cyclejs/src/input-proxy.js ***!
+  \**************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 49)
+	'use strict';
+	var Rx = __webpack_require__(/*! rx */ 16);
 	
-	VirtualPatch.NONE = 0
-	VirtualPatch.VTEXT = 1
-	VirtualPatch.VNODE = 2
-	VirtualPatch.WIDGET = 3
-	VirtualPatch.PROPS = 4
-	VirtualPatch.ORDER = 5
-	VirtualPatch.INSERT = 6
-	VirtualPatch.REMOVE = 7
-	VirtualPatch.THUNK = 8
-	
-	module.exports = VirtualPatch
-	
-	function VirtualPatch(type, vNode, patch) {
-	    this.type = Number(type)
-	    this.vNode = vNode
-	    this.patch = patch
+	function InputProxy() {
+	  this.proxiedProps = {};
+	  // For any DataFlowNode
+	  this.get = function getFromProxy(streamKey) {
+	    if (typeof this.proxiedProps[streamKey] === 'undefined') {
+	      this.proxiedProps[streamKey] = new Rx.Subject();
+	    }
+	    return this.proxiedProps[streamKey];
+	  };
+	  // For the DOMUser
+	  this.event$ = function event$FromProxy(selector, eventName) {
+	    if (typeof this.proxiedProps[selector] === 'undefined') {
+	      this.proxiedProps[selector] = {
+	        _hasEvent$: true
+	      };
+	    }
+	    if (typeof this.proxiedProps[selector][eventName] === 'undefined') {
+	      this.proxiedProps[selector][eventName] = new Rx.Subject();
+	    }
+	    return this.proxiedProps[selector][eventName];
+	  };
 	}
 	
-	VirtualPatch.prototype.version = version
-	VirtualPatch.prototype.type = "VirtualPatch"
+	module.exports = InputProxy;
 
 
 /***/ },
-/* 32 */
+/* 27 */
+/*!********************************!*\
+  !*** ./~/cyclejs/src/utils.js ***!
+  \********************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	function endsWithDollarSign(str) {
+	  if (typeof str !== 'string') {
+	    return false;
+	  }
+	  return str.indexOf('$', str.length - 1) !== -1;
+	}
+	
+	module.exports = {
+	  endsWithDollarSign: endsWithDollarSign
+	};
+
+
+/***/ },
+/* 28 */
+/*!******************************************!*\
+  !*** ./~/cyclejs/src/custom-elements.js ***!
+  \******************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	var InputProxy = __webpack_require__(/*! ./input-proxy */ 26);
+	var Utils = __webpack_require__(/*! ./utils */ 27);
+	var Rx = __webpack_require__(/*! rx */ 16);
+	
+	function makeDispatchFunction(element, eventName) {
+	  return function dispatchCustomEvent(evData) {
+	    var event;
+	    try {
+	      event = new Event(eventName);
+	    } catch (err) {
+	      event = document.createEvent('Event');
+	      event.initEvent(eventName, true, true);
+	    }
+	    event.data = evData;
+	    element.dispatchEvent(event);
+	  };
+	}
+	
+	function subscribeDispatchers(element, eventStreams) {
+	  if (!eventStreams || typeof eventStreams !== 'object') { return; }
+	
+	  var disposables = new Rx.CompositeDisposable();
+	  for (var streamName in eventStreams) { if (eventStreams.hasOwnProperty(streamName)) {
+	    if (Utils.endsWithDollarSign(streamName) &&
+	      typeof eventStreams[streamName].subscribe === 'function')
+	    {
+	      var eventName = streamName.slice(0, -1);
+	      var disposable = eventStreams[streamName].subscribe(
+	        makeDispatchFunction(element, eventName)
+	      );
+	      disposables.add(disposable);
+	    }
+	  }}
+	  return disposables;
+	}
+	
+	function subscribeDispatchersWhenRootChanges(widget, eventStreams) {
+	  widget._rootElem$
+	    .distinctUntilChanged(Rx.helpers.identity,
+	      function comparer(x, y) { return x && y && x.isEqualNode && x.isEqualNode(y); }
+	    )
+	    .subscribe(function (rootElem) {
+	      if (widget.eventStreamsSubscriptions) {
+	        widget.eventStreamsSubscriptions.dispose();
+	      }
+	      widget.eventStreamsSubscriptions = subscribeDispatchers(rootElem, eventStreams);
+	    });
+	}
+	
+	function makeInputPropertiesProxy() {
+	  var inputProxy = new InputProxy();
+	  var oldGet = inputProxy.get;
+	  inputProxy.get = function get(streamName) {
+	    var result = oldGet.call(this, streamName);
+	    if (result && result.distinctUntilChanged) {
+	      return result.distinctUntilChanged();
+	    } else {
+	      return result;
+	    }
+	  };
+	  return inputProxy;
+	}
+	
+	function createContainerElement(tagName, vtreeProperties) {
+	  var elem = document.createElement('div');
+	  elem.className = vtreeProperties.className || '';
+	  elem.id = vtreeProperties.id || '';
+	  elem.className += ' cycleCustomElement-' + tagName.toUpperCase();
+	  elem.cycleCustomElementProperties = makeInputPropertiesProxy();
+	  return elem;
+	}
+	
+	function replicateUserRootElem$(user, widget) {
+	  user._rootElem$.subscribe(function (elem) { widget._rootElem$.onNext(elem); });
+	}
+	
+	function makeConstructor() {
+	  return function customElementConstructor(vtree) {
+	    this.type = 'Widget';
+	    this.properties = vtree.properties;
+	    this.key = vtree.key;
+	  };
+	}
+	
+	function makeInit(tagName, definitionFn) {
+	  var DOMUser = __webpack_require__(/*! ./dom-user */ 9);
+	  return function initCustomElement() {
+	    var widget = this;
+	    var element = createContainerElement(tagName, widget.properties);
+	    var user = new DOMUser(element);
+	    var eventStreams = definitionFn(user, element.cycleCustomElementProperties);
+	    widget._rootElem$ = new Rx.ReplaySubject(1);
+	    replicateUserRootElem$(user, widget);
+	    widget.eventStreamsSubscriptions = subscribeDispatchers(element, eventStreams);
+	    subscribeDispatchersWhenRootChanges(widget, eventStreams);
+	    widget.update(null, element);
+	    return element;
+	  };
+	}
+	
+	function makeUpdate() {
+	  return function updateCustomElement(prev, elem) {
+	    if (!elem) { return; }
+	    if (!elem.cycleCustomElementProperties) { return; }
+	    if (!(elem.cycleCustomElementProperties instanceof InputProxy)) { return; }
+	    if (!elem.cycleCustomElementProperties.proxiedProps) { return; }
+	
+	    var proxiedProps = elem.cycleCustomElementProperties.proxiedProps;
+	    for (var prop in proxiedProps) { if (proxiedProps.hasOwnProperty(prop)) {
+	      var propStreamName = prop;
+	      var propName = prop.slice(0, -1);
+	      if (this.properties.hasOwnProperty(propName)) {
+	        proxiedProps[propStreamName].onNext(this.properties[propName]);
+	      }
+	    }}
+	  };
+	}
+	
+	module.exports = {
+	  makeConstructor: makeConstructor,
+	  makeInit: makeInit,
+	  makeUpdate: makeUpdate
+	};
+
+
+/***/ },
+/* 29 */
+/*!**********************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vdom/apply-properties.js ***!
+  \**********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isObject = __webpack_require__(/*! is-object */ 50)
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook.js */ 39)
+	
+	module.exports = applyProperties
+	
+	function applyProperties(node, props, previous) {
+	    for (var propName in props) {
+	        var propValue = props[propName]
+	
+	        if (propValue === undefined) {
+	            removeProperty(node, propName, propValue, previous);
+	        } else if (isHook(propValue)) {
+	            removeProperty(node, propName, propValue, previous)
+	            if (propValue.hook) {
+	                propValue.hook(node,
+	                    propName,
+	                    previous ? previous[propName] : undefined)
+	            }
+	        } else {
+	            if (isObject(propValue)) {
+	                patchObject(node, props, previous, propName, propValue);
+	            } else {
+	                node[propName] = propValue
+	            }
+	        }
+	    }
+	}
+	
+	function removeProperty(node, propName, propValue, previous) {
+	    if (previous) {
+	        var previousValue = previous[propName]
+	
+	        if (!isHook(previousValue)) {
+	            if (propName === "attributes") {
+	                for (var attrName in previousValue) {
+	                    node.removeAttribute(attrName)
+	                }
+	            } else if (propName === "style") {
+	                for (var i in previousValue) {
+	                    node.style[i] = ""
+	                }
+	            } else if (typeof previousValue === "string") {
+	                node[propName] = ""
+	            } else {
+	                node[propName] = null
+	            }
+	        } else if (previousValue.unhook) {
+	            previousValue.unhook(node, propName, propValue)
+	        }
+	    }
+	}
+	
+	function patchObject(node, props, previous, propName, propValue) {
+	    var previousValue = previous ? previous[propName] : undefined
+	
+	    // Set attributes
+	    if (propName === "attributes") {
+	        for (var attrName in propValue) {
+	            var attrValue = propValue[attrName]
+	
+	            if (attrValue === undefined) {
+	                node.removeAttribute(attrName)
+	            } else {
+	                node.setAttribute(attrName, attrValue)
+	            }
+	        }
+	
+	        return
+	    }
+	
+	    if(previousValue && isObject(previousValue) &&
+	        getPrototype(previousValue) !== getPrototype(propValue)) {
+	        node[propName] = propValue
+	        return
+	    }
+	
+	    if (!isObject(node[propName])) {
+	        node[propName] = {}
+	    }
+	
+	    var replacer = propName === "style" ? "" : undefined
+	
+	    for (var k in propValue) {
+	        var value = propValue[k]
+	        node[propName][k] = (value === undefined) ? replacer : value
+	    }
+	}
+	
+	function getPrototype(value) {
+	    if (Object.getPrototypeOf) {
+	        return Object.getPrototypeOf(value)
+	    } else if (value.__proto__) {
+	        return value.__proto__
+	    } else if (value.constructor) {
+	        return value.constructor.prototype
+	    }
+	}
+
+
+/***/ },
+/* 30 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/is-vnode.js ***!
   \***************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 49)
+	var version = __webpack_require__(/*! ./version */ 46)
 	
 	module.exports = isVirtualNode
 	
@@ -23255,13 +23249,13 @@
 
 
 /***/ },
-/* 33 */
+/* 31 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/is-vtext.js ***!
   \***************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 49)
+	var version = __webpack_require__(/*! ./version */ 46)
 	
 	module.exports = isVirtualText
 	
@@ -23271,7 +23265,7 @@
 
 
 /***/ },
-/* 34 */
+/* 32 */
 /*!****************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/is-widget.js ***!
   \****************************************************/
@@ -23285,30 +23279,16 @@
 
 
 /***/ },
-/* 35 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = isThunk
-	
-	function isThunk(t) {
-	    return t && t.type === "Thunk"
-	}
-
-
-/***/ },
-/* 36 */
+/* 33 */
 /*!*******************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/handle-thunk.js ***!
   \*******************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 32)
-	var isVText = __webpack_require__(/*! ./is-vtext */ 33)
-	var isWidget = __webpack_require__(/*! ./is-widget */ 34)
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 35)
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 30)
+	var isVText = __webpack_require__(/*! ./is-vtext */ 31)
+	var isWidget = __webpack_require__(/*! ./is-widget */ 32)
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 40)
 	
 	module.exports = handleThunk
 	
@@ -23348,74 +23328,32 @@
 
 
 /***/ },
-/* 37 */
-/*!*****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
-  \*****************************************************/
+/* 34 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/global/document.js ***!
+  \******************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isObject = __webpack_require__(/*! is-object */ 52)
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 43)
+	/* WEBPACK VAR INJECTION */(function(global) {var topLevel = typeof global !== 'undefined' ? global :
+	    typeof window !== 'undefined' ? window : {}
+	var minDoc = __webpack_require__(/*! min-document */ 45);
 	
-	module.exports = diffProps
+	if (typeof document !== 'undefined') {
+	    module.exports = document;
+	} else {
+	    var doccy = topLevel['__GLOBAL_DOCUMENT_CACHE@4'];
 	
-	function diffProps(a, b) {
-	    var diff
-	
-	    for (var aKey in a) {
-	        if (!(aKey in b)) {
-	            diff = diff || {}
-	            diff[aKey] = undefined
-	        }
-	
-	        var aValue = a[aKey]
-	        var bValue = b[aKey]
-	
-	        if (aValue === bValue) {
-	            continue
-	        } else if (isObject(aValue) && isObject(bValue)) {
-	            if (getPrototype(bValue) !== getPrototype(aValue)) {
-	                diff = diff || {}
-	                diff[aKey] = bValue
-	            } else if (isHook(bValue)) {
-	                 diff = diff || {}
-	                 diff[aKey] = bValue
-	            } else {
-	                var objectDiff = diffProps(aValue, bValue)
-	                if (objectDiff) {
-	                    diff = diff || {}
-	                    diff[aKey] = objectDiff
-	                }
-	            }
-	        } else {
-	            diff = diff || {}
-	            diff[aKey] = bValue
-	        }
+	    if (!doccy) {
+	        doccy = topLevel['__GLOBAL_DOCUMENT_CACHE@4'] = minDoc;
 	    }
 	
-	    for (var bKey in b) {
-	        if (!(bKey in a)) {
-	            diff = diff || {}
-	            diff[bKey] = b[bKey]
-	        }
-	    }
-	
-	    return diff
+	    module.exports = doccy;
 	}
 	
-	function getPrototype(value) {
-	  if (Object.getPrototypeOf) {
-	    return Object.getPrototypeOf(value)
-	  } else if (value.__proto__) {
-	    return value.__proto__
-	  } else if (value.constructor) {
-	    return value.constructor.prototype
-	  }
-	}
-
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
-/* 38 */
+/* 35 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/dom-index.js ***!
   \***************************************************/
@@ -23509,19 +23447,19 @@
 
 
 /***/ },
-/* 39 */
+/* 36 */
 /*!**************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/patch-op.js ***!
   \**************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var applyProperties = __webpack_require__(/*! ./apply-properties */ 48)
+	var applyProperties = __webpack_require__(/*! ./apply-properties */ 29)
 	
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 34)
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 31)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 32)
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 47)
 	
-	var render = __webpack_require__(/*! ./create-element */ 30)
-	var updateWidget = __webpack_require__(/*! ./update-widget */ 50)
+	var render = __webpack_require__(/*! ./create-element */ 25)
+	var updateWidget = __webpack_require__(/*! ./update-widget */ 52)
 	
 	module.exports = applyPatch
 	
@@ -23701,34 +23639,17 @@
 
 
 /***/ },
-/* 40 */
-/*!*******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/x-is-array/index.js ***!
-  \*******************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var nativeIsArray = Array.isArray
-	var toString = Object.prototype.toString
-	
-	module.exports = nativeIsArray || isArray
-	
-	function isArray(obj) {
-	    return toString.call(obj) === "[object Array]"
-	}
-
-
-/***/ },
-/* 41 */
+/* 37 */
 /*!************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/vnode.js ***!
   \************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 49)
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 32)
-	var isWidget = __webpack_require__(/*! ./is-widget */ 34)
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 35)
-	var isVHook = __webpack_require__(/*! ./is-vhook */ 43)
+	var version = __webpack_require__(/*! ./version */ 46)
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 30)
+	var isWidget = __webpack_require__(/*! ./is-widget */ 32)
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 40)
+	var isVHook = __webpack_require__(/*! ./is-vhook */ 39)
 	
 	module.exports = VirtualNode
 	
@@ -23799,13 +23720,13 @@
 
 
 /***/ },
-/* 42 */
+/* 38 */
 /*!************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/vtext.js ***!
   \************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 49)
+	var version = __webpack_require__(/*! ./version */ 46)
 	
 	module.exports = VirtualText
 	
@@ -23818,7 +23739,7 @@
 
 
 /***/ },
-/* 43 */
+/* 39 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/is-vhook.js ***!
   \***************************************************/
@@ -23834,7 +23755,21 @@
 
 
 /***/ },
-/* 44 */
+/* 40 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = isThunk
+	
+	function isThunk(t) {
+	    return t && t.type === "Thunk"
+	}
+
+
+/***/ },
+/* 41 */
 /*!******************************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/parse-tag.js ***!
   \******************************************************************/
@@ -23842,7 +23777,7 @@
 
 	'use strict';
 	
-	var split = __webpack_require__(/*! browser-split */ 53);
+	var split = __webpack_require__(/*! browser-split */ 54);
 	
 	var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/;
 	var notClassId = /^\.|#/;
@@ -23897,7 +23832,7 @@
 
 
 /***/ },
-/* 45 */
+/* 42 */
 /*!****************************************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js ***!
   \****************************************************************************/
@@ -23923,7 +23858,7 @@
 
 
 /***/ },
-/* 46 */
+/* 43 */
 /*!**********************************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/ev-hook.js ***!
   \**********************************************************************/
@@ -23931,7 +23866,7 @@
 
 	'use strict';
 	
-	var EvStore = __webpack_require__(/*! ev-store */ 54);
+	var EvStore = __webpack_require__(/*! ev-store */ 53);
 	
 	module.exports = EvHook;
 	
@@ -23959,138 +23894,33 @@
 
 
 /***/ },
-/* 47 */
-/*!******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/global/document.js ***!
-  \******************************************************/
+/* 44 */
+/*!*******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/x-is-array/index.js ***!
+  \*******************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	/* WEBPACK VAR INJECTION */(function(global) {var topLevel = typeof global !== 'undefined' ? global :
-	    typeof window !== 'undefined' ? window : {}
-	var minDoc = __webpack_require__(/*! min-document */ 51);
+	var nativeIsArray = Array.isArray
+	var toString = Object.prototype.toString
 	
-	if (typeof document !== 'undefined') {
-	    module.exports = document;
-	} else {
-	    var doccy = topLevel['__GLOBAL_DOCUMENT_CACHE@4'];
+	module.exports = nativeIsArray || isArray
 	
-	    if (!doccy) {
-	        doccy = topLevel['__GLOBAL_DOCUMENT_CACHE@4'] = minDoc;
-	    }
-	
-	    module.exports = doccy;
-	}
-	
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
-
-/***/ },
-/* 48 */
-/*!**********************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/apply-properties.js ***!
-  \**********************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var isObject = __webpack_require__(/*! is-object */ 52)
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook.js */ 43)
-	
-	module.exports = applyProperties
-	
-	function applyProperties(node, props, previous) {
-	    for (var propName in props) {
-	        var propValue = props[propName]
-	
-	        if (propValue === undefined) {
-	            removeProperty(node, propName, propValue, previous);
-	        } else if (isHook(propValue)) {
-	            removeProperty(node, propName, propValue, previous)
-	            if (propValue.hook) {
-	                propValue.hook(node,
-	                    propName,
-	                    previous ? previous[propName] : undefined)
-	            }
-	        } else {
-	            if (isObject(propValue)) {
-	                patchObject(node, props, previous, propName, propValue);
-	            } else {
-	                node[propName] = propValue
-	            }
-	        }
-	    }
-	}
-	
-	function removeProperty(node, propName, propValue, previous) {
-	    if (previous) {
-	        var previousValue = previous[propName]
-	
-	        if (!isHook(previousValue)) {
-	            if (propName === "attributes") {
-	                for (var attrName in previousValue) {
-	                    node.removeAttribute(attrName)
-	                }
-	            } else if (propName === "style") {
-	                for (var i in previousValue) {
-	                    node.style[i] = ""
-	                }
-	            } else if (typeof previousValue === "string") {
-	                node[propName] = ""
-	            } else {
-	                node[propName] = null
-	            }
-	        } else if (previousValue.unhook) {
-	            previousValue.unhook(node, propName, propValue)
-	        }
-	    }
-	}
-	
-	function patchObject(node, props, previous, propName, propValue) {
-	    var previousValue = previous ? previous[propName] : undefined
-	
-	    // Set attributes
-	    if (propName === "attributes") {
-	        for (var attrName in propValue) {
-	            var attrValue = propValue[attrName]
-	
-	            if (attrValue === undefined) {
-	                node.removeAttribute(attrName)
-	            } else {
-	                node.setAttribute(attrName, attrValue)
-	            }
-	        }
-	
-	        return
-	    }
-	
-	    if(previousValue && isObject(previousValue) &&
-	        getPrototype(previousValue) !== getPrototype(propValue)) {
-	        node[propName] = propValue
-	        return
-	    }
-	
-	    if (!isObject(node[propName])) {
-	        node[propName] = {}
-	    }
-	
-	    var replacer = propName === "style" ? "" : undefined
-	
-	    for (var k in propValue) {
-	        var value = propValue[k]
-	        node[propName][k] = (value === undefined) ? replacer : value
-	    }
-	}
-	
-	function getPrototype(value) {
-	    if (Object.getPrototypeOf) {
-	        return Object.getPrototypeOf(value)
-	    } else if (value.__proto__) {
-	        return value.__proto__
-	    } else if (value.constructor) {
-	        return value.constructor.prototype
-	    }
+	function isArray(obj) {
+	    return toString.call(obj) === "[object Array]"
 	}
 
 
 /***/ },
-/* 49 */
+/* 45 */
+/*!******************************!*\
+  !*** min-document (ignored) ***!
+  \******************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	/* (ignored) */
+
+/***/ },
+/* 46 */
 /*!**************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/version.js ***!
   \**************************************************/
@@ -24100,13 +23930,211 @@
 
 
 /***/ },
+/* 47 */
+/*!*************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
+  \*************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 46)
+	
+	VirtualPatch.NONE = 0
+	VirtualPatch.VTEXT = 1
+	VirtualPatch.VNODE = 2
+	VirtualPatch.WIDGET = 3
+	VirtualPatch.PROPS = 4
+	VirtualPatch.ORDER = 5
+	VirtualPatch.INSERT = 6
+	VirtualPatch.REMOVE = 7
+	VirtualPatch.THUNK = 8
+	
+	module.exports = VirtualPatch
+	
+	function VirtualPatch(type, vNode, patch) {
+	    this.type = Number(type)
+	    this.vNode = vNode
+	    this.patch = patch
+	}
+	
+	VirtualPatch.prototype.version = version
+	VirtualPatch.prototype.type = "VirtualPatch"
+
+
+/***/ },
+/* 48 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isObject = __webpack_require__(/*! is-object */ 50)
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 39)
+	
+	module.exports = diffProps
+	
+	function diffProps(a, b) {
+	    var diff
+	
+	    for (var aKey in a) {
+	        if (!(aKey in b)) {
+	            diff = diff || {}
+	            diff[aKey] = undefined
+	        }
+	
+	        var aValue = a[aKey]
+	        var bValue = b[aKey]
+	
+	        if (aValue === bValue) {
+	            continue
+	        } else if (isObject(aValue) && isObject(bValue)) {
+	            if (getPrototype(bValue) !== getPrototype(aValue)) {
+	                diff = diff || {}
+	                diff[aKey] = bValue
+	            } else if (isHook(bValue)) {
+	                 diff = diff || {}
+	                 diff[aKey] = bValue
+	            } else {
+	                var objectDiff = diffProps(aValue, bValue)
+	                if (objectDiff) {
+	                    diff = diff || {}
+	                    diff[aKey] = objectDiff
+	                }
+	            }
+	        } else {
+	            diff = diff || {}
+	            diff[aKey] = bValue
+	        }
+	    }
+	
+	    for (var bKey in b) {
+	        if (!(bKey in a)) {
+	            diff = diff || {}
+	            diff[bKey] = b[bKey]
+	        }
+	    }
+	
+	    return diff
+	}
+	
+	function getPrototype(value) {
+	  if (Object.getPrototypeOf) {
+	    return Object.getPrototypeOf(value)
+	  } else if (value.__proto__) {
+	    return value.__proto__
+	  } else if (value.constructor) {
+	    return value.constructor.prototype
+	  }
+	}
+
+
+/***/ },
+/* 49 */
+/*!***********************************!*\
+  !*** (webpack)/buildin/module.js ***!
+  \***********************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = function(module) {
+		if(!module.webpackPolyfill) {
+			module.deprecate = function() {};
+			module.paths = [];
+			// module.parent = undefined by default
+			module.children = [];
+			module.webpackPolyfill = 1;
+		}
+		return module;
+	}
+
+
+/***/ },
 /* 50 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/is-object/index.js ***!
+  \******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	module.exports = function isObject(x) {
+		return typeof x === "object" && x !== null;
+	};
+
+
+/***/ },
+/* 51 */
+/*!**********************************************************!*\
+  !*** (webpack)/~/node-libs-browser/~/process/browser.js ***!
+  \**********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	// shim for using process in browser
+	
+	var process = module.exports = {};
+	var queue = [];
+	var draining = false;
+	
+	function drainQueue() {
+	    if (draining) {
+	        return;
+	    }
+	    draining = true;
+	    var currentQueue;
+	    var len = queue.length;
+	    while(len) {
+	        currentQueue = queue;
+	        queue = [];
+	        var i = -1;
+	        while (++i < len) {
+	            currentQueue[i]();
+	        }
+	        len = queue.length;
+	    }
+	    draining = false;
+	}
+	process.nextTick = function (fun) {
+	    queue.push(fun);
+	    if (!draining) {
+	        setTimeout(drainQueue, 0);
+	    }
+	};
+	
+	process.title = 'browser';
+	process.browser = true;
+	process.env = {};
+	process.argv = [];
+	process.version = ''; // empty string to avoid regexp issues
+	process.versions = {};
+	
+	function noop() {}
+	
+	process.on = noop;
+	process.addListener = noop;
+	process.once = noop;
+	process.off = noop;
+	process.removeListener = noop;
+	process.removeAllListeners = noop;
+	process.emit = noop;
+	
+	process.binding = function (name) {
+	    throw new Error('process.binding is not supported');
+	};
+	
+	// TODO(shtylman)
+	process.cwd = function () { return '/' };
+	process.chdir = function (dir) {
+	    throw new Error('process.chdir is not supported');
+	};
+	process.umask = function() { return 0; };
+
+
+/***/ },
+/* 52 */
 /*!*******************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/update-widget.js ***!
   \*******************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 34)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 32)
 	
 	module.exports = updateWidget
 	
@@ -24124,30 +24152,36 @@
 
 
 /***/ },
-/* 51 */
-/*!******************************!*\
-  !*** min-document (ignored) ***!
-  \******************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	/* (ignored) */
-
-/***/ },
-/* 52 */
-/*!******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/is-object/index.js ***!
-  \******************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	
-	module.exports = function isObject(x) {
-		return typeof x === "object" && x !== null;
-	};
-
-
-/***/ },
 /* 53 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/ev-store/index.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var OneVersionConstraint = __webpack_require__(/*! individual/one-version */ 55);
+	
+	var MY_VERSION = '7';
+	OneVersionConstraint('ev-store', MY_VERSION);
+	
+	var hashKey = '__EV_STORE_KEY@' + MY_VERSION;
+	
+	module.exports = EvStore;
+	
+	function EvStore(elem) {
+	    var hash = elem[hashKey];
+	
+	    if (!hash) {
+	        hash = elem[hashKey] = {};
+	    }
+	
+	    return hash;
+	}
+
+
+/***/ },
+/* 54 */
 /*!**********************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/browser-split/index.js ***!
   \**********************************************************/
@@ -24259,35 +24293,6 @@
 	
 	  return self;
 	})();
-
-
-/***/ },
-/* 54 */
-/*!*****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/ev-store/index.js ***!
-  \*****************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var OneVersionConstraint = __webpack_require__(/*! individual/one-version */ 55);
-	
-	var MY_VERSION = '7';
-	OneVersionConstraint('ev-store', MY_VERSION);
-	
-	var hashKey = '__EV_STORE_KEY@' + MY_VERSION;
-	
-	module.exports = EvStore;
-	
-	function EvStore(elem) {
-	    var hash = elem[hashKey];
-	
-	    if (!hash) {
-	        hash = elem[hashKey] = {};
-	    }
-	
-	    return hash;
-	}
 
 
 /***/ },

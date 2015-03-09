@@ -1,7 +1,7 @@
 import Cycle from 'cyclejs';
 import _ from 'lodash';
 
-function renderOptions(model) {
+function renderOptions(gathering, sort) {
   return [
     Cycle.h('h2', 'Let\'s get one of these:'),
     Cycle.h('table', [
@@ -10,19 +10,19 @@ function renderOptions(model) {
           Cycle.h('th', 'Pizzas'),
           Cycle.h('th', {
             attributes: {'data-order': 'total'},
-            className: model.sortBy === 'total' ? 'active' : ''
+            className: sort === 'total' ? 'active' : ''
           }, 'Servings'),
           Cycle.h('th', {
             attributes: {'data-order': 'cost'},
-            className: model.sortBy === 'cost' ? 'active' : ''
+            className: sort === 'cost' ? 'active' : ''
           }, 'Cost'),
           Cycle.h('th', {
-            attributes: {'data-order': 'order'},
-            className: model.sortBy === 'order' ? 'active' : ''
+            attributes: {'data-order': 'rank'},
+            className: sort === 'rank' ? 'active' : ''
           }, 'PizzaRank™'),
         ])
       ]),
-      Cycle.h('tbody', model.purchaseOptions.map(renderOption.bind(this, model.servingSize)))
+      Cycle.h('tbody', gathering.purchaseOptions.map(renderOption.bind(this, gathering.servingSize)))
     ])
   ];
 }
@@ -41,24 +41,24 @@ function renderOption(servingSize, option) {
     Cycle.h('td', `${Math.round(option.cost * 100) / 100}`),
     Cycle.h('td', [
         option.bestDeal ? Cycle.h('span.best-deal', {title: 'Best Deal!'}) : null,
-        `${option.order}`
+        `${option.rank}`
       ])
     ]);
 }
 
-function renderMenuSelection(model) {
+function renderMenuSelection(menus, gathering) {
   return [
-    Cycle.h('h2', `Where are we ordering ${model.numServings} slices from?`),
-    Cycle.h('select.menu', _.map(model.menus, (menu, name) =>
-      Cycle.h('option', name)))
+    Cycle.h('h2', `Where are we ordering ${gathering.numServings} slices from?`),
+    Cycle.h('select.menu', _.map(menus, (menu) =>
+      Cycle.h('option', {selected: gathering.menu === menu._id}, menu.name)))
   ];
 }
 
-function renderEaters(model) {
+function renderEaters(gathering) {
   return [
     Cycle.h('h2', 'Who\'s eating?'),
     Cycle.h('ul', [
-      model.eaters.map(renderEater),
+      gathering.eaters.map(renderEater),
       Cycle.h('li', Cycle.h('input.new-eater'))
     ])
   ];
@@ -74,10 +74,10 @@ var View = Cycle.createView(Model =>
     ({
       vtree$: Model.get('model$').map(model =>
         Cycle.h('div', [
-          Cycle.h('h1', 'TODO: Minimum Viable Pizza'),
-          renderEaters(model),
-          renderMenuSelection(model),
-          renderOptions(model)
+          Cycle.h('h1', 'TODO: Order Minimum Viable Pizza'),
+          renderEaters(model.gathering),
+          renderMenuSelection(model.menus, model.gathering),
+          renderOptions(model.gathering)
         ]))
     })
 );

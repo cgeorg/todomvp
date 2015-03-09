@@ -4,7 +4,7 @@
 
 html {
     background-size: cover;
-    background: url(img/pizza.png) fixed;
+    background: url(../img/pizza.png) fixed;
 }
 
 body {
@@ -98,9 +98,9 @@ td:nth-child(1) {
 }
 
 .most-pizza {
-    background-image: url(img/burst.png);
+    background-image: url(../img/burst.png);
 }
 
 .best-deal {
-    background-image: url(img/star.png);
+    background-image: url(../img/star.png);
 }

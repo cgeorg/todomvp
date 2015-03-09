@@ -12,7 +12,11 @@
   "license": "ISC",
   "dependencies": {
     "cyclejs": "^0.15.0",
-    "lodash": "^3.3.1"
+    "express": "^4.12.2",
+    "jade": "^1.9.2",
+    "lodash": "^3.3.1",
+    "mongodb": "^1.4.33",
+    "q": "^1.2.0"
   },
   "devDependencies": {
     "babel-core": "^4.6.6",

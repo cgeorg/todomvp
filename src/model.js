@@ -2,9 +2,9 @@ import Cycle from 'cyclejs';
 import _ from 'lodash';
 
 function calculatePurchaseOptions(model) {
-  var {servingSize, sortBy} = model,
-      pizzas = _.sortBy(model.selectedMenu, 'diameter').reverse(),
-      numServings = _(model.eaters).map('servings').reduce((sum, num) => sum + num) || 0,
+  var {servingSize, sortBy} = model.gathering,
+      pizzas = _.sortBy(_.find(model.menus, {_id: model.gathering.menu}).pizzas, 'diameter').reverse(),
+      numServings = _(model.gathering.eaters).map('servings').reduce((sum, num) => sum + num) || 0,
       totalSize = numServings * servingSize;
 
   function updateTotal(option) {
@@ -31,8 +31,8 @@ function calculatePurchaseOptions(model) {
     return options;
   }
 
-  model.numServings = numServings;
-  model.purchaseOptions = _(addPizza({pizzas: [], total: 0}, []))
+  model.gathering.numServings = numServings;
+  model.gathering.purchaseOptions = _(addPizza({pizzas: [], total: 0}, []))
     .tap(options => console.log(`Found ${options.length} options`))
     .forEach(option => {
       option.cost = _(option.pizzas)
@@ -41,9 +41,9 @@ function calculatePurchaseOptions(model) {
       option.ratio = option.cost / option.total;
     })
     .sortBy('ratio')
-    .forEach((option, index) => option.order = index + 1)
+    .forEach((option, index) => option.rank = index + 1)
     .sortBy('total')
-    .forEach((option, index) => option.order += index)
+    .forEach((option, index) => option.rank += index)
     .sortBy(sortBy)
     .take(10)
     .sortBy('total')
@@ -64,19 +64,19 @@ var Model = Cycle.createModel((Intent, Initial) => {
 
   var menuMod$ = Intent.get('selectMenu$')
     .map(name => model => {
-      model.selectedMenu = model.menus[name];
+      model.gathering.selectedMenu = model.menus[name];
       return model;
     });
 
   var eaterMod$ = Intent.get('eaterUpdate$')
     .map(data => model => {
-      model.eaters[data.id].servings = Math.max(data.servings, 0);
+      model.gathering.eaters[data.id].servings = Math.max(data.servings, 0);
       return model;
     });
 
   var eaterAdd$ = Intent.get('eaterAdd$')
     .map(data => model => {
-      model.eaters.push({name: data.name, servings: data.servings});
+      model.gathering.eaters.push({name: data.name, servings: data.servings});
       return model;
     });
 

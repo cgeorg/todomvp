@@ -10,11 +10,11 @@ The TODO: MVP algorithm accepts the following inputs:
 
 The TODO: MVP algorithm will in turn recommend several pizza ordering options that will satisfy the group's cravings.
 
-# What can I do with it?
+## What can I do with it?
 
 Well, you could use it to figure out what pizza to order.  You could also use it instead of TodoMVC to try out a new library/framework/etc.
 
-# How does the MVP algorithm work?
+## How does the MVP algorithm work?
 
 It just generates permutations of all of the pizza configurations that order enough pizza, without ordering an extra pizza, and then ranks and sorts them on several axes.
 

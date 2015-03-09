@@ -1,0 +1,12 @@
+doctype html
+html(lang="en")
+    head
+        title= 'Todo: Minimum Viable Pizza'
+        link(rel='stylesheet', href="style.css")
+    body
+        h1 TODO: Order Minimum Viable Pizza
+        script
+            != 'window.menus = ' + JSON.stringify(menus) + ';'
+            != 'window.gathering = ' + JSON.stringify(gathering) + ';'
+
+        script(src='script.js')
