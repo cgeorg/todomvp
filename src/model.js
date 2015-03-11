@@ -1,5 +1,6 @@
 import Cycle from 'cyclejs';
 import _ from 'lodash';
+import mvp from './mvp';
 
 function save(model, forceSave) {
 
@@ -29,59 +30,6 @@ function save(model, forceSave) {
 }
 
 var sink, serverUpdated$ = Cycle.Rx.Observable.create(_sink => sink = _sink);
-
-function calculatePurchaseOptions(model) {
-  var {servingSize, sortBy} = model.gathering,
-      pizzas = _.sortBy(_.find(model.menus, {_id: model.gathering.menu}).pizzas, 'diameter').reverse(),
-      numServings = _(model.gathering.eaters).map('servings').reduce((sum, num) => sum + num) || 0,
-      totalSize = numServings * servingSize;
-
-  function updateTotal(option) {
-    option.total = _(option.pizzas)
-      .map('diameter')
-      .map(d => d / 2)
-      .map(r => r * r)
-      .map(r2 => r2 * Math.PI)
-      .reduce((sum, area) => area + sum);
-  }
-
-  function addPizza(option, options, index) {
-    index = index || 0;
-    if (option.total > totalSize) {
-      options.push(option);
-    } else {
-      for (let i = index; i < pizzas.length; ++i) {
-        var newOp = {pizzas: _.clone(option.pizzas)};
-        newOp.pizzas.push(pizzas[i]);
-        updateTotal(newOp);
-        addPizza(newOp, options, i);
-      }
-    }
-    return options;
-  }
-
-  model.gathering.numServings = numServings;
-  model.gathering.purchaseOptions = _(addPizza({pizzas: [], total: 0}, []))
-    .tap(options => console.log(`Found ${options.length} options`))
-    .forEach(option => {
-      option.cost = _(option.pizzas)
-        .map('cost')
-        .reduce((sum, cost) => sum + cost);
-      option.ratio = option.cost / option.total;
-    })
-    .sortBy('ratio')
-    .forEach((option, index) => option.rank = index + 1)
-    .sortBy('total')
-    .forEach((option, index) => option.rank += index)
-    .sortBy(sortBy)
-    .take(10)
-    .sortBy('total')
-    .tap(options => options.length && (options[options.length - 1].mostPizza = true))
-    .sortBy('ratio')
-    .tap(options => options.length && (options[0].bestDeal = true))
-    .sortBy(model.sortBy)
-    .value();
-}
 
 var Model = Cycle.createModel((Intent, Initial) => {
 
@@ -132,7 +80,8 @@ var Model = Cycle.createModel((Intent, Initial) => {
     model$: modifications$
               .merge(Initial.get('model$'))
               .scan(function (model, modFn) { return modFn(model); })
-              .tap(calculatePurchaseOptions)
+              .tap(model => model.numServings = _(model.gathering.eaters).map('servings').reduce((sum, num) => sum + num) || 0)
+              .tap(model => model.purchaseOptions = mvp(model.gathering.eaters, _.find(model.menus, {_id: model.gathering.menu}).pizzas, model.gathering.servingSize, model.sortBy))
               //.combineLatest(route$, determineFilter)
               .share()
   }

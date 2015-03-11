@@ -1,7 +1,7 @@
 import Cycle from 'cyclejs';
 import _ from 'lodash';
 
-function renderOptions(gathering, sort) {
+function renderOptions(model) {
   return [
     Cycle.h('h2', 'Let\'s get one of these:'),
     Cycle.h('table', [
@@ -10,19 +10,19 @@ function renderOptions(gathering, sort) {
           Cycle.h('th', 'Pizzas'),
           Cycle.h('th', {
             attributes: {'data-order': 'total'},
-            className: sort === 'total' ? 'active' : ''
+            className: model.sortBy === 'total' ? 'active' : ''
           }, 'Servings'),
           Cycle.h('th', {
             attributes: {'data-order': 'cost'},
-            className: sort === 'cost' ? 'active' : ''
+            className: model.sortBy === 'cost' ? 'active' : ''
           }, 'Cost'),
           Cycle.h('th', {
             attributes: {'data-order': 'rank'},
-            className: sort === 'rank' ? 'active' : ''
+            className: model.sortBy === 'rank' ? 'active' : ''
           }, 'PizzaRank™'),
         ])
       ]),
-      Cycle.h('tbody', gathering.purchaseOptions.map(renderOption.bind(this, gathering.servingSize)))
+      Cycle.h('tbody', model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize)))
     ])
   ];
 }
@@ -84,7 +84,7 @@ var View = Cycle.createView(Model =>
           renderSave(model.gathering),
           renderEaters(model.gathering),
           renderMenuSelection(model.menus, model.gathering),
-          renderOptions(model.gathering)
+          renderOptions(model)
         ]))
     })
 );

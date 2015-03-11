@@ -11,7 +11,7 @@ var Intent = Cycle.createIntent(User => ({
   ),
 
   eaterAdd$:   User.event$('.new-eater', 'keypress').filter(ev => ev.keyCode === 13).map(
-      ev => ev.target.value.match(/(.*):\s*(\d+)/)
+      ev => ev.target.value.match(/^(.*):?\s*(\d+(\.\d*)?)$/)
   ).filter(match => match).map(
       match => ({name: match[1], servings: parseInt(match[2], 10)})
   ),
@@ -20,7 +20,7 @@ var Intent = Cycle.createIntent(User => ({
       ev => ({id: ev.target.getAttribute('data-id'), servings: parseInt(ev.target.value, 10)})
   ).filter(update => !isNan(update.servings)),
 
-  saveGathering$: User.event$('button.save', 'click')
+  saveGathering$: User.event$('button.save', 'click').map(ev => true)
 
 }));
 
