@@ -80,7 +80,7 @@ var View = Cycle.createView(Model =>
     ({
       vtree$: Model.get('model$').map(model =>
         Cycle.h('div', [
-          Cycle.h('h1', 'TODO: Order Minimum Viable Pizza'),
+          Cycle.h('h1', 'TODO: Minimum Viable Pizza'),
           renderSave(model.gathering),
           renderEaters(model.gathering),
           renderMenuSelection(model.menus, model.gathering),
