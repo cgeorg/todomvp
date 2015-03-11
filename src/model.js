@@ -93,7 +93,7 @@ var Model = Cycle.createModel((Intent, Initial) => {
 
   var menuMod$ = Intent.get('selectMenu$')
     .map(name => model => {
-      model.gathering.selectedMenu = model.menus[name];
+      model.gathering.menu = (_.find(model.menus, {name: name}) || model.menus[0])._id;
       save(model);
       return model;
     });
