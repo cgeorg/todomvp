@@ -6,12 +6,13 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "webpack --config webpack.js.conf --devtool source-map -p src/app.js dist/script.js",
-    "develop": "webpack --config webpack.js.conf -w -d src/app.js script.js"
+    "develop": "webpack --config webpack.js.conf -w -d src/app.js dist/script.js"
   },
   "author": "Chris Marasti-Georg",
   "license": "ISC",
   "dependencies": {
-    "cyclejs": "^0.15.0",
+    "body-parser": "^1.12.0",
+    "cyclejs": "0.15.0",
     "express": "^4.12.2",
     "jade": "^1.9.2",
     "lodash": "^3.3.1",
@@ -22,5 +23,8 @@
     "babel-core": "^4.6.6",
     "babel-loader": "^4.0.0",
     "webpack": "^1.7.2"
+  },
+  "engines": {
+    "node": "0.10.x"
   }
 }

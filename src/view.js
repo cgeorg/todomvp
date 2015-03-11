@@ -54,6 +54,12 @@ function renderMenuSelection(menus, gathering) {
   ];
 }
 
+function renderSave(gathering) {
+  return gathering._id ? [] : [
+    Cycle.h('button.save', 'Save this gathering')
+  ];
+}
+
 function renderEaters(gathering) {
   return [
     Cycle.h('h2', 'Who\'s eating?'),
@@ -75,6 +81,7 @@ var View = Cycle.createView(Model =>
       vtree$: Model.get('model$').map(model =>
         Cycle.h('div', [
           Cycle.h('h1', 'TODO: Order Minimum Viable Pizza'),
+          renderSave(model.gathering),
           renderEaters(model.gathering),
           renderMenuSelection(model.menus, model.gathering),
           renderOptions(model.gathering)

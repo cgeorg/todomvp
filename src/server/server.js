@@ -1,4 +1,5 @@
 var path = require("path");
+var bodyParser = require('body-parser');
 var express = require('express');
 var q = require('q');
 var db = require('./db');
@@ -28,9 +29,8 @@ function get(req, res, next) {
   }
 
   db.executeWithDb(function (db) {
-
     var gathering = q.denodeify(function (cb) {
-      return db.collection('gatherings').findOne({id: req.params.id}, cb);
+      return db.collection('gatherings').findOne({_id: req.params.id}, cb);
     })();
     var menus = q.denodeify(function (cb) {
       return db.collection('menus').find({}).toArray(cb);
@@ -46,36 +46,50 @@ function get(req, res, next) {
 }
 
 function create(req, res) {
-  db.executeWithDb(function (db) {
-    var id = generateId();
-    var collection = db.collection('gatherings');
-    collection.insert({
-      id: id
-    }, function (err, result) {
-      assert.equal(err, null);
-      assert.equal(1, result.result.n);
-      assert.equal(1, result.ops.length);
-
-      res.redirect('/' + id);
-    });
-  });
+  var item = req.body;
+  item._id = generateId();
+  saveOrUpdate(item, req, res);
 }
 
 function update(req, res) {
-  console.log(arguments);
-  res.render('index');
+  var item = req.body;
+  item._id= req.params.id;
+  saveOrUpdate(item, req, res);
+}
+
+function saveOrUpdate(item, req, res) {
+  //sanitize
+  item = {
+    _id: item._id,
+    eaters: item.eaters,
+    servingSize: item.servingSize,
+    menu: item.menu
+  };
+
+  db.executeWithDb(function (db) {
+    return q.denodeify(function (cb) {
+      return db.collection('gatherings').save(item, cb);
+    })().then(function (result) {
+      if(/application\/json/.test(req.headers.accept)) {
+        res.json(item);
+      } else {
+        res.redirect('/' + item._id);
+      }
+    }, function (err) {
+      res.render('index', {err: err});
+    });
+  });
 }
 
 app.set("views", __dirname + "/views");
 app.set("view engine", "jade");
 app.use(express.static(path.join(__dirname, "../../dist")));
 app.use(express.static(path.join(__dirname, "../../public")));
+app.use(bodyParser.json()); // for parsing application/json
 app.post('/', create);
 app.put('/:id', update);
 app.get('/:id', get);
 app.get('/', get);
-//app.use(express.urlencoded());
-//app.use(express.json());
 //app.use(cors());
 
 var server = app.listen(process.env.PORT || 3000, function () {

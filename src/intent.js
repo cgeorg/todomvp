@@ -18,7 +18,9 @@ var Intent = Cycle.createIntent(User => ({
 
   eaterUpdate$: User.event$('.edit-servings', 'keypress').filter(ev => ev.keyCode === 13).map(
       ev => ({id: ev.target.getAttribute('data-id'), servings: parseInt(ev.target.value, 10)})
-  ).filter(update => !isNan(update.servings))
+  ).filter(update => !isNan(update.servings)),
+
+  saveGathering$: User.event$('button.save', 'click')
 
 }));
 
