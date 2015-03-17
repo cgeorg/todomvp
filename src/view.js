@@ -41,7 +41,7 @@ function renderOption(servingSize, servings, option) {
     </td>
     <td>
       {option.cheapest ? Cycle.h('span.low-price', {title: 'Lowest Price!'}) : null}
-      {'' + Math.round(option.cost * 100) / 100}
+      ${'' + Math.round(option.cost * 100) / 100}
     </td>
     <td>
       {option.bestDeal ? Cycle.h('span.best-deal', {title: 'Best Deal!'}) : null}
@@ -50,11 +50,14 @@ function renderOption(servingSize, servings, option) {
   </tr>
 }
 
-function renderMenuSelection(menus, gathering) {
+function renderMenuSelection(menus, gathering, numServings) {
   return [
-    <h2>Where are we ordering from?</h2>,
-    Cycle.h('select.menu', _.map(menus, (menu) =>
-      Cycle.h('option', {selected: gathering.menu === menu._id}, menu.name)))
+    <h2>Where are we ordering {''+numServings} slices from?</h2>,
+    <select className='menu'>
+    {_.map(menus, (menu) =>
+        <option selected={gathering.menu === menu._id}>{menu.name}</option>
+    )}
+    </select>
   ];
 }
 
@@ -66,18 +69,28 @@ function renderSave(gathering) {
 
 function renderEaters(gathering) {
   return [
-    Cycle.h('h2', 'Who\'s eating?'),
-    Cycle.h('ul', [
-      gathering.eaters.map(renderEater),
-      Cycle.h('li', Cycle.h('input.new-eater'))
-    ])
+    <h2>Who's eating?</h2>,
+    <ul>
+    {gathering.eaters.map(renderEater)}
+      <li>
+        <input className="new-eater" />
+      </li>
+    </ul>
   ];
 }
 
-function renderEater(eater) {
-  return Cycle.h('li', [
-    Cycle.h('span', `${eater.name}: ${eater.servings} slice${eater.servings === 1 ? '' : 's'}`)
-  ]);
+function renderEater(eater, index) {
+  function propHook(element) {
+    if (eater.editing) {
+      element.focus();
+      element.selectionStart = element.value.length;
+    }
+  }
+  return <li className={eater.editing ? 'editing' : ''}>
+    <span className='eater-name' attributes={{'data-index': index}}>{`${eater.name}: ${eater.servings} slice${eater.servings === 1 ? '' : 's'}`}</span>
+    <span className='init-edit' attributes={{'data-index': index}}> edit</span>
+    <input className='edit-eater' value={`${eater.name}: ${eater.servings}`} attributes={{'data-index': index}} vdomPropHook={Cycle.vdomPropHook(propHook)}/>
+  </li>
 }
 
 var View = Cycle.createView(Model =>
@@ -87,7 +100,7 @@ var View = Cycle.createView(Model =>
           Cycle.h('h1', 'TODO: Order Minimum Viable Pizza'),
           renderSave(model.gathering),
           renderEaters(model.gathering),
-          renderMenuSelection(model.menus, model.gathering),
+          renderMenuSelection(model.menus, model.gathering, model.numServings),
           renderOptions(model)
         ]))
     })

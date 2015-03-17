@@ -39,6 +39,27 @@ li {
     padding: 0;
 }
 
+li .init-edit {
+    display:none;
+}
+
+li:hover .init-edit {
+    display: inline;
+    cursor: pointer;
+}
+
+li .edit-eater{
+    display:none;
+}
+
+li.editing .edit-eater {
+    display:inline;
+}
+
+li.editing span, li.editing:hover .init-edit {
+    display:none;
+}
+
 li:before {
     display:inline;
     content: '+ ';

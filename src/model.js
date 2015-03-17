@@ -46,17 +46,31 @@ var Model = Cycle.createModel((Intent, Initial) => {
       return model;
     });
 
-  var eaterMod$ = Intent.get('eaterUpdate$')
+  var eaterAdd$ = Intent.get('eaterAdd$')
     .map(data => model => {
-      model.gathering.eaters[data.id].servings = Math.max(data.servings, 0);
+      model.gathering.eaters.push({name: data.name, servings: Math.max(data.servings, 0)});
       save(model);
       return model;
     });
 
-  var eaterAdd$ = Intent.get('eaterAdd$')
+  var eaterStartEdit$ = Intent.get('eaterStartEdit$')
+    .map(index => model => {
+      model.gathering.eaters[index].editing = true;
+      return model;
+    });
+
+  var eaterFinishEdit$ = Intent.get('eaterFinishEdit$')
     .map(data => model => {
-      model.gathering.eaters.push({name: data.name, servings: data.servings});
+      model.gathering.eaters[data.index].name = data.name;
+      model.gathering.eaters[data.index].servings = Math.max(data.servings, 0);
+      model.gathering.eaters[data.index].editing = false;
       save(model);
+      return model;
+    });
+
+  var eaterCancelEdit$ = Intent.get('eaterCancelEdit$')
+    .map(index => model => {
+      model.gathering.eaters[index].editing = false;
       return model;
     });
 
@@ -73,7 +87,7 @@ var Model = Cycle.createModel((Intent, Initial) => {
     });
 
   var modifications$ = Rx.Observable.merge(
-    sortByMod$, menuMod$, eaterMod$, eaterAdd$, saveGathering$, serverUpdate$
+    sortByMod$, menuMod$, eaterAdd$, saveGathering$, serverUpdate$, eaterCancelEdit$, eaterFinishEdit$, eaterStartEdit$
   );
 
   return {
