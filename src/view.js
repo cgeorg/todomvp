@@ -1,3 +1,4 @@
+/** @jsx */
 import Cycle from 'cyclejs';
 import _ from 'lodash';
 
@@ -11,7 +12,7 @@ function renderOptions(model) {
           Cycle.h('th', {
             attributes: {'data-order': 'total'},
             className: model.sortBy === 'total' ? 'active' : ''
-          }, 'Servings'),
+          }, 'Leftovers'),
           Cycle.h('th', {
             attributes: {'data-order': 'cost'},
             className: model.sortBy === 'cost' ? 'active' : ''
@@ -22,33 +23,36 @@ function renderOptions(model) {
           }, 'PizzaRank™'),
         ])
       ]),
-      Cycle.h('tbody', model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize)))
+      Cycle.h('tbody', model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize, model.numServings)))
     ])
   ];
 }
 
-function renderOption(servingSize, option) {
-  return Cycle.h('tr', [
-    Cycle.h('td', _(option.pizzas)
+function renderOption(servingSize, servings, option) {
+  return <tr>
+    <td>{_(option.pizzas)
       .groupBy('name')
       .map((arr, name) => `${arr.length} ${name}`)
       .value()
-      .join(', ')),
-    Cycle.h('td', [
-      option.mostPizza ? Cycle.h('span.most-pizza', {title: 'Most Pizza!'}) : null,
-      `${Math.round(option.total / servingSize * 100) / 100}`
-    ]),
-    Cycle.h('td', `${Math.round(option.cost * 100) / 100}`),
-    Cycle.h('td', [
-        option.bestDeal ? Cycle.h('span.best-deal', {title: 'Best Deal!'}) : null,
-        `${option.rank}`
-      ])
-    ]);
+      .join(', ')}</td>
+    <td>
+      {option.mostPizza ? Cycle.h('span.most-pizza', {title: 'Most Pizza!'}) : null}
+      {Math.round((option.total / servingSize - servings) * 100) / 100 + ' slices'}
+    </td>
+    <td>
+      {option.cheapest ? Cycle.h('span.low-price', {title: 'Lowest Price!'}) : null}
+      {'' + Math.round(option.cost * 100) / 100}
+    </td>
+    <td>
+      {option.bestDeal ? Cycle.h('span.best-deal', {title: 'Best Deal!'}) : null}
+      {'' + option.rank}
+    </td>
+  </tr>
 }
 
 function renderMenuSelection(menus, gathering) {
   return [
-    Cycle.h('h2', `Where are we ordering ${gathering.numServings} slices from?`),
+    <h2>Where are we ordering from?</h2>,
     Cycle.h('select.menu', _.map(menus, (menu) =>
       Cycle.h('option', {selected: gathering.menu === menu._id}, menu.name)))
   ];

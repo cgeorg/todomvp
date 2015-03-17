@@ -45,6 +45,8 @@ export default function calculatePurchaseOptions(eaters, pizzas, servingSize, so
     .tap(options => options.length && (options[options.length - 1].mostPizza = true))
     .sortBy('ratio')
     .tap(options => options.length && (options[0].bestDeal = true))
+    .sortBy('cost')
+    .tap(options => options.length && (options[0].cheapest = true))
     .sortBy(sortBy)
     .value();
 }

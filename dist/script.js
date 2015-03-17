@@ -81,9 +81,9 @@
 	
 	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 5));
 	
-	var _ = _interopRequire(__webpack_require__(/*! lodash */ 6));
+	var _ = _interopRequire(__webpack_require__(/*! lodash */ 7));
 	
-	var mvp = _interopRequire(__webpack_require__(/*! ./mvp */ 57));
+	var mvp = _interopRequire(__webpack_require__(/*! ./mvp */ 6));
 	
 	function save(model, forceSave) {
 	
@@ -194,31 +194,47 @@
 	
 	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 	
+	/** @jsx */
+	
 	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 5));
 	
-	var _ = _interopRequire(__webpack_require__(/*! lodash */ 6));
+	var _ = _interopRequire(__webpack_require__(/*! lodash */ 7));
 	
 	function renderOptions(model) {
 	  return [Cycle.h("h2", "Let's get one of these:"), Cycle.h("table", [Cycle.h("thead", [Cycle.h("tr", [Cycle.h("th", "Pizzas"), Cycle.h("th", {
 	    attributes: { "data-order": "total" },
 	    className: model.sortBy === "total" ? "active" : ""
-	  }, "Servings"), Cycle.h("th", {
+	  }, "Leftovers"), Cycle.h("th", {
 	    attributes: { "data-order": "cost" },
 	    className: model.sortBy === "cost" ? "active" : ""
 	  }, "Cost"), Cycle.h("th", {
 	    attributes: { "data-order": "rank" },
 	    className: model.sortBy === "rank" ? "active" : ""
-	  }, "PizzaRank™")])]), Cycle.h("tbody", model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize)))])];
+	  }, "PizzaRank™")])]), Cycle.h("tbody", model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize, model.numServings)))])];
 	}
 	
-	function renderOption(servingSize, option) {
-	  return Cycle.h("tr", [Cycle.h("td", _(option.pizzas).groupBy("name").map(function (arr, name) {
-	    return "" + arr.length + " " + name;
-	  }).value().join(", ")), Cycle.h("td", [option.mostPizza ? Cycle.h("span.most-pizza", { title: "Most Pizza!" }) : null, "" + Math.round(option.total / servingSize * 100) / 100]), Cycle.h("td", "" + Math.round(option.cost * 100) / 100), Cycle.h("td", [option.bestDeal ? Cycle.h("span.best-deal", { title: "Best Deal!" }) : null, "" + option.rank])]);
+	function renderOption(servingSize, servings, option) {
+	  return Cycle.h('tr', null, [
+	        Cycle.h('td', null, [_(option.pizzas).groupBy("name").map(function (arr, name) {
+	        return "" + arr.length + " " + name;
+	      }).value().join(", ")]),
+	        Cycle.h('td', null, [
+	            option.mostPizza ? Cycle.h("span.most-pizza", { title: "Most Pizza!" }) : null,
+	            Math.round((option.total / servingSize - servings) * 100) / 100 + " slices"
+	          ]),
+	        Cycle.h('td', null, [
+	            option.cheapest ? Cycle.h("span.low-price", { title: "Lowest Price!" }) : null,
+	            "" + Math.round(option.cost * 100) / 100
+	          ]),
+	        Cycle.h('td', null, [
+	            option.bestDeal ? Cycle.h("span.best-deal", { title: "Best Deal!" }) : null,
+	            "" + option.rank
+	          ])
+	      ]);
 	}
 	
 	function renderMenuSelection(menus, gathering) {
-	  return [Cycle.h("h2", "Where are we ordering " + gathering.numServings + " slices from?"), Cycle.h("select.menu", _.map(menus, function (menu) {
+	  return [Cycle.h('h2', null, ["Where are we ordering from?"]), Cycle.h("select.menu", _.map(menus, function (menu) {
 	    return Cycle.h("option", { selected: gathering.menu === menu._id }, menu.name);
 	  }))];
 	}
@@ -348,18 +364,19 @@
 /***/ },
 /* 5 */
 /*!********************************!*\
-  !*** ./~/cyclejs/src/cycle.js ***!
+  !*** ./~/cyclejs/lib/cycle.js ***!
   \********************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	'use strict';
-	var VirtualDOM = __webpack_require__(/*! virtual-dom */ 9);
-	var Rx = __webpack_require__(/*! rx */ 34);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var DataFlowSource = __webpack_require__(/*! ./data-flow-source */ 8);
-	var DataFlowSink = __webpack_require__(/*! ./data-flow-sink */ 17);
-	var DOMUser = __webpack_require__(/*! ./dom-user */ 21);
-	var PropertyHook = __webpack_require__(/*! ./property-hook */ 20);
+	"use strict";
+	
+	var VirtualDOM = __webpack_require__(/*! virtual-dom */ 16);
+	var Rx = __webpack_require__(/*! rx */ 17);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
+	var DataFlowSource = __webpack_require__(/*! ./data-flow-source */ 9);
+	var DataFlowSink = __webpack_require__(/*! ./data-flow-sink */ 10);
+	var DOMUser = __webpack_require__(/*! ./dom-user */ 11);
+	var PropertyHook = __webpack_require__(/*! ./property-hook */ 12);
 	
 	var Cycle = {
 	  /**
@@ -414,7 +431,7 @@
 	   * `inject(intent)` function.
 	   * @function createModel
 	   */
-	  createModel: __webpack_require__(/*! ./create-model */ 22),
+	  createModel: __webpack_require__(/*! ./create-model */ 13),
 	
 	  /**
 	   * Returns a DataFlowNode representing a View, having some Model as input.
@@ -429,7 +446,7 @@
 	   * `inject(model)` function.
 	   * @function createView
 	   */
-	  createView: __webpack_require__(/*! ./create-view */ 18),
+	  createView: __webpack_require__(/*! ./create-view */ 14),
 	
 	  /**
 	   * Returns a DataFlowNode representing an Intent, having some View as input.
@@ -442,7 +459,7 @@
 	   * `inject(view)` function.
 	   * @function createIntent
 	   */
-	  createIntent: __webpack_require__(/*! ./create-intent */ 23),
+	  createIntent: __webpack_require__(/*! ./create-intent */ 15),
 	
 	  /**
 	   * Returns a DOMUser (a DataFlowNode) bound to a DOM container element. Contains an
@@ -489,7 +506,7 @@
 	   * @param {Function} fn a function with two arguments: `element`, `property`.
 	   * @return {PropertyHook} a hook
 	   */
-	  vdomPropHook: function (fn) {
+	  vdomPropHook: function vdomPropHook(fn) {
 	    return new PropertyHook(fn);
 	  },
 	
@@ -510,9 +527,72 @@
 	
 	module.exports = Cycle;
 
-
 /***/ },
 /* 6 */
+/*!********************!*\
+  !*** ./src/mvp.js ***!
+  \********************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	module.exports = calculatePurchaseOptions;
+	function updateTotal(option) {
+	  option.total = _(option.pizzas).map("diameter").map(function (d) {
+	    return d / 2;
+	  }).map(function (r) {
+	    return r * r;
+	  }).map(function (r2) {
+	    return r2 * Math.PI;
+	  }).reduce(function (sum, area) {
+	    return area + sum;
+	  });
+	}
+	
+	function addPizza(totalSize, pizzas, option, options, index) {
+	  index = index || 0;
+	  if (option.total > totalSize) {
+	    options.push(option);
+	  } else {
+	    for (var i = index; i < pizzas.length; ++i) {
+	      var newOp = { pizzas: _.clone(option.pizzas) };
+	      newOp.pizzas.push(pizzas[i]);
+	      updateTotal(newOp);
+	      addPizza(totalSize, pizzas, newOp, options, i);
+	    }
+	  }
+	  return options;
+	}
+	
+	function calculatePurchaseOptions(eaters, pizzas, servingSize, sortBy) {
+	  var pizzas = _.sortBy(_.cloneDeep(pizzas), "diameter").reverse(),
+	      numServings = _(eaters).map("servings").reduce(function (sum, num) {
+	    return sum + num;
+	  }) || 0,
+	      totalSize = numServings * servingSize;
+	
+	  return _(addPizza(totalSize, pizzas, { pizzas: [], total: 0 }, [])).tap(function (options) {
+	    return console.log("Found " + options.length + " options");
+	  }).forEach(function (option) {
+	    option.cost = _(option.pizzas).map("cost").reduce(function (sum, cost) {
+	      return sum + cost;
+	    });
+	    option.ratio = option.cost / option.total;
+	  }).sortBy("ratio").forEach(function (option, index) {
+	    return option.rank = index + 1;
+	  }).sortBy("total").forEach(function (option, index) {
+	    return option.rank += index;
+	  }).sortBy(sortBy).take(10).sortBy("total").tap(function (options) {
+	    return options.length && (options[options.length - 1].mostPizza = true);
+	  }).sortBy("ratio").tap(function (options) {
+	    return options.length && (options[0].bestDeal = true);
+	  }).sortBy("cost").tap(function (options) {
+	    return options.length && (options[0].cheapest = true);
+	  }).sortBy(sortBy).value();
+	}
+
+/***/ },
+/* 7 */
 /*!***************************!*\
   !*** ./~/lodash/index.js ***!
   \***************************/
@@ -11946,58 +12026,58 @@
 	  }
 	}.call(this));
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 28)(module), (function() { return this; }())))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 19)(module), (function() { return this; }())))
 
 /***/ },
-/* 7 */
+/* 8 */
 /*!*****************************************!*\
-  !*** ./~/cyclejs/src/data-flow-node.js ***!
+  !*** ./~/cyclejs/lib/data-flow-node.js ***!
   \*****************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	'use strict';
-	var Rx = __webpack_require__(/*! rx */ 34);
-	var errors = __webpack_require__(/*! ./errors */ 19);
-	var InputProxy = __webpack_require__(/*! ./input-proxy */ 16);
-	var Utils = __webpack_require__(/*! ./utils */ 24);
+	"use strict";
+	
+	var Rx = __webpack_require__(/*! rx */ 17);
+	var errors = __webpack_require__(/*! ./errors */ 18);
+	var InputProxy = __webpack_require__(/*! ./input-proxy */ 31);
+	var Utils = __webpack_require__(/*! ./utils */ 32);
 	var CycleInterfaceError = errors.CycleInterfaceError;
 	
 	function replicate(source, subject) {
-	  if (typeof source === 'undefined') {
-	    throw new Error('Cannot replicate() if source is undefined.');
+	  if (typeof source === "undefined") {
+	    throw new Error("Cannot replicate() if source is undefined.");
 	  }
-	  return source.subscribe(
-	    function replicationOnNext(x) {
-	      subject.onNext(x);
-	    },
-	    function replicationOnError(err) {
-	      subject.onError(err);
-	      console.error(err);
-	    }
-	  );
+	  return source.subscribe(function replicationOnNext(x) {
+	    subject.onNext(x);
+	  }, function replicationOnError(err) {
+	    subject.onError(err);
+	    console.error(err);
+	  });
 	}
 	
 	function checkOutputObject(output) {
-	  if (typeof output !== 'object') {
-	    throw new Error('A DataFlowNode should always return an object.');
+	  if (typeof output !== "object") {
+	    throw new Error("A DataFlowNode should always return an object.");
 	  }
 	}
 	
 	function createStreamNamesArray(output) {
 	  var array = [];
-	  for (var streamName in output) { if (output.hasOwnProperty(streamName)) {
-	    if (Utils.endsWithDollarSign(streamName)) {
-	      array.push(streamName);
+	  for (var streamName in output) {
+	    if (output.hasOwnProperty(streamName)) {
+	      if (Utils.endsWithDollarSign(streamName)) {
+	        array.push(streamName);
+	      }
 	    }
-	  }}
+	  }
 	  return array;
 	}
 	
-	var replicateAll;
+	var replicateAll = undefined;
 	
 	function DataFlowNode(definitionFn) {
-	  if (arguments.length !== 1 || typeof definitionFn !== 'function') {
-	    throw new Error('DataFlowNode expects the definitionFn as the only argument.');
+	  if (arguments.length !== 1 || typeof definitionFn !== "function") {
+	    throw new Error("DataFlowNode expects the definitionFn as the only argument.");
 	  }
 	  var proxies = [];
 	  for (var i = 0; i < definitionFn.length; i++) {
@@ -12015,11 +12095,10 @@
 	  };
 	  this.inject = function inject() {
 	    if (wasInjected) {
-	      console.warn('DataFlowNode has already been injected an input.');
+	      console.warn("DataFlowNode has already been injected an input.");
 	    }
 	    if (definitionFn.length !== arguments.length) {
-	      console.warn('The call to inject() should provide the inputs that this ' +
-	        'DataFlowNode expects according to its definition function.');
+	      console.warn("The call to inject() should provide the inputs that this " + "DataFlowNode expects according to its definition function.");
 	    }
 	    for (var i = 0; i < definitionFn.length; i++) {
 	      replicateAll(arguments[i], proxies[i]);
@@ -12037,687 +12116,107 @@
 	}
 	
 	function replicateAllEvent$(input, selector, proxyObj) {
-	  for (var eventName in proxyObj) { if (proxyObj.hasOwnProperty(eventName)) {
-	    if (eventName !== '_hasEvent$') {
-	      var event$ = input.event$(selector, eventName);
-	      if (event$ !== null) {
-	        replicate(event$, proxyObj[eventName]);
+	  for (var eventName in proxyObj) {
+	    if (proxyObj.hasOwnProperty(eventName)) {
+	      if (eventName !== "_hasEvent$") {
+	        var event$ = input.event$(selector, eventName);
+	        if (event$ !== null) {
+	          replicate(event$, proxyObj[eventName]);
+	        }
 	      }
 	    }
-	  }}
+	  }
 	}
 	
 	replicateAll = function replicateAll(input, proxy) {
-	  if (!input || !proxy) { return; }
+	  if (!input || !proxy) {
+	    return;
+	  }
 	
-	  for (var key in proxy.proxiedProps) { if (proxy.proxiedProps.hasOwnProperty(key)) {
-	    var proxiedProperty = proxy.proxiedProps[key];
-	    if (typeof input.event$ === 'function' && proxiedProperty._hasEvent$) {
-	      replicateAllEvent$(input, key, proxiedProperty);
-	    } else if (!input.hasOwnProperty(key) && input instanceof InputProxy) {
-	      replicate(input.get(key), proxiedProperty);
-	    } else if (typeof input.get === 'function' && input.get(key) !== null) {
-	      replicate(input.get(key), proxiedProperty);
-	    } else if (typeof input === 'object' && input.hasOwnProperty(key)) {
-	      if (!input[key]) {
-	        input[key] = new Rx.Subject();
+	  for (var key in proxy.proxiedProps) {
+	    if (proxy.proxiedProps.hasOwnProperty(key)) {
+	      var proxiedProperty = proxy.proxiedProps[key];
+	      if (typeof input.event$ === "function" && proxiedProperty._hasEvent$) {
+	        replicateAllEvent$(input, key, proxiedProperty);
+	      } else if (!input.hasOwnProperty(key) && input instanceof InputProxy) {
+	        replicate(input.get(key), proxiedProperty);
+	      } else if (typeof input.get === "function" && input.get(key) !== null) {
+	        replicate(input.get(key), proxiedProperty);
+	      } else if (typeof input === "object" && input.hasOwnProperty(key)) {
+	        if (!input[key]) {
+	          input[key] = new Rx.Subject();
+	        }
+	        replicate(input[key], proxiedProperty);
+	      } else {
+	        throw new CycleInterfaceError("Input should have the required property " + key, String(key));
 	      }
-	      replicate(input[key], proxiedProperty);
-	    } else {
-	      throw new CycleInterfaceError('Input should have the required property ' +
-	        key, String(key)
-	      );
 	    }
-	  }}
+	  }
 	};
 	
 	module.exports = DataFlowNode;
 
-
 /***/ },
-/* 8 */
+/* 9 */
 /*!*******************************************!*\
-  !*** ./~/cyclejs/src/data-flow-source.js ***!
+  !*** ./~/cyclejs/lib/data-flow-source.js ***!
   \*******************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	'use strict';
+	"use strict";
 	
 	function DataFlowSource(outputObject) {
 	  if (arguments.length !== 1) {
-	    throw new Error('DataFlowSource expects only one argument: the output object.');
+	    throw new Error("DataFlowSource expects only one argument: the output object.");
 	  }
-	  if (typeof outputObject !== 'object') {
-	    throw new Error('DataFlowSource expects the constructor argument to be the ' +
-	      'output object.'
-	    );
+	  if (typeof outputObject !== "object") {
+	    throw new Error("DataFlowSource expects the constructor argument to be the " + "output object.");
 	  }
 	
-	  for (var key in outputObject) { if (outputObject.hasOwnProperty(key)) {
-	    this[key] = outputObject[key];
-	  }}
+	  for (var key in outputObject) {
+	    if (outputObject.hasOwnProperty(key)) {
+	      this[key] = outputObject[key];
+	    }
+	  }
 	  this.inject = function injectDataFlowSource() {
-	    throw new Error('A DataFlowSource cannot be injected. Use a DataFlowNode instead.');
+	    throw new Error("A DataFlowSource cannot be injected. Use a DataFlowNode instead.");
 	  };
 	  return this;
 	}
 	
 	module.exports = DataFlowSource;
 
-
-/***/ },
-/* 9 */
-/*!******************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/index.js ***!
-  \******************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var diff = __webpack_require__(/*! ./diff.js */ 10)
-	var patch = __webpack_require__(/*! ./patch.js */ 12)
-	var h = __webpack_require__(/*! ./h.js */ 11)
-	var create = __webpack_require__(/*! ./create-element.js */ 13)
-	
-	module.exports = {
-	    diff: diff,
-	    patch: patch,
-	    h: h,
-	    create: create
-	}
-
-
 /***/ },
 /* 10 */
 /*!*****************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/diff.js ***!
+  !*** ./~/cyclejs/lib/data-flow-sink.js ***!
   \*****************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var diff = __webpack_require__(/*! ./vtree/diff.js */ 14)
-	
-	module.exports = diff
-
-
-/***/ },
-/* 11 */
-/*!**************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/h.js ***!
-  \**************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 15)
-	
-	module.exports = h
-
-
-/***/ },
-/* 12 */
-/*!******************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/patch.js ***!
-  \******************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var patch = __webpack_require__(/*! ./vdom/patch.js */ 25)
-	
-	module.exports = patch
-
-
-/***/ },
-/* 13 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/create-element.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 26)
-	
-	module.exports = createElement
-
-
-/***/ },
-/* 14 */
-/*!***********************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vtree/diff.js ***!
-  \***********************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var isArray = __webpack_require__(/*! x-is-array */ 48)
-	
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 37)
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 42)
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 45)
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 39)
-	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 38)
-	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk */ 43)
-	
-	var diffProps = __webpack_require__(/*! ./diff-props */ 29)
-	
-	module.exports = diff
-	
-	function diff(a, b) {
-	    var patch = { a: a }
-	    walk(a, b, patch, 0)
-	    return patch
-	}
-	
-	function walk(a, b, patch, index) {
-	    if (a === b) {
-	        return
-	    }
-	
-	    var apply = patch[index]
-	    var applyClear = false
-	
-	    if (isThunk(a) || isThunk(b)) {
-	        thunks(a, b, patch, index)
-	    } else if (b == null) {
-	
-	        // If a is a widget we will add a remove patch for it
-	        // Otherwise any child widgets/hooks must be destroyed.
-	        // This prevents adding two remove patches for a widget.
-	        if (!isWidget(a)) {
-	            clearState(a, patch, index)
-	            apply = patch[index]
-	        }
-	
-	        apply = appendPatch(apply, new VPatch(VPatch.REMOVE, a, b))
-	    } else if (isVNode(b)) {
-	        if (isVNode(a)) {
-	            if (a.tagName === b.tagName &&
-	                a.namespace === b.namespace &&
-	                a.key === b.key) {
-	                var propsPatch = diffProps(a.properties, b.properties)
-	                if (propsPatch) {
-	                    apply = appendPatch(apply,
-	                        new VPatch(VPatch.PROPS, a, propsPatch))
-	                }
-	                apply = diffChildren(a, b, patch, apply, index)
-	            } else {
-	                apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
-	                applyClear = true
-	            }
-	        } else {
-	            apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
-	            applyClear = true
-	        }
-	    } else if (isVText(b)) {
-	        if (!isVText(a)) {
-	            apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
-	            applyClear = true
-	        } else if (a.text !== b.text) {
-	            apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
-	        }
-	    } else if (isWidget(b)) {
-	        if (!isWidget(a)) {
-	            applyClear = true;
-	        }
-	
-	        apply = appendPatch(apply, new VPatch(VPatch.WIDGET, a, b))
-	    }
-	
-	    if (apply) {
-	        patch[index] = apply
-	    }
-	
-	    if (applyClear) {
-	        clearState(a, patch, index)
-	    }
-	}
-	
-	function diffChildren(a, b, patch, apply, index) {
-	    var aChildren = a.children
-	    var bChildren = reorder(aChildren, b.children)
-	
-	    var aLen = aChildren.length
-	    var bLen = bChildren.length
-	    var len = aLen > bLen ? aLen : bLen
-	
-	    for (var i = 0; i < len; i++) {
-	        var leftNode = aChildren[i]
-	        var rightNode = bChildren[i]
-	        index += 1
-	
-	        if (!leftNode) {
-	            if (rightNode) {
-	                // Excess nodes in b need to be added
-	                apply = appendPatch(apply,
-	                    new VPatch(VPatch.INSERT, null, rightNode))
-	            }
-	        } else {
-	            walk(leftNode, rightNode, patch, index)
-	        }
-	
-	        if (isVNode(leftNode) && leftNode.count) {
-	            index += leftNode.count
-	        }
-	    }
-	
-	    if (bChildren.moves) {
-	        // Reorder nodes last
-	        apply = appendPatch(apply, new VPatch(VPatch.ORDER, a, bChildren.moves))
-	    }
-	
-	    return apply
-	}
-	
-	function clearState(vNode, patch, index) {
-	    // TODO: Make this a single walk, not two
-	    unhook(vNode, patch, index)
-	    destroyWidgets(vNode, patch, index)
-	}
-	
-	// Patch records for all destroyed widgets must be added because we need
-	// a DOM node reference for the destroy function
-	function destroyWidgets(vNode, patch, index) {
-	    if (isWidget(vNode)) {
-	        if (typeof vNode.destroy === "function") {
-	            patch[index] = appendPatch(
-	                patch[index],
-	                new VPatch(VPatch.REMOVE, vNode, null)
-	            )
-	        }
-	    } else if (isVNode(vNode) && (vNode.hasWidgets || vNode.hasThunks)) {
-	        var children = vNode.children
-	        var len = children.length
-	        for (var i = 0; i < len; i++) {
-	            var child = children[i]
-	            index += 1
-	
-	            destroyWidgets(child, patch, index)
-	
-	            if (isVNode(child) && child.count) {
-	                index += child.count
-	            }
-	        }
-	    } else if (isThunk(vNode)) {
-	        thunks(vNode, null, patch, index)
-	    }
-	}
-	
-	// Create a sub-patch for thunks
-	function thunks(a, b, patch, index) {
-	    var nodes = handleThunk(a, b);
-	    var thunkPatch = diff(nodes.a, nodes.b)
-	    if (hasPatches(thunkPatch)) {
-	        patch[index] = new VPatch(VPatch.THUNK, null, thunkPatch)
-	    }
-	}
-	
-	function hasPatches(patch) {
-	    for (var index in patch) {
-	        if (index !== "a") {
-	            return true;
-	        }
-	    }
-	
-	    return false;
-	}
-	
-	// Execute hooks when two nodes are identical
-	function unhook(vNode, patch, index) {
-	    if (isVNode(vNode)) {
-	        if (vNode.hooks) {
-	            patch[index] = appendPatch(
-	                patch[index],
-	                new VPatch(
-	                    VPatch.PROPS,
-	                    vNode,
-	                    undefinedKeys(vNode.hooks)
-	                )
-	            )
-	        }
-	
-	        if (vNode.descendantHooks || vNode.hasThunks) {
-	            var children = vNode.children
-	            var len = children.length
-	            for (var i = 0; i < len; i++) {
-	                var child = children[i]
-	                index += 1
-	
-	                unhook(child, patch, index)
-	
-	                if (isVNode(child) && child.count) {
-	                    index += child.count
-	                }
-	            }
-	        }
-	    } else if (isThunk(vNode)) {
-	        thunks(vNode, null, patch, index)
-	    }
-	}
-	
-	function undefinedKeys(obj) {
-	    var result = {}
-	
-	    for (var key in obj) {
-	        result[key] = undefined
-	    }
-	
-	    return result
-	}
-	
-	// List diff, naive left to right reordering
-	function reorder(aChildren, bChildren) {
-	
-	    var bKeys = keyIndex(bChildren)
-	
-	    if (!bKeys) {
-	        return bChildren
-	    }
-	
-	    var aKeys = keyIndex(aChildren)
-	
-	    if (!aKeys) {
-	        return bChildren
-	    }
-	
-	    var bMatch = {}, aMatch = {}
-	
-	    for (var aKey in bKeys) {
-	        bMatch[bKeys[aKey]] = aKeys[aKey]
-	    }
-	
-	    for (var bKey in aKeys) {
-	        aMatch[aKeys[bKey]] = bKeys[bKey]
-	    }
-	
-	    var aLen = aChildren.length
-	    var bLen = bChildren.length
-	    var len = aLen > bLen ? aLen : bLen
-	    var shuffle = []
-	    var freeIndex = 0
-	    var i = 0
-	    var moveIndex = 0
-	    var moves = {}
-	    var removes = moves.removes = {}
-	    var reverse = moves.reverse = {}
-	    var hasMoves = false
-	
-	    while (freeIndex < len) {
-	        var move = aMatch[i]
-	        if (move !== undefined) {
-	            shuffle[i] = bChildren[move]
-	            if (move !== moveIndex) {
-	                moves[move] = moveIndex
-	                reverse[moveIndex] = move
-	                hasMoves = true
-	            }
-	            moveIndex++
-	        } else if (i in aMatch) {
-	            shuffle[i] = undefined
-	            removes[i] = moveIndex++
-	            hasMoves = true
-	        } else {
-	            while (bMatch[freeIndex] !== undefined) {
-	                freeIndex++
-	            }
-	
-	            if (freeIndex < len) {
-	                var freeChild = bChildren[freeIndex]
-	                if (freeChild) {
-	                    shuffle[i] = freeChild
-	                    if (freeIndex !== moveIndex) {
-	                        hasMoves = true
-	                        moves[freeIndex] = moveIndex
-	                        reverse[moveIndex] = freeIndex
-	                    }
-	                    moveIndex++
-	                }
-	                freeIndex++
-	            }
-	        }
-	        i++
-	    }
-	
-	    if (hasMoves) {
-	        shuffle.moves = moves
-	    }
-	
-	    return shuffle
-	}
-	
-	function keyIndex(children) {
-	    var i, keys
-	
-	    for (i = 0; i < children.length; i++) {
-	        var child = children[i]
-	
-	        if (child.key !== undefined) {
-	            keys = keys || {}
-	            keys[child.key] = i
-	        }
-	    }
-	
-	    return keys
-	}
-	
-	function appendPatch(apply, patch) {
-	    if (apply) {
-	        if (isArray(apply)) {
-	            apply.push(patch)
-	        } else {
-	            apply = [apply, patch]
-	        }
-	
-	        return apply
-	    } else {
-	        return patch
-	    }
-	}
-
-
-/***/ },
-/* 15 */
-/*!**************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/index.js ***!
-  \**************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var isArray = __webpack_require__(/*! x-is-array */ 48);
-	
-	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 41);
-	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 36);
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 42);
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 45);
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 39);
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 44);
-	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 38);
-	
-	var parseTag = __webpack_require__(/*! ./parse-tag.js */ 27);
-	var softSetHook = __webpack_require__(/*! ./hooks/soft-set-hook.js */ 35);
-	var evHook = __webpack_require__(/*! ./hooks/ev-hook.js */ 40);
-	
-	module.exports = h;
-	
-	function h(tagName, properties, children) {
-	    var childNodes = [];
-	    var tag, props, key, namespace;
-	
-	    if (!children && isChildren(properties)) {
-	        children = properties;
-	        props = {};
-	    }
-	
-	    props = props || properties || {};
-	    tag = parseTag(tagName, props);
-	
-	    // support keys
-	    if (props.hasOwnProperty('key')) {
-	        key = props.key;
-	        props.key = undefined;
-	    }
-	
-	    // support namespace
-	    if (props.hasOwnProperty('namespace')) {
-	        namespace = props.namespace;
-	        props.namespace = undefined;
-	    }
-	
-	    // fix cursor bug
-	    if (tag === 'INPUT' &&
-	        !namespace &&
-	        props.hasOwnProperty('value') &&
-	        props.value !== undefined &&
-	        !isHook(props.value)
-	    ) {
-	        props.value = softSetHook(props.value);
-	    }
-	
-	    transformProperties(props);
-	
-	    if (children !== undefined && children !== null) {
-	        addChild(children, childNodes, tag, props);
-	    }
-	
-	
-	    return new VNode(tag, props, childNodes, key, namespace);
-	}
-	
-	function addChild(c, childNodes, tag, props) {
-	    if (typeof c === 'string') {
-	        childNodes.push(new VText(c));
-	    } else if (isChild(c)) {
-	        childNodes.push(c);
-	    } else if (isArray(c)) {
-	        for (var i = 0; i < c.length; i++) {
-	            addChild(c[i], childNodes, tag, props);
-	        }
-	    } else if (c === null || c === undefined) {
-	        return;
-	    } else {
-	        throw UnexpectedVirtualElement({
-	            foreignObject: c,
-	            parentVnode: {
-	                tagName: tag,
-	                properties: props
-	            }
-	        });
-	    }
-	}
-	
-	function transformProperties(props) {
-	    for (var propName in props) {
-	        if (props.hasOwnProperty(propName)) {
-	            var value = props[propName];
-	
-	            if (isHook(value)) {
-	                continue;
-	            }
-	
-	            if (propName.substr(0, 3) === 'ev-') {
-	                // add ev-foo support
-	                props[propName] = evHook(value);
-	            }
-	        }
-	    }
-	}
-	
-	function isChild(x) {
-	    return isVNode(x) || isVText(x) || isWidget(x) || isVThunk(x);
-	}
-	
-	function isChildren(x) {
-	    return typeof x === 'string' || isArray(x) || isChild(x);
-	}
-	
-	function UnexpectedVirtualElement(data) {
-	    var err = new Error();
-	
-	    err.type = 'virtual-hyperscript.unexpected.virtual-element';
-	    err.message = 'Unexpected virtual child passed to h().\n' +
-	        'Expected a VNode / Vthunk / VWidget / string but:\n' +
-	        'got:\n' +
-	        errorString(data.foreignObject) +
-	        '.\n' +
-	        'The parent vnode is:\n' +
-	        errorString(data.parentVnode)
-	        '\n' +
-	        'Suggested fix: change your `h(..., [ ... ])` callsite.';
-	    err.foreignObject = data.foreignObject;
-	    err.parentVnode = data.parentVnode;
-	
-	    return err;
-	}
-	
-	function errorString(obj) {
-	    try {
-	        return JSON.stringify(obj, null, '    ');
-	    } catch (e) {
-	        return String(obj);
-	    }
-	}
-
-
-/***/ },
-/* 16 */
-/*!**************************************!*\
-  !*** ./~/cyclejs/src/input-proxy.js ***!
-  \**************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var Rx = __webpack_require__(/*! rx */ 34);
-	
-	function InputProxy() {
-	  this.proxiedProps = {};
-	  // For any DataFlowNode
-	  this.get = function getFromProxy(streamKey) {
-	    if (typeof this.proxiedProps[streamKey] === 'undefined') {
-	      this.proxiedProps[streamKey] = new Rx.Subject();
-	    }
-	    return this.proxiedProps[streamKey];
-	  };
-	  // For the DOMUser
-	  this.event$ = function event$FromProxy(selector, eventName) {
-	    if (typeof this.proxiedProps[selector] === 'undefined') {
-	      this.proxiedProps[selector] = {
-	        _hasEvent$: true
-	      };
-	    }
-	    if (typeof this.proxiedProps[selector][eventName] === 'undefined') {
-	      this.proxiedProps[selector][eventName] = new Rx.Subject();
-	    }
-	    return this.proxiedProps[selector][eventName];
-	  };
-	}
-	
-	module.exports = InputProxy;
-
-
-/***/ },
-/* 17 */
-/*!*****************************************!*\
-  !*** ./~/cyclejs/src/data-flow-sink.js ***!
-  \*****************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
+	"use strict";
 	
 	function makeLightweightInputProxies(args) {
-	  return Array.prototype
-	    .slice.call(args)
-	    .map(function (arg) {
-	      return {
-	        get: function get(streamName) {
-	          if (typeof arg.get === 'function') {
-	            return arg.get(streamName);
-	          } else {
-	            return arg[streamName] || null;
-	          }
+	  return Array.prototype.slice.call(args).map(function (arg) {
+	    return {
+	      get: function get(streamName) {
+	        if (typeof arg.get === "function") {
+	          return arg.get(streamName);
+	        } else {
+	          return arg[streamName] || null;
 	        }
-	      };
-	    });
+	      }
+	    };
+	  });
 	}
 	
 	function DataFlowSink(definitionFn) {
 	  if (arguments.length !== 1) {
-	    throw new Error('DataFlowSink expects only one argument: the definition function.');
+	    throw new Error("DataFlowSink expects only one argument: the definition function.");
 	  }
-	  if (typeof definitionFn !== 'function') {
-	    throw new Error('DataFlowSink expects the argument to be the definition function.');
+	  if (typeof definitionFn !== "function") {
+	    throw new Error("DataFlowSink expects the argument to be the definition function.");
 	  }
-	  definitionFn.displayName += '(DataFlowSink defFn)';
+	  definitionFn.displayName += "(DataFlowSink defFn)";
 	  this.inject = function injectIntoDataFlowSink() {
 	    var proxies = makeLightweightInputProxies(arguments);
 	    return definitionFn.apply({}, proxies);
@@ -12727,43 +12226,280 @@
 	
 	module.exports = DataFlowSink;
 
+/***/ },
+/* 11 */
+/*!***********************************!*\
+  !*** ./~/cyclejs/lib/dom-user.js ***!
+  \***********************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	var _slicedToArray = function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { var _arr = []; for (var _iterator = arr[Symbol.iterator](), _step; !(_step = _iterator.next()).done;) { _arr.push(_step.value); if (i && _arr.length === i) break; } return _arr; } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } };
+	
+	var VDOM = {
+	  h: __webpack_require__(/*! virtual-dom */ 16).h,
+	  diff: __webpack_require__(/*! virtual-dom/diff */ 20),
+	  patch: __webpack_require__(/*! virtual-dom/patch */ 21)
+	};
+	var Rx = __webpack_require__(/*! rx */ 17);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
+	var CustomElements = __webpack_require__(/*! ./custom-elements */ 47);
+	
+	function isElement(o) {
+	  return typeof HTMLElement === "object" ? o instanceof HTMLElement || o instanceof DocumentFragment : //DOM2
+	  o && typeof o === "object" && o !== null && (o.nodeType === 1 || o.nodeType === 11) && typeof o.nodeName === "string";
+	}
+	
+	function getArrayOfAllWidgetRootElemStreams(vtree) {
+	  if (vtree.type === "Widget" && vtree._rootElem$) {
+	    return [vtree._rootElem$];
+	  }
+	  // Or replace children recursively
+	  var array = [];
+	  if (Array.isArray(vtree.children)) {
+	    for (var i = vtree.children.length - 1; i >= 0; i--) {
+	      array = array.concat(getArrayOfAllWidgetRootElemStreams(vtree.children[i]));
+	    }
+	  }
+	  return array;
+	}
+	
+	function defineRootElemStream(user) {
+	  // Create rootElem stream and automatic className correction
+	  var originalClasses = (user._domContainer.className || "").trim().split(/\s+/);
+	  user._rawRootElem$ = new Rx.Subject();
+	  user._rootElem$ = user._rawRootElem$.map(function fixRootElemClassName(rootElem) {
+	    var previousClasses = rootElem.className.trim().split(/\s+/);
+	    var missingClasses = originalClasses.filter(function (clss) {
+	      return previousClasses.indexOf(clss) < 0;
+	    });
+	    rootElem.className = previousClasses.concat(missingClasses).join(" ");
+	    return rootElem;
+	  }).shareReplay(1);
+	}
+	
+	function DOMUser(container) {
+	  var _this = this;
+	
+	  // Find and prepare the container
+	  this._domContainer = typeof container === "string" ? document.querySelector(container) : container;
+	  // Check pre-conditions
+	  if (typeof container === "string" && this._domContainer === null) {
+	    throw new Error("Cannot render into unknown element '" + container + "'");
+	  } else if (!isElement(this._domContainer)) {
+	    throw new Error("Given container is not a DOM element neither a selector string.");
+	  }
+	  defineRootElemStream(this);
+	  // Create DataFlowNode with rendering logic
+	  DataFlowNode.call(this, function (view) {
+	    _this._renderEvery(view.get("vtree$"));
+	    return {};
+	  });
+	}
+	
+	DOMUser.prototype = Object.create(DataFlowNode.prototype);
+	
+	DOMUser.prototype._renderEvery = function renderEvery(vtree$) {
+	  var self = this;
+	  // Select the correct rootElem
+	  var rootElem = undefined;
+	  if (self._domContainer.cycleCustomElementProperties) {
+	    rootElem = self._domContainer;
+	  } else {
+	    rootElem = document.createElement("div");
+	    self._domContainer.innerHTML = "";
+	    self._domContainer.appendChild(rootElem);
+	  }
+	  // TODO Refactor/rework. Unclear why, but this setTimeout is necessary.
+	  setTimeout(function () {
+	    return self._rawRootElem$.onNext(rootElem);
+	  }, 0);
+	  // Reactively render the vtree$ into the rootElem
+	  return vtree$.startWith(VDOM.h()).map(function renderingPreprocessing(vtree) {
+	    return self._replaceCustomElements(vtree);
+	  }).pairwise().subscribe(function renderDiffAndPatch(_ref) {
+	    var _ref2 = _slicedToArray(_ref, 2);
+	
+	    var oldVTree = _ref2[0];
+	    var newVTree = _ref2[1];
+	
+	    if (typeof newVTree === "undefined") {
+	      return;
+	    }
+	
+	    var arrayOfAll = getArrayOfAllWidgetRootElemStreams(newVTree);
+	    if (arrayOfAll.length > 0) {
+	      Rx.Observable.combineLatest(arrayOfAll, function () {
+	        return 0;
+	      }).first().subscribe(function () {
+	        self._rawRootElem$.onNext(rootElem);
+	      });
+	    }
+	    var cycleCustomElementProperties = rootElem.cycleCustomElementProperties;
+	    try {
+	      rootElem = VDOM.patch(rootElem, VDOM.diff(oldVTree, newVTree));
+	    } catch (err) {
+	      console.error(err);
+	    }
+	    rootElem.cycleCustomElementProperties = cycleCustomElementProperties;
+	    if (arrayOfAll.length === 0) {
+	      self._rawRootElem$.onNext(rootElem);
+	    }
+	  });
+	};
+	
+	DOMUser.prototype._replaceCustomElements = function replaceCustomElements(vtree) {
+	  // Silently ignore corner cases
+	  if (!vtree || !DOMUser._customElements || vtree.type === "VirtualText") {
+	    return vtree;
+	  }
+	  var tagName = (vtree.tagName || "").toUpperCase();
+	  // Replace vtree itself
+	  if (tagName && DOMUser._customElements.hasOwnProperty(tagName)) {
+	    return new DOMUser._customElements[tagName](vtree);
+	  }
+	  // Or replace children recursively
+	  if (Array.isArray(vtree.children)) {
+	    for (var i = vtree.children.length - 1; i >= 0; i--) {
+	      vtree.children[i] = this._replaceCustomElements(vtree.children[i]);
+	    }
+	  }
+	  return vtree;
+	};
+	
+	DOMUser.prototype.event$ = function event$(selector, eventName) {
+	  if (typeof selector !== "string") {
+	    throw new Error("DOMUser.event$ expects first argument to be a string as a " + "CSS selector");
+	  }
+	  if (typeof eventName !== "string") {
+	    throw new Error("DOMUser.event$ expects second argument to be a string " + "representing the event type to listen for.");
+	  }
+	
+	  return this._rootElem$.flatMapLatest(function flatMapDOMUserEventStream(rootElem) {
+	    if (!rootElem) {
+	      return Rx.Observable.empty();
+	    }
+	    var klass = selector.replace(".", "");
+	    if (rootElem.className.search(new RegExp("\\b" + klass + "\\b")) >= 0) {
+	      return Rx.Observable.fromEvent(rootElem, eventName);
+	    }
+	    var targetElements = rootElem.querySelectorAll(selector);
+	    if (targetElements && targetElements.length > 0) {
+	      return Rx.Observable.fromEvent(targetElements, eventName);
+	    } else {
+	      return Rx.Observable.empty();
+	    }
+	  });
+	};
+	
+	DOMUser.registerCustomElement = function registerCustomElement(tagName, definitionFn) {
+	  if (typeof tagName !== "string" || typeof definitionFn !== "function") {
+	    throw new Error("registerCustomElement requires parameters `tagName` and " + "`definitionFn`.");
+	  }
+	  tagName = tagName.toUpperCase();
+	  if (DOMUser._customElements && DOMUser._customElements.hasOwnProperty(tagName)) {
+	    throw new Error("Cannot register custom element `" + tagName + "` " + "for the DOMUser because that tagName is already registered.");
+	  }
+	
+	  var WidgetClass = CustomElements.makeConstructor();
+	  WidgetClass.prototype.init = CustomElements.makeInit(tagName, definitionFn);
+	  WidgetClass.prototype.update = CustomElements.makeUpdate();
+	  DOMUser._customElements = DOMUser._customElements || {};
+	  DOMUser._customElements[tagName] = WidgetClass;
+	};
+	
+	module.exports = DOMUser;
 
 /***/ },
-/* 18 */
+/* 12 */
+/*!****************************************!*\
+  !*** ./~/cyclejs/lib/property-hook.js ***!
+  \****************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+	
+	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+	
+	var PropertyHook = (function () {
+	  function PropertyHook(fn) {
+	    _classCallCheck(this, PropertyHook);
+	
+	    this.fn = fn;
+	  }
+	
+	  _createClass(PropertyHook, {
+	    hook: {
+	      value: function hook() {
+	        this.fn.apply(this, arguments);
+	      }
+	    }
+	  });
+	
+	  return PropertyHook;
+	})();
+	
+	module.exports = PropertyHook;
+
+/***/ },
+/* 13 */
+/*!***************************************!*\
+  !*** ./~/cyclejs/lib/create-model.js ***!
+  \***************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
+	var errors = __webpack_require__(/*! ./errors */ 18);
+	
+	function createModel(definitionFn) {
+	  var model = new DataFlowNode(definitionFn);
+	  model = errors.customInterfaceErrorMessageInInject(model, "Model expects Intent to have the required property ");
+	  model.clone = function cloneModel() {
+	    return createModel(definitionFn);
+	  };
+	  return model;
+	}
+	
+	module.exports = createModel;
+
+/***/ },
+/* 14 */
 /*!**************************************!*\
-  !*** ./~/cyclejs/src/create-view.js ***!
+  !*** ./~/cyclejs/lib/create-view.js ***!
   \**************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	'use strict';
-	var Rx = __webpack_require__(/*! rx */ 34);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var errors = __webpack_require__(/*! ./errors */ 19);
+	"use strict";
+	
+	var Rx = __webpack_require__(/*! rx */ 17);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
+	var errors = __webpack_require__(/*! ./errors */ 18);
 	
 	function checkVTree$(view) {
-	  if (view.get('vtree$') === null ||
-	    typeof view.get('vtree$').subscribe !== 'function')
-	  {
-	    throw new Error('View must define `vtree$` Observable emitting virtual DOM elements');
+	  if (view.get("vtree$") === null || typeof view.get("vtree$").subscribe !== "function") {
+	    throw new Error("View must define `vtree$` Observable emitting virtual DOM elements");
 	  }
 	}
 	
 	function throwErrorIfNotVTree(vtree) {
-	  if (vtree.type !== 'VirtualNode' || vtree.tagName === 'undefined') {
-	    throw new Error('View `vtree$` must emit only VirtualNode instances. ' +
-	      'Hint: create them with Cycle.h()'
-	    );
+	  if (vtree.type !== "VirtualNode" || vtree.tagName === "undefined") {
+	    throw new Error("View `vtree$` must emit only VirtualNode instances. " + "Hint: create them with Cycle.h()");
 	  }
 	}
 	
 	function getCorrectedVtree$(view) {
-	  var newVtree$ = view.get('vtree$')
-	    .map(function (vtree) {
-	      if (vtree.type === 'Widget') { return vtree; }
-	      throwErrorIfNotVTree(vtree);
+	  var newVtree$ = view.get("vtree$").map(function (vtree) {
+	    if (vtree.type === "Widget") {
 	      return vtree;
-	    })
-	    .replay(null, 1);
+	    }
+	    throwErrorIfNotVTree(vtree);
+	    return vtree;
+	  }).replay(null, 1);
 	  newVtree$.connect();
 	  return newVtree$;
 	}
@@ -12772,7 +12508,8 @@
 	  var oldGet = view.get;
 	  var newVtree$ = getCorrectedVtree$(view); // Is here because has connect() side effect
 	  view.get = function get(streamName) {
-	    if (streamName === 'vtree$') { // Override get('vtree$')
+	    if (streamName === "vtree$") {
+	      // Override get('vtree$')
 	      return newVtree$;
 	    } else if (view[streamName]) {
 	      return view[streamName];
@@ -12790,1148 +12527,66 @@
 	
 	function createView(definitionFn) {
 	  var view = new DataFlowNode(definitionFn);
-	  view = errors.customInterfaceErrorMessageInInject(view,
-	    'View expects Model to have the required property '
-	  );
+	  view = errors.customInterfaceErrorMessageInInject(view, "View expects Model to have the required property ");
 	  checkVTree$(view);
 	  overrideGet(view);
-	  view.clone = function cloneView() { return createView(definitionFn); };
+	  view.clone = function cloneView() {
+	    return createView(definitionFn);
+	  };
 	  return view;
 	}
 	
 	module.exports = createView;
 
-
 /***/ },
-/* 19 */
-/*!*********************************!*\
-  !*** ./~/cyclejs/src/errors.js ***!
-  \*********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	function CycleInterfaceError(message, missingMember) {
-	  this.name = 'CycleInterfaceError';
-	  this.message = (message || '');
-	  this.missingMember = (missingMember || '');
-	}
-	CycleInterfaceError.prototype = Error.prototype;
-	
-	function customInterfaceErrorMessageInInject(dataFlowNode, message) {
-	  var originalInject = dataFlowNode.inject;
-	  dataFlowNode.inject = function inject() {
-	    try {
-	      return originalInject.apply({}, arguments);
-	    } catch (err) {
-	      if (err.name === 'CycleInterfaceError') {
-	        throw new CycleInterfaceError(message + err.missingMember, err.missingMember);
-	      } else {
-	        throw err;
-	      }
-	    }
-	  };
-	  return dataFlowNode;
-	}
-	
-	module.exports = {
-	  CycleInterfaceError: CycleInterfaceError,
-	  customInterfaceErrorMessageInInject: customInterfaceErrorMessageInInject
-	};
-
-
-/***/ },
-/* 20 */
+/* 15 */
 /*!****************************************!*\
-  !*** ./~/cyclejs/src/property-hook.js ***!
+  !*** ./~/cyclejs/lib/create-intent.js ***!
   \****************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	'use strict';
+	"use strict";
 	
-	function PropertyHook(fn) {
-	  this.fn = fn;
-	}
-	PropertyHook.prototype.hook = function () {
-	  this.fn.apply(this, arguments);
-	};
-	
-	module.exports = PropertyHook;
-
-
-/***/ },
-/* 21 */
-/*!***********************************!*\
-  !*** ./~/cyclejs/src/dom-user.js ***!
-  \***********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var VDOM = {
-	  h: __webpack_require__(/*! virtual-dom */ 9).h,
-	  diff: __webpack_require__(/*! virtual-dom/diff */ 10),
-	  patch: __webpack_require__(/*! virtual-dom/patch */ 12)
-	};
-	var Rx = __webpack_require__(/*! rx */ 34);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var CustomElements = __webpack_require__(/*! ./custom-elements */ 30);
-	
-	function isElement(o) {
-	  return (
-	    typeof HTMLElement === 'object' ?
-	      o instanceof HTMLElement || o instanceof DocumentFragment : //DOM2
-	      o && typeof o === 'object' && o !== null &&
-	        (o.nodeType === 1 || o.nodeType === 11) &&
-	        typeof o.nodeName === 'string'
-	  );
-	}
-	
-	function getArrayOfAllWidgetRootElemStreams(vtree) {
-	  if (vtree.type === 'Widget' && vtree._rootElem$) {
-	    return [vtree._rootElem$];
-	  }
-	  // Or replace children recursively
-	  var array = [];
-	  if (Array.isArray(vtree.children)) {
-	    for (var i = vtree.children.length - 1; i >= 0; i--) {
-	      array = array.concat(getArrayOfAllWidgetRootElemStreams(vtree.children[i]));
-	    }
-	  }
-	  return array;
-	}
-	
-	function defineRootElemStream(user) {
-	  // Create rootElem stream and automatic className correction
-	  var originalClasses = (user._domContainer.className || '').trim().split(/\s+/);
-	  user._rawRootElem$ = new Rx.Subject();
-	  user._rootElem$ = user._rawRootElem$
-	    .map(function fixRootElemClassName(rootElem) {
-	      var previousClasses = rootElem.className.trim().split(/\s+/);
-	      var missingClasses = originalClasses.filter(function (clss) {
-	        return previousClasses.indexOf(clss) < 0;
-	      });
-	      rootElem.className = previousClasses.concat(missingClasses).join(' ');
-	      return rootElem;
-	    })
-	    .shareReplay(1);
-	}
-	
-	function DOMUser(container) {
-	  // Find and prepare the container
-	  this._domContainer = (typeof container === 'string') ?
-	    document.querySelector(container) :
-	    container;
-	  // Check pre-conditions
-	  if (typeof container === 'string' && this._domContainer === null) {
-	    throw new Error('Cannot render into unknown element \'' + container + '\'');
-	  } else if (!isElement(this._domContainer)) {
-	    throw new Error('Given container is not a DOM element neither a selector string.');
-	  }
-	  defineRootElemStream(this);
-	  // Create DataFlowNode with rendering logic
-	  var self = this;
-	  DataFlowNode.call(this, function injectIntoDOMUser(view) {
-	    return self._renderEvery(view.get('vtree$'));
-	  });
-	}
-	
-	DOMUser.prototype = Object.create(DataFlowNode.prototype);
-	
-	DOMUser.prototype._renderEvery = function renderEvery(vtree$) {
-	  var self = this;
-	  // Select the correct rootElem
-	  var rootElem;
-	  if (self._domContainer.cycleCustomElementProperties) {
-	    rootElem = self._domContainer;
-	  } else {
-	    rootElem = document.createElement('div');
-	    self._domContainer.innerHTML = '';
-	    self._domContainer.appendChild(rootElem);
-	  }
-	  // TODO Refactor/rework. Unclear why, but setTimeout this is necessary.
-	  setTimeout(function () {
-	    self._rawRootElem$.onNext(rootElem);
-	  }, 0);
-	  // Reactively render the vtree$ into the rootElem
-	  return vtree$
-	    .startWith(VDOM.h())
-	    .map(function renderingPreprocessing(vtree) {
-	      return self._replaceCustomElements(vtree);
-	    })
-	    .pairwise()
-	    .subscribe(function renderDiffAndPatch(pair) {
-	      var oldVTree = pair[0];
-	      var newVTree = pair[1];
-	      if (typeof newVTree === 'undefined') { return; }
-	
-	      var arrayOfAll = getArrayOfAllWidgetRootElemStreams(newVTree);
-	      if (arrayOfAll.length > 0) {
-	        Rx.Observable.combineLatest(arrayOfAll, function () { return 0; }).first()
-	          .subscribe(function () { self._rawRootElem$.onNext(rootElem); });
-	      }
-	      var cycleCustomElementProperties = rootElem.cycleCustomElementProperties;
-	      try {
-	        rootElem = VDOM.patch(rootElem, VDOM.diff(oldVTree, newVTree));
-	      } catch (err) {
-	        console.error(err);
-	      }
-	      rootElem.cycleCustomElementProperties = cycleCustomElementProperties;
-	      if (arrayOfAll.length === 0) {
-	        self._rawRootElem$.onNext(rootElem);
-	      }
-	    });
-	};
-	
-	DOMUser.prototype._replaceCustomElements = function replaceCustomElements(vtree) {
-	  // Silently ignore corner cases
-	  if (!vtree || !DOMUser._customElements || vtree.type === 'VirtualText') {
-	    return vtree;
-	  }
-	  var tagName = (vtree.tagName || '').toUpperCase();
-	  // Replace vtree itself
-	  if (tagName && DOMUser._customElements.hasOwnProperty(tagName)) {
-	    return new DOMUser._customElements[tagName](vtree);
-	  }
-	  // Or replace children recursively
-	  if (Array.isArray(vtree.children)) {
-	    for (var i = vtree.children.length - 1; i >= 0; i--) {
-	      vtree.children[i] = this._replaceCustomElements(vtree.children[i]);
-	    }
-	  }
-	  return vtree;
-	};
-	
-	DOMUser.prototype.event$ = function event$(selector, eventName) {
-	  if (typeof selector !== 'string') {
-	    throw new Error('DOMUser.event$ expects first argument to be a string as a ' +
-	      'CSS selector');
-	  }
-	  if (typeof eventName !== 'string') {
-	    throw new Error('DOMUser.event$ expects second argument to be a string ' +
-	      'representing the event type to listen for.');
-	  }
-	
-	  return this._rootElem$.flatMapLatest(function flatMapDOMUserEventStream(rootElem) {
-	    if (!rootElem) {
-	      return Rx.Observable.empty();
-	    }
-	    var klass = selector.replace('.', '');
-	    if (rootElem.className.search(new RegExp('\\b' + klass + '\\b')) >= 0) {
-	      return Rx.Observable.fromEvent(rootElem, eventName);
-	    }
-	    var targetElements = rootElem.querySelectorAll(selector);
-	    if (targetElements && targetElements.length > 0) {
-	      return Rx.Observable.fromEvent(targetElements, eventName);
-	    } else {
-	      return Rx.Observable.empty();
-	    }
-	  });
-	};
-	
-	DOMUser.registerCustomElement = function registerCustomElement(tagName, definitionFn) {
-	  if (typeof tagName !== 'string' || typeof definitionFn !== 'function') {
-	    throw new Error('registerCustomElement requires parameters `tagName` and ' +
-	      '`definitionFn`.');
-	  }
-	  tagName = tagName.toUpperCase();
-	  if (DOMUser._customElements && DOMUser._customElements.hasOwnProperty(tagName)) {
-	    throw new Error('Cannot register custom element `' + tagName + '` ' +
-	      'for the DOMUser because that tagName is already registered.');
-	  }
-	
-	  var WidgetClass = CustomElements.makeConstructor();
-	  WidgetClass.prototype.init = CustomElements.makeInit(tagName, definitionFn);
-	  WidgetClass.prototype.update = CustomElements.makeUpdate();
-	  DOMUser._customElements = DOMUser._customElements || {};
-	  DOMUser._customElements[tagName] = WidgetClass;
-	};
-	
-	module.exports = DOMUser;
-
-
-/***/ },
-/* 22 */
-/*!***************************************!*\
-  !*** ./~/cyclejs/src/create-model.js ***!
-  \***************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var errors = __webpack_require__(/*! ./errors */ 19);
-	
-	function createModel(definitionFn) {
-	  var model = new DataFlowNode(definitionFn);
-	  model = errors.customInterfaceErrorMessageInInject(model,
-	    'Model expects Intent to have the required property '
-	  );
-	  model.clone = function cloneModel() { return createModel(definitionFn); };
-	  return model;
-	}
-	
-	module.exports = createModel;
-
-
-/***/ },
-/* 23 */
-/*!****************************************!*\
-  !*** ./~/cyclejs/src/create-intent.js ***!
-  \****************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
-	var errors = __webpack_require__(/*! ./errors */ 19);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
+	var errors = __webpack_require__(/*! ./errors */ 18);
 	
 	function createIntent(definitionFn) {
 	  var intent = new DataFlowNode(definitionFn);
-	  intent = errors.customInterfaceErrorMessageInInject(intent,
-	    'Intent expects View to have the required property '
-	  );
-	  intent.clone = function cloneIntent() { return createIntent(definitionFn); };
+	  intent = errors.customInterfaceErrorMessageInInject(intent, "Intent expects View to have the required property ");
+	  intent.clone = function cloneIntent() {
+	    return createIntent(definitionFn);
+	  };
 	  return intent;
 	}
 	
 	module.exports = createIntent;
 
-
 /***/ },
-/* 24 */
-/*!********************************!*\
-  !*** ./~/cyclejs/src/utils.js ***!
-  \********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	function endsWithDollarSign(str) {
-	  if (typeof str !== 'string') {
-	    return false;
-	  }
-	  return str.indexOf('$', str.length - 1) !== -1;
-	}
-	
-	module.exports = {
-	  endsWithDollarSign: endsWithDollarSign
-	};
-
-
-/***/ },
-/* 25 */
-/*!***********************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/patch.js ***!
-  \***********************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var document = __webpack_require__(/*! global/document */ 49)
-	var isArray = __webpack_require__(/*! x-is-array */ 48)
-	
-	var domIndex = __webpack_require__(/*! ./dom-index */ 33)
-	var patchOp = __webpack_require__(/*! ./patch-op */ 32)
-	module.exports = patch
-	
-	function patch(rootNode, patches) {
-	    return patchRecursive(rootNode, patches)
-	}
-	
-	function patchRecursive(rootNode, patches, renderOptions) {
-	    var indices = patchIndices(patches)
-	
-	    if (indices.length === 0) {
-	        return rootNode
-	    }
-	
-	    var index = domIndex(rootNode, patches.a, indices)
-	    var ownerDocument = rootNode.ownerDocument
-	
-	    if (!renderOptions) {
-	        renderOptions = { patch: patchRecursive }
-	        if (ownerDocument !== document) {
-	            renderOptions.document = ownerDocument
-	        }
-	    }
-	
-	    for (var i = 0; i < indices.length; i++) {
-	        var nodeIndex = indices[i]
-	        rootNode = applyPatch(rootNode,
-	            index[nodeIndex],
-	            patches[nodeIndex],
-	            renderOptions)
-	    }
-	
-	    return rootNode
-	}
-	
-	function applyPatch(rootNode, domNode, patchList, renderOptions) {
-	    if (!domNode) {
-	        return rootNode
-	    }
-	
-	    var newNode
-	
-	    if (isArray(patchList)) {
-	        for (var i = 0; i < patchList.length; i++) {
-	            newNode = patchOp(patchList[i], domNode, renderOptions)
-	
-	            if (domNode === rootNode) {
-	                rootNode = newNode
-	            }
-	        }
-	    } else {
-	        newNode = patchOp(patchList, domNode, renderOptions)
-	
-	        if (domNode === rootNode) {
-	            rootNode = newNode
-	        }
-	    }
-	
-	    return rootNode
-	}
-	
-	function patchIndices(patches) {
-	    var indices = []
-	
-	    for (var key in patches) {
-	        if (key !== "a") {
-	            indices.push(Number(key))
-	        }
-	    }
-	
-	    return indices
-	}
-
-
-/***/ },
-/* 26 */
-/*!********************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/create-element.js ***!
-  \********************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var document = __webpack_require__(/*! global/document */ 49)
-	
-	var applyProperties = __webpack_require__(/*! ./apply-properties */ 31)
-	
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 42)
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 45)
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 39)
-	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 43)
-	
-	module.exports = createElement
-	
-	function createElement(vnode, opts) {
-	    var doc = opts ? opts.document || document : document
-	    var warn = opts ? opts.warn : null
-	
-	    vnode = handleThunk(vnode).a
-	
-	    if (isWidget(vnode)) {
-	        return vnode.init()
-	    } else if (isVText(vnode)) {
-	        return doc.createTextNode(vnode.text)
-	    } else if (!isVNode(vnode)) {
-	        if (warn) {
-	            warn("Item is not a valid virtual dom node", vnode)
-	        }
-	        return null
-	    }
-	
-	    var node = (vnode.namespace === null) ?
-	        doc.createElement(vnode.tagName) :
-	        doc.createElementNS(vnode.namespace, vnode.tagName)
-	
-	    var props = vnode.properties
-	    applyProperties(node, props)
-	
-	    var children = vnode.children
-	
-	    for (var i = 0; i < children.length; i++) {
-	        var childNode = createElement(children[i], opts)
-	        if (childNode) {
-	            node.appendChild(childNode)
-	        }
-	    }
-	
-	    return node
-	}
-
-
-/***/ },
-/* 27 */
-/*!******************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/parse-tag.js ***!
-  \******************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var split = __webpack_require__(/*! browser-split */ 52);
-	
-	var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/;
-	var notClassId = /^\.|#/;
-	
-	module.exports = parseTag;
-	
-	function parseTag(tag, props) {
-	    if (!tag) {
-	        return 'DIV';
-	    }
-	
-	    var noId = !(props.hasOwnProperty('id'));
-	
-	    var tagParts = split(tag, classIdSplit);
-	    var tagName = null;
-	
-	    if (notClassId.test(tagParts[1])) {
-	        tagName = 'DIV';
-	    }
-	
-	    var classes, part, type, i;
-	
-	    for (i = 0; i < tagParts.length; i++) {
-	        part = tagParts[i];
-	
-	        if (!part) {
-	            continue;
-	        }
-	
-	        type = part.charAt(0);
-	
-	        if (!tagName) {
-	            tagName = part;
-	        } else if (type === '.') {
-	            classes = classes || [];
-	            classes.push(part.substring(1, part.length));
-	        } else if (type === '#' && noId) {
-	            props.id = part.substring(1, part.length);
-	        }
-	    }
-	
-	    if (classes) {
-	        if (props.className) {
-	            classes.push(props.className);
-	        }
-	
-	        props.className = classes.join(' ');
-	    }
-	
-	    return props.namespace ? tagName : tagName.toUpperCase();
-	}
-
-
-/***/ },
-/* 28 */
-/*!***********************************!*\
-  !*** (webpack)/buildin/module.js ***!
-  \***********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = function(module) {
-		if(!module.webpackPolyfill) {
-			module.deprecate = function() {};
-			module.paths = [];
-			// module.parent = undefined by default
-			module.children = [];
-			module.webpackPolyfill = 1;
-		}
-		return module;
-	}
-
-
-/***/ },
-/* 29 */
-/*!*****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
-  \*****************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var isObject = __webpack_require__(/*! is-object */ 53)
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 44)
-	
-	module.exports = diffProps
-	
-	function diffProps(a, b) {
-	    var diff
-	
-	    for (var aKey in a) {
-	        if (!(aKey in b)) {
-	            diff = diff || {}
-	            diff[aKey] = undefined
-	        }
-	
-	        var aValue = a[aKey]
-	        var bValue = b[aKey]
-	
-	        if (aValue === bValue) {
-	            continue
-	        } else if (isObject(aValue) && isObject(bValue)) {
-	            if (getPrototype(bValue) !== getPrototype(aValue)) {
-	                diff = diff || {}
-	                diff[aKey] = bValue
-	            } else if (isHook(bValue)) {
-	                 diff = diff || {}
-	                 diff[aKey] = bValue
-	            } else {
-	                var objectDiff = diffProps(aValue, bValue)
-	                if (objectDiff) {
-	                    diff = diff || {}
-	                    diff[aKey] = objectDiff
-	                }
-	            }
-	        } else {
-	            diff = diff || {}
-	            diff[aKey] = bValue
-	        }
-	    }
-	
-	    for (var bKey in b) {
-	        if (!(bKey in a)) {
-	            diff = diff || {}
-	            diff[bKey] = b[bKey]
-	        }
-	    }
-	
-	    return diff
-	}
-	
-	function getPrototype(value) {
-	  if (Object.getPrototypeOf) {
-	    return Object.getPrototypeOf(value)
-	  } else if (value.__proto__) {
-	    return value.__proto__
-	  } else if (value.constructor) {
-	    return value.constructor.prototype
-	  }
-	}
-
-
-/***/ },
-/* 30 */
+/* 16 */
 /*!******************************************!*\
-  !*** ./~/cyclejs/src/custom-elements.js ***!
+  !*** ./~/cyclejs/~/virtual-dom/index.js ***!
   \******************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	'use strict';
-	var InputProxy = __webpack_require__(/*! ./input-proxy */ 16);
-	var Utils = __webpack_require__(/*! ./utils */ 24);
-	var Rx = __webpack_require__(/*! rx */ 34);
-	
-	function makeDispatchFunction(element, eventName) {
-	  return function dispatchCustomEvent(evData) {
-	    var event;
-	    try {
-	      event = new Event(eventName);
-	    } catch (err) {
-	      event = document.createEvent('Event');
-	      event.initEvent(eventName, true, true);
-	    }
-	    event.data = evData;
-	    element.dispatchEvent(event);
-	  };
-	}
-	
-	function subscribeDispatchers(element, eventStreams) {
-	  if (!eventStreams || typeof eventStreams !== 'object') { return; }
-	
-	  var disposables = new Rx.CompositeDisposable();
-	  for (var streamName in eventStreams) { if (eventStreams.hasOwnProperty(streamName)) {
-	    if (Utils.endsWithDollarSign(streamName) &&
-	      typeof eventStreams[streamName].subscribe === 'function')
-	    {
-	      var eventName = streamName.slice(0, -1);
-	      var disposable = eventStreams[streamName].subscribe(
-	        makeDispatchFunction(element, eventName)
-	      );
-	      disposables.add(disposable);
-	    }
-	  }}
-	  return disposables;
-	}
-	
-	function subscribeDispatchersWhenRootChanges(widget, eventStreams) {
-	  widget._rootElem$
-	    .distinctUntilChanged(Rx.helpers.identity,
-	      function comparer(x, y) { return x && y && x.isEqualNode && x.isEqualNode(y); }
-	    )
-	    .subscribe(function (rootElem) {
-	      if (widget.eventStreamsSubscriptions) {
-	        widget.eventStreamsSubscriptions.dispose();
-	      }
-	      widget.eventStreamsSubscriptions = subscribeDispatchers(rootElem, eventStreams);
-	    });
-	}
-	
-	function makeInputPropertiesProxy() {
-	  var inputProxy = new InputProxy();
-	  var oldGet = inputProxy.get;
-	  inputProxy.get = function get(streamName) {
-	    var result = oldGet.call(this, streamName);
-	    if (result && result.distinctUntilChanged) {
-	      return result.distinctUntilChanged();
-	    } else {
-	      return result;
-	    }
-	  };
-	  return inputProxy;
-	}
-	
-	function createContainerElement(tagName, vtreeProperties) {
-	  var elem = document.createElement('div');
-	  elem.className = vtreeProperties.className || '';
-	  elem.id = vtreeProperties.id || '';
-	  elem.className += ' cycleCustomElement-' + tagName.toUpperCase();
-	  elem.cycleCustomElementProperties = makeInputPropertiesProxy();
-	  return elem;
-	}
-	
-	function replicateUserRootElem$(user, widget) {
-	  user._rootElem$.subscribe(function (elem) { widget._rootElem$.onNext(elem); });
-	}
-	
-	function makeConstructor() {
-	  return function customElementConstructor(vtree) {
-	    this.type = 'Widget';
-	    this.properties = vtree.properties;
-	    this.key = vtree.key;
-	  };
-	}
-	
-	function makeInit(tagName, definitionFn) {
-	  var DOMUser = __webpack_require__(/*! ./dom-user */ 21);
-	  return function initCustomElement() {
-	    var widget = this;
-	    var element = createContainerElement(tagName, widget.properties);
-	    var user = new DOMUser(element);
-	    var eventStreams = definitionFn(user, element.cycleCustomElementProperties);
-	    widget._rootElem$ = new Rx.ReplaySubject(1);
-	    replicateUserRootElem$(user, widget);
-	    widget.eventStreamsSubscriptions = subscribeDispatchers(element, eventStreams);
-	    subscribeDispatchersWhenRootChanges(widget, eventStreams);
-	    widget.update(null, element);
-	    return element;
-	  };
-	}
-	
-	function makeUpdate() {
-	  return function updateCustomElement(prev, elem) {
-	    if (!elem) { return; }
-	    if (!elem.cycleCustomElementProperties) { return; }
-	    if (!(elem.cycleCustomElementProperties instanceof InputProxy)) { return; }
-	    if (!elem.cycleCustomElementProperties.proxiedProps) { return; }
-	
-	    var proxiedProps = elem.cycleCustomElementProperties.proxiedProps;
-	    for (var prop in proxiedProps) { if (proxiedProps.hasOwnProperty(prop)) {
-	      var propStreamName = prop;
-	      var propName = prop.slice(0, -1);
-	      if (this.properties.hasOwnProperty(propName)) {
-	        proxiedProps[propStreamName].onNext(this.properties[propName]);
-	      }
-	    }}
-	  };
-	}
+	var diff = __webpack_require__(/*! ./diff.js */ 20)
+	var patch = __webpack_require__(/*! ./patch.js */ 21)
+	var h = __webpack_require__(/*! ./h.js */ 22)
+	var create = __webpack_require__(/*! ./create-element.js */ 23)
+	var VNode = __webpack_require__(/*! ./vnode/vnode.js */ 24)
+	var VText = __webpack_require__(/*! ./vnode/vtext.js */ 25)
 	
 	module.exports = {
-	  makeConstructor: makeConstructor,
-	  makeInit: makeInit,
-	  makeUpdate: makeUpdate
-	};
-
-
-/***/ },
-/* 31 */
-/*!**********************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/apply-properties.js ***!
-  \**********************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var isObject = __webpack_require__(/*! is-object */ 53)
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook.js */ 44)
-	
-	module.exports = applyProperties
-	
-	function applyProperties(node, props, previous) {
-	    for (var propName in props) {
-	        var propValue = props[propName]
-	
-	        if (propValue === undefined) {
-	            removeProperty(node, propName, propValue, previous);
-	        } else if (isHook(propValue)) {
-	            removeProperty(node, propName, propValue, previous)
-	            if (propValue.hook) {
-	                propValue.hook(node,
-	                    propName,
-	                    previous ? previous[propName] : undefined)
-	            }
-	        } else {
-	            if (isObject(propValue)) {
-	                patchObject(node, props, previous, propName, propValue);
-	            } else {
-	                node[propName] = propValue
-	            }
-	        }
-	    }
-	}
-	
-	function removeProperty(node, propName, propValue, previous) {
-	    if (previous) {
-	        var previousValue = previous[propName]
-	
-	        if (!isHook(previousValue)) {
-	            if (propName === "attributes") {
-	                for (var attrName in previousValue) {
-	                    node.removeAttribute(attrName)
-	                }
-	            } else if (propName === "style") {
-	                for (var i in previousValue) {
-	                    node.style[i] = ""
-	                }
-	            } else if (typeof previousValue === "string") {
-	                node[propName] = ""
-	            } else {
-	                node[propName] = null
-	            }
-	        } else if (previousValue.unhook) {
-	            previousValue.unhook(node, propName, propValue)
-	        }
-	    }
-	}
-	
-	function patchObject(node, props, previous, propName, propValue) {
-	    var previousValue = previous ? previous[propName] : undefined
-	
-	    // Set attributes
-	    if (propName === "attributes") {
-	        for (var attrName in propValue) {
-	            var attrValue = propValue[attrName]
-	
-	            if (attrValue === undefined) {
-	                node.removeAttribute(attrName)
-	            } else {
-	                node.setAttribute(attrName, attrValue)
-	            }
-	        }
-	
-	        return
-	    }
-	
-	    if(previousValue && isObject(previousValue) &&
-	        getPrototype(previousValue) !== getPrototype(propValue)) {
-	        node[propName] = propValue
-	        return
-	    }
-	
-	    if (!isObject(node[propName])) {
-	        node[propName] = {}
-	    }
-	
-	    var replacer = propName === "style" ? "" : undefined
-	
-	    for (var k in propValue) {
-	        var value = propValue[k]
-	        node[propName][k] = (value === undefined) ? replacer : value
-	    }
-	}
-	
-	function getPrototype(value) {
-	    if (Object.getPrototypeOf) {
-	        return Object.getPrototypeOf(value)
-	    } else if (value.__proto__) {
-	        return value.__proto__
-	    } else if (value.constructor) {
-	        return value.constructor.prototype
-	    }
+	    diff: diff,
+	    patch: patch,
+	    h: h,
+	    create: create,
+	    VNode: VNode,
+	    VText: VText
 	}
 
 
 /***/ },
-/* 32 */
-/*!**************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/patch-op.js ***!
-  \**************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var applyProperties = __webpack_require__(/*! ./apply-properties */ 31)
-	
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 39)
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 37)
-	
-	var render = __webpack_require__(/*! ./create-element */ 26)
-	var updateWidget = __webpack_require__(/*! ./update-widget */ 47)
-	
-	module.exports = applyPatch
-	
-	function applyPatch(vpatch, domNode, renderOptions) {
-	    var type = vpatch.type
-	    var vNode = vpatch.vNode
-	    var patch = vpatch.patch
-	
-	    switch (type) {
-	        case VPatch.REMOVE:
-	            return removeNode(domNode, vNode)
-	        case VPatch.INSERT:
-	            return insertNode(domNode, patch, renderOptions)
-	        case VPatch.VTEXT:
-	            return stringPatch(domNode, vNode, patch, renderOptions)
-	        case VPatch.WIDGET:
-	            return widgetPatch(domNode, vNode, patch, renderOptions)
-	        case VPatch.VNODE:
-	            return vNodePatch(domNode, vNode, patch, renderOptions)
-	        case VPatch.ORDER:
-	            reorderChildren(domNode, patch)
-	            return domNode
-	        case VPatch.PROPS:
-	            applyProperties(domNode, patch, vNode.properties)
-	            return domNode
-	        case VPatch.THUNK:
-	            return replaceRoot(domNode,
-	                renderOptions.patch(domNode, patch, renderOptions))
-	        default:
-	            return domNode
-	    }
-	}
-	
-	function removeNode(domNode, vNode) {
-	    var parentNode = domNode.parentNode
-	
-	    if (parentNode) {
-	        parentNode.removeChild(domNode)
-	    }
-	
-	    destroyWidget(domNode, vNode);
-	
-	    return null
-	}
-	
-	function insertNode(parentNode, vNode, renderOptions) {
-	    var newNode = render(vNode, renderOptions)
-	
-	    if (parentNode) {
-	        parentNode.appendChild(newNode)
-	    }
-	
-	    return parentNode
-	}
-	
-	function stringPatch(domNode, leftVNode, vText, renderOptions) {
-	    var newNode
-	
-	    if (domNode.nodeType === 3) {
-	        domNode.replaceData(0, domNode.length, vText.text)
-	        newNode = domNode
-	    } else {
-	        var parentNode = domNode.parentNode
-	        newNode = render(vText, renderOptions)
-	
-	        if (parentNode) {
-	            parentNode.replaceChild(newNode, domNode)
-	        }
-	    }
-	
-	    return newNode
-	}
-	
-	function widgetPatch(domNode, leftVNode, widget, renderOptions) {
-	    var updating = updateWidget(leftVNode, widget)
-	    var newNode
-	
-	    if (updating) {
-	        newNode = widget.update(leftVNode, domNode) || domNode
-	    } else {
-	        newNode = render(widget, renderOptions)
-	    }
-	
-	    var parentNode = domNode.parentNode
-	
-	    if (parentNode && newNode !== domNode) {
-	        parentNode.replaceChild(newNode, domNode)
-	    }
-	
-	    if (!updating) {
-	        destroyWidget(domNode, leftVNode)
-	    }
-	
-	    return newNode
-	}
-	
-	function vNodePatch(domNode, leftVNode, vNode, renderOptions) {
-	    var parentNode = domNode.parentNode
-	    var newNode = render(vNode, renderOptions)
-	
-	    if (parentNode) {
-	        parentNode.replaceChild(newNode, domNode)
-	    }
-	
-	    return newNode
-	}
-	
-	function destroyWidget(domNode, w) {
-	    if (typeof w.destroy === "function" && isWidget(w)) {
-	        w.destroy(domNode)
-	    }
-	}
-	
-	function reorderChildren(domNode, bIndex) {
-	    var children = []
-	    var childNodes = domNode.childNodes
-	    var len = childNodes.length
-	    var i
-	    var reverseIndex = bIndex.reverse
-	
-	    for (i = 0; i < len; i++) {
-	        children.push(domNode.childNodes[i])
-	    }
-	
-	    var insertOffset = 0
-	    var move
-	    var node
-	    var insertNode
-	    var chainLength
-	    var insertedLength
-	    var nextSibling
-	    for (i = 0; i < len;) {
-	        move = bIndex[i]
-	        chainLength = 1
-	        if (move !== undefined && move !== i) {
-	            // try to bring forward as long of a chain as possible
-	            while (bIndex[i + chainLength] === move + chainLength) {
-	                chainLength++;
-	            }
-	
-	            // the element currently at this index will be moved later so increase the insert offset
-	            if (reverseIndex[i] > i + chainLength) {
-	                insertOffset++
-	            }
-	
-	            node = children[move]
-	            insertNode = childNodes[i + insertOffset] || null
-	            insertedLength = 0
-	            while (node !== insertNode && insertedLength++ < chainLength) {
-	                domNode.insertBefore(node, insertNode);
-	                node = children[move + insertedLength];
-	            }
-	
-	            // the moved element came from the front of the array so reduce the insert offset
-	            if (move + chainLength < i) {
-	                insertOffset--
-	            }
-	        }
-	
-	        // element at this index is scheduled to be removed so increase insert offset
-	        if (i in bIndex.removes) {
-	            insertOffset++
-	        }
-	
-	        i += chainLength
-	    }
-	}
-	
-	function replaceRoot(oldRoot, newRoot) {
-	    if (oldRoot && newRoot && oldRoot !== newRoot && oldRoot.parentNode) {
-	        console.log(oldRoot)
-	        oldRoot.parentNode.replaceChild(newRoot, oldRoot)
-	    }
-	
-	    return newRoot;
-	}
-
-
-/***/ },
-/* 33 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/dom-index.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	// Maps a virtual DOM tree onto a real DOM tree in an efficient manner.
-	// We don't want to read all of the DOM nodes in the tree so we use
-	// the in-order tree indexing to eliminate recursion down certain branches.
-	// We only recurse into a DOM node if we know that it contains a child of
-	// interest.
-	
-	var noChild = {}
-	
-	module.exports = domIndex
-	
-	function domIndex(rootNode, tree, indices, nodes) {
-	    if (!indices || indices.length === 0) {
-	        return {}
-	    } else {
-	        indices.sort(ascending)
-	        return recurse(rootNode, tree, indices, nodes, 0)
-	    }
-	}
-	
-	function recurse(rootNode, tree, indices, nodes, rootIndex) {
-	    nodes = nodes || {}
-	
-	
-	    if (rootNode) {
-	        if (indexInRange(indices, rootIndex, rootIndex)) {
-	            nodes[rootIndex] = rootNode
-	        }
-	
-	        var vChildren = tree.children
-	
-	        if (vChildren) {
-	
-	            var childNodes = rootNode.childNodes
-	
-	            for (var i = 0; i < tree.children.length; i++) {
-	                rootIndex += 1
-	
-	                var vChild = vChildren[i] || noChild
-	                var nextIndex = rootIndex + (vChild.count || 0)
-	
-	                // skip recursion down the tree if there are no nodes down here
-	                if (indexInRange(indices, rootIndex, nextIndex)) {
-	                    recurse(childNodes[i], vChild, indices, nodes, rootIndex)
-	                }
-	
-	                rootIndex = nextIndex
-	            }
-	        }
-	    }
-	
-	    return nodes
-	}
-	
-	// Binary search for an index in the interval [left, right]
-	function indexInRange(indices, left, right) {
-	    if (indices.length === 0) {
-	        return false
-	    }
-	
-	    var minIndex = 0
-	    var maxIndex = indices.length - 1
-	    var currentIndex
-	    var currentItem
-	
-	    while (minIndex <= maxIndex) {
-	        currentIndex = ((maxIndex + minIndex) / 2) >> 0
-	        currentItem = indices[currentIndex]
-	
-	        if (minIndex === maxIndex) {
-	            return currentItem >= left && currentItem <= right
-	        } else if (currentItem < left) {
-	            minIndex = currentIndex + 1
-	        } else  if (currentItem > right) {
-	            maxIndex = currentIndex - 1
-	        } else {
-	            return true
-	        }
-	    }
-	
-	    return false;
-	}
-	
-	function ascending(a, b) {
-	    return a > b ? 1 : -1
-	}
-
-
-/***/ },
-/* 34 */
+/* 17 */
 /*!***************************************!*\
   !*** ./~/cyclejs/~/rx/dist/rx.all.js ***!
   \***************************************/
@@ -13963,7 +12618,7 @@
 	  var Rx = {
 	      internals: {},
 	      config: {
-	        Promise: root.Promise,
+	        Promise: root.Promise
 	      },
 	      helpers: { }
 	  };
@@ -13999,11 +12654,7 @@
 	      return isFn;
 	    }());
 	
-	  // Errors
-	  var sequenceContainsNoElements = 'Sequence contains no elements.';
-	  var argumentOutOfRange = 'Argument out of range';
-	  var objectDisposed = 'Object has been disposed';
-	  function checkDisposed() { if (this.isDisposed) { throw new Error(objectDisposed); } }
+	  function cloneArray(arr) { for(var a = [], i = 0, len = arr.length; i < len; i++) { a.push(arr[i]); } return a;}
 	
 	  Rx.config.longStackSupport = false;
 	  var hasStacks = false;
@@ -14100,6 +12751,44 @@
 	    var attempt3 = /.*@(.+):(\d+)$/.exec(stackLine);
 	    if (attempt3) { return [attempt3[1], Number(attempt3[2])]; }
 	  }
+	
+	  var EmptyError = Rx.EmptyError = function() {
+	    this.message = 'Sequence contains no elements.';
+	    Error.call(this);
+	  };
+	  EmptyError.prototype = Error.prototype;
+	
+	  var ObjectDisposedError = Rx.ObjectDisposedError = function() {
+	    this.message = 'Object has been disposed';
+	    Error.call(this);
+	  };
+	  ObjectDisposedError.prototype = Error.prototype;
+	
+	  var ArgumentOutOfRangeError = Rx.ArgumentOutOfRangeError = function () {
+	    this.message = 'Argument out of range';
+	    Error.call(this);
+	  };
+	  ArgumentOutOfRangeError.prototype = Error.prototype;
+	
+	  var NotSupportedError = Rx.NotSupportedError = function (message) {
+	    this.message = message || 'This operation is not supported';
+	    Error.call(this);
+	  };
+	  NotSupportedError.prototype = Error.prototype;
+	
+	  var NotImplementedError = Rx.NotImplementedError = function (message) {
+	    this.message = message || 'This operation is not implemented';
+	    Error.call(this);
+	  };
+	  NotImplementedError.prototype = Error.prototype;
+	
+	  var notImplemented = Rx.helpers.notImplemented = function () {
+	    throw new NotImplementedError();
+	  };
+	
+	  var notSupported = Rx.helpers.notSupported = function () {
+	    throw new NotSupportedError();
+	  };
 	
 	  // Shim in iterator support
 	  var $iterator$ = (typeof Symbol === 'function' && Symbol.iterator) ||
@@ -14432,13 +13121,8 @@
 	    return result;
 	  }
 	
-	  var slice = Array.prototype.slice;
-	  function argsOrArray(args, idx) {
-	    return args.length === 1 && Array.isArray(args[idx]) ?
-	      args[idx] :
-	      slice.call(args);
-	  }
-	  var hasProp = {}.hasOwnProperty;
+	  var hasProp = {}.hasOwnProperty,
+	      slice = Array.prototype.slice;
 	
 	  var inherits = this.inherits = Rx.internals.inherits = function (child, parent) {
 	    function __() { this.constructor = child; }
@@ -14447,9 +13131,9 @@
 	  };
 	
 	  var addProperties = Rx.internals.addProperties = function (obj) {
-	    var sources = slice.call(arguments, 1);
-	    for (var i = 0, len = sources.length; i < len; i++) {
-	      var source = sources[i];
+	    for(var sources = [], i = 1, len = arguments.length; i < len; i++) { sources.push(arguments[i]); }
+	    for (var idx = 0, ln = sources.length; idx < ln; idx++) {
+	      var source = sources[idx];
 	      for (var prop in source) {
 	        obj[prop] = source[prop];
 	      }
@@ -14469,6 +13153,25 @@
 	      a[i] = factory();
 	    }
 	    return a;
+	  }
+	
+	  var errorObj = {e: {}};
+	  var tryCatchTarget;
+	  function tryCatcher() {
+	    try {
+	      return tryCatchTarget.apply(this, arguments);
+	    } catch (e) {
+	      errorObj.e = e;
+	      return errorObj;
+	    }
+	  }
+	  function tryCatch(fn) {
+	    if (!isFunction(fn)) { throw new TypeError('fn must be a function'); }
+	    tryCatchTarget = fn;
+	    return tryCatcher;
+	  }
+	  function thrower(e) {
+	    throw e;
 	  }
 	
 	  // Collections
@@ -14530,7 +13233,7 @@
 	
 	  priorityProto.removeAt = function (index) {
 	    this.items[index] = this.items[--this.length];
-	    delete this.items[this.length];
+	    this.items[this.length] = undefined;
 	    this.heapify();
 	  };
 	
@@ -14562,9 +13265,21 @@
 	   * @constructor
 	   */
 	  var CompositeDisposable = Rx.CompositeDisposable = function () {
-	    this.disposables = argsOrArray(arguments, 0);
+	    var args = [], i, len;
+	    if (Array.isArray(arguments[0])) {
+	      args = arguments[0];
+	      len = args.length;
+	    } else {
+	      len = arguments.length;
+	      args = new Array(len);
+	      for(i = 0; i < len; i++) { args[i] = arguments[i]; }
+	    }
+	    for(i = 0; i < len; i++) {
+	      if (!isDisposable(args[i])) { throw new TypeError('Not a disposable'); }
+	    }
+	    this.disposables = args;
 	    this.isDisposed = false;
-	    this.length = this.disposables.length;
+	    this.length = args.length;
 	  };
 	
 	  var CompositeDisposablePrototype = CompositeDisposable.prototype;
@@ -14607,28 +13322,19 @@
 	  CompositeDisposablePrototype.dispose = function () {
 	    if (!this.isDisposed) {
 	      this.isDisposed = true;
-	      var currentDisposables = this.disposables.slice(0);
+	      var len = this.disposables.length, currentDisposables = new Array(len);
+	      for(var i = 0; i < len; i++) { currentDisposables[i] = this.disposables[i]; }
 	      this.disposables = [];
 	      this.length = 0;
 	
-	      for (var i = 0, len = currentDisposables.length; i < len; i++) {
+	      for (i = 0; i < len; i++) {
 	        currentDisposables[i].dispose();
 	      }
 	    }
 	  };
 	
 	  /**
-	   * Converts the existing CompositeDisposable to an array of disposables
-	   * @returns {Array} An array of disposable objects.
-	   */
-	  CompositeDisposablePrototype.toArray = function () {
-	    return this.disposables.slice(0);
-	  };
-	
-	  /**
 	   * Provides a set of static methods for creating Disposables.
-	   *
-	   * @constructor
 	   * @param {Function} dispose Action to run during the first call to dispose. The action is guaranteed to be run at most once.
 	   */
 	  var Disposable = Rx.Disposable = function (action) {
@@ -14656,6 +13362,19 @@
 	   */
 	  var disposableEmpty = Disposable.empty = { dispose: noop };
 	
+	  /**
+	   * Validates whether the given object is a disposable
+	   * @param {Object} Object to test whether it has a dispose method
+	   * @returns {Boolean} true if a disposable object, else false.
+	   */
+	  var isDisposable = Disposable.isDisposable = function (d) {
+	    return d && isFunction(d.dispose);
+	  };
+	
+	  var checkDisposed = Disposable.checkDisposed = function (disposable) {
+	    if (disposable.isDisposed) { throw new ObjectDisposedError(); }
+	  };
+	
 	  var SingleAssignmentDisposable = Rx.SingleAssignmentDisposable = (function () {
 	    function BooleanDisposable () {
 	      this.isDisposed = false;
@@ -14677,9 +13396,9 @@
 	     * @param {Disposable} value The new underlying disposable.
 	     */
 	    booleanDisposablePrototype.setDisposable = function (value) {
-	      var shouldDispose = this.isDisposed, old;
+	      var shouldDispose = this.isDisposed;
 	      if (!shouldDispose) {
-	        old = this.current;
+	        var old = this.current;
 	        this.current = value;
 	      }
 	      old && old.dispose();
@@ -14690,10 +13409,9 @@
 	     * Disposes the underlying disposable as well as all future replacements.
 	     */
 	    booleanDisposablePrototype.dispose = function () {
-	      var old;
 	      if (!this.isDisposed) {
 	        this.isDisposed = true;
-	        old = this.current;
+	        var old = this.current;
 	        this.current = null;
 	      }
 	      old && old.dispose();
@@ -14703,83 +13421,80 @@
 	  }());
 	  var SerialDisposable = Rx.SerialDisposable = SingleAssignmentDisposable;
 	
-	    /**
-	     * Represents a disposable resource that only disposes its underlying disposable resource when all dependent disposable objects have been disposed.
-	     */
-	    var RefCountDisposable = Rx.RefCountDisposable = (function () {
+	  /**
+	   * Represents a disposable resource that only disposes its underlying disposable resource when all dependent disposable objects have been disposed.
+	   */
+	  var RefCountDisposable = Rx.RefCountDisposable = (function () {
 	
-	        function InnerDisposable(disposable) {
-	            this.disposable = disposable;
-	            this.disposable.count++;
-	            this.isInnerDisposed = false;
-	        }
-	
-	        InnerDisposable.prototype.dispose = function () {
-	            if (!this.disposable.isDisposed) {
-	                if (!this.isInnerDisposed) {
-	                    this.isInnerDisposed = true;
-	                    this.disposable.count--;
-	                    if (this.disposable.count === 0 && this.disposable.isPrimaryDisposed) {
-	                        this.disposable.isDisposed = true;
-	                        this.disposable.underlyingDisposable.dispose();
-	                    }
-	                }
-	            }
-	        };
-	
-	        /**
-	         * Initializes a new instance of the RefCountDisposable with the specified disposable.
-	         * @constructor
-	         * @param {Disposable} disposable Underlying disposable.
-	          */
-	        function RefCountDisposable(disposable) {
-	            this.underlyingDisposable = disposable;
-	            this.isDisposed = false;
-	            this.isPrimaryDisposed = false;
-	            this.count = 0;
-	        }
-	
-	        /**
-	         * Disposes the underlying disposable only when all dependent disposables have been disposed
-	         */
-	        RefCountDisposable.prototype.dispose = function () {
-	            if (!this.isDisposed) {
-	                if (!this.isPrimaryDisposed) {
-	                    this.isPrimaryDisposed = true;
-	                    if (this.count === 0) {
-	                        this.isDisposed = true;
-	                        this.underlyingDisposable.dispose();
-	                    }
-	                }
-	            }
-	        };
-	
-	        /**
-	         * Returns a dependent disposable that when disposed decreases the refcount on the underlying disposable.
-	         * @returns {Disposable} A dependent disposable contributing to the reference count that manages the underlying disposable's lifetime.
-	         */
-	        RefCountDisposable.prototype.getDisposable = function () {
-	            return this.isDisposed ? disposableEmpty : new InnerDisposable(this);
-	        };
-	
-	        return RefCountDisposable;
-	    })();
-	
-	    function ScheduledDisposable(scheduler, disposable) {
-	        this.scheduler = scheduler;
-	        this.disposable = disposable;
-	        this.isDisposed = false;
+	    function InnerDisposable(disposable) {
+	      this.disposable = disposable;
+	      this.disposable.count++;
+	      this.isInnerDisposed = false;
 	    }
 	
-	    ScheduledDisposable.prototype.dispose = function () {
-	        var parent = this;
-	        this.scheduler.schedule(function () {
-	            if (!parent.isDisposed) {
-	                parent.isDisposed = true;
-	                parent.disposable.dispose();
-	            }
-	        });
+	    InnerDisposable.prototype.dispose = function () {
+	      if (!this.disposable.isDisposed && !this.isInnerDisposed) {
+	        this.isInnerDisposed = true;
+	        this.disposable.count--;
+	        if (this.disposable.count === 0 && this.disposable.isPrimaryDisposed) {
+	          this.disposable.isDisposed = true;
+	          this.disposable.underlyingDisposable.dispose();
+	        }
+	      }
 	    };
+	
+	    /**
+	     * Initializes a new instance of the RefCountDisposable with the specified disposable.
+	     * @constructor
+	     * @param {Disposable} disposable Underlying disposable.
+	      */
+	    function RefCountDisposable(disposable) {
+	      this.underlyingDisposable = disposable;
+	      this.isDisposed = false;
+	      this.isPrimaryDisposed = false;
+	      this.count = 0;
+	    }
+	
+	    /**
+	     * Disposes the underlying disposable only when all dependent disposables have been disposed
+	     */
+	    RefCountDisposable.prototype.dispose = function () {
+	      if (!this.isDisposed && !this.isPrimaryDisposed) {
+	        this.isPrimaryDisposed = true;
+	        if (this.count === 0) {
+	          this.isDisposed = true;
+	          this.underlyingDisposable.dispose();
+	        }
+	      }
+	    };
+	
+	    /**
+	     * Returns a dependent disposable that when disposed decreases the refcount on the underlying disposable.
+	     * @returns {Disposable} A dependent disposable contributing to the reference count that manages the underlying disposable's lifetime.
+	     */
+	    RefCountDisposable.prototype.getDisposable = function () {
+	      return this.isDisposed ? disposableEmpty : new InnerDisposable(this);
+	    };
+	
+	    return RefCountDisposable;
+	  })();
+	
+	  function ScheduledDisposable(scheduler, disposable) {
+	    this.scheduler = scheduler;
+	    this.disposable = disposable;
+	    this.isDisposed = false;
+	  }
+	
+	  function scheduleItem(s, self) {
+	    if (!self.isDisposed) {
+	      self.isDisposed = true;
+	      self.disposable.dispose();
+	    }
+	  }
+	
+	  ScheduledDisposable.prototype.dispose = function () {
+	    this.scheduler.scheduleWithState(this, scheduleItem);
+	  };
 	
 	  var ScheduledItem = Rx.internals.ScheduledItem = function (scheduler, state, action, dueTime, comparer) {
 	    this.scheduler = scheduler;
@@ -14932,7 +13647,7 @@
 	      recursiveAction = function (state1) {
 	        action(state1, function (state2, dueTime1) {
 	          var isAdded = false, isDone = false,
-	          d = scheduler[method].call(scheduler, state2, dueTime1, function (scheduler1, state3) {
+	          d = scheduler[method](state2, dueTime1, function (scheduler1, state3) {
 	            if (isAdded) {
 	              group.remove(d);
 	            } else {
@@ -15042,7 +13757,7 @@
 	     * @returns {Disposable} The disposable object used to cancel the scheduled recurring action (best effort).
 	     */
 	    Scheduler.prototype.schedulePeriodicWithState = function(state, period, action) {
-	      if (typeof root.setInterval === 'undefined') { throw new Error('Periodic scheduling not supported.'); }
+	      if (typeof root.setInterval === 'undefined') { throw new NotSupportedError(); }
 	      var s = state;
 	
 	      var id = root.setInterval(function () {
@@ -15098,20 +13813,8 @@
 	
 	  /** Gets a scheduler that schedules work immediately on the current thread. */
 	  var immediateScheduler = Scheduler.immediate = (function () {
-	
 	    function scheduleNow(state, action) { return action(this, state); }
-	
-	    function scheduleRelative(state, dueTime, action) {
-	      var dt = this.now() + normalizeTime(dueTime);
-	      while (dt - this.now() > 0) { }
-	      return action(this, state);
-	    }
-	
-	    function scheduleAbsolute(state, dueTime, action) {
-	      return this.scheduleWithRelativeAndState(state, dueTime - this.now(), action);
-	    }
-	
-	    return new Scheduler(defaultNow, scheduleNow, scheduleRelative, scheduleAbsolute);
+	    return new Scheduler(defaultNow, scheduleNow, notSupported, notSupported);
 	  }());
 	
 	  /**
@@ -15120,50 +13823,32 @@
 	  var currentThreadScheduler = Scheduler.currentThread = (function () {
 	    var queue;
 	
-	    function runTrampoline (q) {
-	      var item;
-	      while (q.length > 0) {
-	        item = q.dequeue();
+	    function runTrampoline () {
+	      while (queue.length > 0) {
+	        var item = queue.dequeue();
 	        if (!item.isCancelled()) {
-	          // Note, do not schedule blocking work!
-	          while (item.dueTime - Scheduler.now() > 0) {
-	          }
-	          if (!item.isCancelled()) {
-	            item.invoke();
-	          }
+	          !item.isCancelled() && item.invoke();
 	        }
 	      }
 	    }
 	
 	    function scheduleNow(state, action) {
-	      return this.scheduleWithRelativeAndState(state, 0, action);
-	    }
-	
-	    function scheduleRelative(state, dueTime, action) {
-	      var dt = this.now() + Scheduler.normalize(dueTime),
-	          si = new ScheduledItem(this, state, action, dt);
+	      var si = new ScheduledItem(this, state, action, this.now());
 	
 	      if (!queue) {
 	        queue = new PriorityQueue(4);
 	        queue.enqueue(si);
-	        try {
-	          runTrampoline(queue);
-	        } catch (e) {
-	          throw e;
-	        } finally {
-	          queue = null;
-	        }
+	
+	        var result = tryCatch(runTrampoline)();
+	        queue = null;
+	        if (result === errorObj) { return thrower(result.e); }
 	      } else {
 	        queue.enqueue(si);
 	      }
 	      return si.disposable;
 	    }
 	
-	    function scheduleAbsolute(state, dueTime, action) {
-	      return this.scheduleWithRelativeAndState(state, dueTime - this.now(), action);
-	    }
-	
-	    var currentScheduler = new Scheduler(defaultNow, scheduleNow, scheduleRelative, scheduleAbsolute);
+	    var currentScheduler = new Scheduler(defaultNow, scheduleNow, notSupported, notSupported);
 	
 	    currentScheduler.scheduleRequired = function () { return !queue; };
 	    currentScheduler.ensureTrampoline = function (action) {
@@ -15185,7 +13870,7 @@
 	      localSetTimeout = root.setTimeout;
 	      localClearTimeout = root.clearTimeout;
 	    } else {
-	      throw new Error('No concurrency detected!');
+	      throw new NotSupportedError();
 	    }
 	
 	    return {
@@ -15408,9 +14093,13 @@
 	   *  Represents a notification to an observer.
 	   */
 	  var Notification = Rx.Notification = (function () {
-	    function Notification(kind, hasValue) {
-	      this.hasValue = hasValue == null ? false : hasValue;
+	    function Notification(kind, value, exception, accept, acceptObservable, toString) {
 	      this.kind = kind;
+	      this.value = value;
+	      this.exception = exception;
+	      this._accept = accept;
+	      this._acceptObservable = acceptObservable;
+	      this.toString = toString;
 	    }
 	
 	    /**
@@ -15436,10 +14125,10 @@
 	     * @returns {Observable} The observable sequence that surfaces the behavior of the notification upon subscription.
 	     */
 	    Notification.prototype.toObservable = function (scheduler) {
-	      var notification = this;
+	      var self = this;
 	      isScheduler(scheduler) || (scheduler = immediateScheduler);
 	      return new AnonymousObservable(function (observer) {
-	        return scheduler.schedule(function () {
+	        return scheduler.scheduleWithState(self, function (_, notification) {
 	          notification._acceptObservable(observer);
 	          notification.kind === 'N' && observer.onCompleted();
 	        });
@@ -15455,18 +14144,12 @@
 	   * @returns {Notification} The OnNext notification containing the value.
 	   */
 	  var notificationCreateOnNext = Notification.createOnNext = (function () {
-	
-	      function _accept (onNext) { return onNext(this.value); }
+	      function _accept(onNext) { return onNext(this.value); }
 	      function _acceptObservable(observer) { return observer.onNext(this.value); }
-	      function toString () { return 'OnNext(' + this.value + ')'; }
+	      function toString() { return 'OnNext(' + this.value + ')'; }
 	
 	      return function (value) {
-	        var notification = new Notification('N', true);
-	        notification.value = value;
-	        notification._accept = _accept;
-	        notification._acceptObservable = _acceptObservable;
-	        notification.toString = toString;
-	        return notification;
+	        return new Notification('N', value, null, _accept, _acceptObservable, toString);
 	      };
 	  }());
 	
@@ -15476,18 +14159,12 @@
 	   * @returns {Notification} The OnError notification containing the exception.
 	   */
 	  var notificationCreateOnError = Notification.createOnError = (function () {
-	
 	    function _accept (onNext, onError) { return onError(this.exception); }
 	    function _acceptObservable(observer) { return observer.onError(this.exception); }
 	    function toString () { return 'OnError(' + this.exception + ')'; }
 	
 	    return function (e) {
-	      var notification = new Notification('E');
-	      notification.exception = e;
-	      notification._accept = _accept;
-	      notification._acceptObservable = _acceptObservable;
-	      notification.toString = toString;
-	      return notification;
+	      return new Notification('E', null, e, _accept, _acceptObservable, toString);
 	    };
 	  }());
 	
@@ -15496,17 +14173,12 @@
 	   * @returns {Notification} The OnCompleted notification.
 	   */
 	  var notificationCreateOnCompleted = Notification.createOnCompleted = (function () {
-	
 	    function _accept (onNext, onError, onCompleted) { return onCompleted(); }
 	    function _acceptObservable(observer) { return observer.onCompleted(); }
 	    function toString () { return 'OnCompleted()'; }
 	
 	    return function () {
-	      var notification = new Notification('C');
-	      notification._accept = _accept;
-	      notification._acceptObservable = _acceptObservable;
-	      notification.toString = toString;
-	      return notification;
+	      return new Notification('C', null, null, _accept, _acceptObservable, toString);
 	    };
 	  }());
 	
@@ -15530,31 +14202,20 @@
 	
 	  Enumerable.prototype.concat = function () {
 	    var sources = this;
-	    return new AnonymousObservable(function (observer) {
-	      var e;
-	      try {
-	        e = sources[$iterator$]();
-	      } catch (err) {
-	        observer.onError(err);
-	        return;
-	      }
+	    return new AnonymousObservable(function (o) {
+	      var e = sources[$iterator$]();
 	
-	      var isDisposed,
-	        subscription = new SerialDisposable();
+	      var isDisposed, subscription = new SerialDisposable();
 	      var cancelable = immediateScheduler.scheduleRecursive(function (self) {
-	        var currentItem;
 	        if (isDisposed) { return; }
-	
 	        try {
-	          currentItem = e.next();
+	          var currentItem = e.next();
 	        } catch (ex) {
-	          observer.onError(ex);
-	          return;
+	          return o.onError(ex);
 	        }
 	
 	        if (currentItem.done) {
-	          observer.onCompleted();
-	          return;
+	          return o.onCompleted();
 	        }
 	
 	        // Check if promise
@@ -15564,9 +14225,9 @@
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(currentValue.subscribe(
-	          observer.onNext.bind(observer),
-	          observer.onError.bind(observer),
-	          function () { self(); })
+	          function(x) { o.onNext(x); },
+	          function(err) { o.onError(err); },
+	          self)
 	        );
 	      });
 	
@@ -15578,34 +14239,24 @@
 	
 	  Enumerable.prototype.catchError = function () {
 	    var sources = this;
-	    return new AnonymousObservable(function (observer) {
-	      var e;
-	      try {
-	        e = sources[$iterator$]();
-	      } catch (err) {
-	        observer.onError(err);
-	        return;
-	      }
+	    return new AnonymousObservable(function (o) {
+	      var e = sources[$iterator$]();
 	
-	      var isDisposed,
-	        lastException,
-	        subscription = new SerialDisposable();
-	      var cancelable = immediateScheduler.scheduleRecursive(function (self) {
+	      var isDisposed, subscription = new SerialDisposable();
+	      var cancelable = immediateScheduler.scheduleRecursiveWithState(null, function (lastException, self) {
 	        if (isDisposed) { return; }
 	
-	        var currentItem;
 	        try {
-	          currentItem = e.next();
+	          var currentItem = e.next();
 	        } catch (ex) {
-	          observer.onError(ex);
-	          return;
+	          return observer.onError(ex);
 	        }
 	
 	        if (currentItem.done) {
-	          if (lastException) {
-	            observer.onError(lastException);
+	          if (lastException !== null) {
+	            o.onError(lastException);
 	          } else {
-	            observer.onCompleted();
+	            o.onCompleted();
 	          }
 	          return;
 	        }
@@ -15617,12 +14268,9 @@
 	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
 	        d.setDisposable(currentValue.subscribe(
-	          observer.onNext.bind(observer),
-	          function (exn) {
-	            lastException = exn;
-	            self();
-	          },
-	          observer.onCompleted.bind(observer)));
+	          function(x) { o.onNext(x); },
+	          self,
+	          function() { o.onCompleted(); }));
 	      });
 	      return new CompositeDisposable(subscription, cancelable, disposableCreate(function () {
 	        isDisposed = true;
@@ -15633,23 +14281,13 @@
 	
 	  Enumerable.prototype.catchErrorWhen = function (notificationHandler) {
 	    var sources = this;
-	    return new AnonymousObservable(function (observer) {
-	      var e;
+	    return new AnonymousObservable(function (o) {
+	      var exceptions = new Subject(),
+	        notifier = new Subject(),
+	        handled = notificationHandler(exceptions),
+	        notificationDisposable = handled.subscribe(notifier);
 	
-	      var exceptions = new Subject();
-	
-	      var handled = notificationHandler(exceptions);
-	
-	      var notifier = new Subject();
-	
-	      var notificationDisposable = handled.subscribe(notifier);
-	
-	      try {
-	        e = sources[$iterator$]();
-	      } catch (err) {
-	        observer.onError(err);
-	        return;
-	      }
+	      var e = sources[$iterator$]();
 	
 	      var isDisposed,
 	        lastException,
@@ -15657,19 +14295,17 @@
 	      var cancelable = immediateScheduler.scheduleRecursive(function (self) {
 	        if (isDisposed) { return; }
 	
-	        var currentItem;
 	        try {
-	          currentItem = e.next();
+	          var currentItem = e.next();
 	        } catch (ex) {
-	          observer.onError(ex);
-	          return;
+	          return o.onError(ex);
 	        }
 	
 	        if (currentItem.done) {
 	          if (lastException) {
-	            observer.onError(lastException);
+	            o.onError(lastException);
 	          } else {
-	            observer.onCompleted();
+	            o.onCompleted();
 	          }
 	          return;
 	        }
@@ -15682,19 +14318,17 @@
 	        var inner = new SingleAssignmentDisposable();
 	        subscription.setDisposable(new CompositeDisposable(inner, outer));
 	        outer.setDisposable(currentValue.subscribe(
-	          observer.onNext.bind(observer),
+	          function(x) { o.onNext(x); },
 	          function (exn) {
-	            inner.setDisposable(notifier.subscribe(function(){
-	              self();
-	            }, function(ex) {
-	              observer.onError(ex);
+	            inner.setDisposable(notifier.subscribe(self, function(ex) {
+	              o.onError(ex);
 	            }, function() {
-	              observer.onCompleted();
+	              o.onCompleted();
 	            }));
 	
 	            exceptions.onNext(exn);
 	          },
-	          observer.onCompleted.bind(observer)));
+	          function() { o.onCompleted(); }));
 	      });
 	
 	      return new CompositeDisposable(notificationDisposable, subscription, cancelable, disposableCreate(function () {
@@ -15716,13 +14350,15 @@
 	  };
 	
 	  var enumerableOf = Enumerable.of = function (source, selector, thisArg) {
-	    selector || (selector = identity);
+	    if (selector) {
+	      var selectorFn = bindCallback(selector, thisArg, 3);
+	    }
 	    return new Enumerable(function () {
 	      var index = -1;
 	      return new Enumerator(
 	        function () {
 	          return ++index < source.length ?
-	            { done: false, value: selector.call(thisArg, source[index], index, source) } :
+	            { done: false, value: !selector ? source[index] : selectorFn(source[index], index, source) } :
 	            doneEnumerator;
 	        });
 	    });
@@ -15798,6 +14434,10 @@
 	    return new ObserveOnObserver(scheduler, this);
 	  };
 	
+	  Observer.prototype.makeSafe = function(disposable) {
+	    return new AnonymousSafeObserver(this._onNext, this._onError, this._onCompleted, disposable);
+	  };
+	
 	  /**
 	   * Abstract base class for implementations of the Observer class.
 	   * This base class enforces the grammar of observers where OnError and OnCompleted are terminal messages.
@@ -15812,6 +14452,11 @@
 	      this.isStopped = false;
 	      __super__.call(this);
 	    }
+	
+	    // Must be implemented by other observers
+	    AbstractObserver.prototype.next = notImplemented;
+	    AbstractObserver.prototype.error = notImplemented;
+	    AbstractObserver.prototype.completed = notImplemented;
 	
 	    /**
 	     * Notifies the observer of a new element in the sequence.
@@ -15907,58 +14552,46 @@
 	    return AnonymousObserver;
 	  }(AbstractObserver));
 	
-	    var CheckedObserver = (function (_super) {
-	        inherits(CheckedObserver, _super);
+	  var CheckedObserver = (function (__super__) {
+	    inherits(CheckedObserver, __super__);
 	
-	        function CheckedObserver(observer) {
-	            _super.call(this);
-	            this._observer = observer;
-	            this._state = 0; // 0 - idle, 1 - busy, 2 - done
-	        }
+	    function CheckedObserver(observer) {
+	      __super__.call(this);
+	      this._observer = observer;
+	      this._state = 0; // 0 - idle, 1 - busy, 2 - done
+	    }
 	
-	        var CheckedObserverPrototype = CheckedObserver.prototype;
+	    var CheckedObserverPrototype = CheckedObserver.prototype;
 	
-	        CheckedObserverPrototype.onNext = function (value) {
-	            this.checkAccess();
-	            try {
-	                this._observer.onNext(value);
-	            } catch (e) {
-	                throw e;
-	            } finally {
-	                this._state = 0;
-	            }
-	        };
+	    CheckedObserverPrototype.onNext = function (value) {
+	      this.checkAccess();
+	      var res = tryCatch(this._observer.onNext).call(this._observer, value);
+	      this._state = 0;
+	      res === errorObj && thrower(res.e);
+	    };
 	
-	        CheckedObserverPrototype.onError = function (err) {
-	            this.checkAccess();
-	            try {
-	                this._observer.onError(err);
-	            } catch (e) {
-	                throw e;
-	            } finally {
-	                this._state = 2;
-	            }
-	        };
+	    CheckedObserverPrototype.onError = function (err) {
+	      this.checkAccess();
+	      var res = tryCatch(this._observer.onError).call(this._observer, err);
+	      this._state = 2;
+	      res === errorObj && thrower(res.e);
+	    };
 	
-	        CheckedObserverPrototype.onCompleted = function () {
-	            this.checkAccess();
-	            try {
-	                this._observer.onCompleted();
-	            } catch (e) {
-	                throw e;
-	            } finally {
-	                this._state = 2;
-	            }
-	        };
+	    CheckedObserverPrototype.onCompleted = function () {
+	      this.checkAccess();
+	      var res = tryCatch(this._observer.onCompleted).call(this._observer);
+	      this._state = 2;
+	      res === errorObj && thrower(res.e);
+	    };
 	
-	        CheckedObserverPrototype.checkAccess = function () {
-	            if (this._state === 1) { throw new Error('Re-entrancy detected'); }
-	            if (this._state === 2) { throw new Error('Observer completed'); }
-	            if (this._state === 0) { this._state = 1; }
-	        };
+	    CheckedObserverPrototype.checkAccess = function () {
+	      if (this._state === 1) { throw new Error('Re-entrancy detected'); }
+	      if (this._state === 2) { throw new Error('Observer completed'); }
+	      if (this._state === 0) { this._state = 1; }
+	    };
 	
-	        return CheckedObserver;
-	    }(Observer));
+	    return CheckedObserver;
+	  }(Observer));
 	
 	  var ScheduledObserver = Rx.internals.ScheduledObserver = (function (__super__) {
 	    inherits(ScheduledObserver, __super__);
@@ -16108,7 +14741,7 @@
 	     * @returns {Disposable} A disposable handling the subscriptions and unsubscriptions.
 	     */
 	    observableProto.subscribeOnNext = function (onNext, thisArg) {
-	      return this._subscribe(observerCreate(arguments.length === 2 ? function(x) { onNext.call(thisArg, x); } : onNext));
+	      return this._subscribe(observerCreate(typeof thisArg !== 'undefined' ? function(x) { onNext.call(thisArg, x); } : onNext));
 	    };
 	
 	    /**
@@ -16118,7 +14751,7 @@
 	     * @returns {Disposable} A disposable handling the subscriptions and unsubscriptions.
 	     */
 	    observableProto.subscribeOnError = function (onError, thisArg) {
-	      return this._subscribe(observerCreate(null, arguments.length === 2 ? function(e) { onError.call(thisArg, e); } : onError));
+	      return this._subscribe(observerCreate(null, typeof thisArg !== 'undefined' ? function(e) { onError.call(thisArg, e); } : onError));
 	    };
 	
 	    /**
@@ -16128,11 +14761,49 @@
 	     * @returns {Disposable} A disposable handling the subscriptions and unsubscriptions.
 	     */
 	    observableProto.subscribeOnCompleted = function (onCompleted, thisArg) {
-	      return this._subscribe(observerCreate(null, null, arguments.length === 2 ? function() { onCompleted.call(thisArg); } : onCompleted));
+	      return this._subscribe(observerCreate(null, null, typeof thisArg !== 'undefined' ? function() { onCompleted.call(thisArg); } : onCompleted));
 	    };
 	
 	    return Observable;
 	  })();
+	
+	  var ObservableBase = Rx.ObservableBase = (function (__super__) {
+	    inherits(ObservableBase, __super__);
+	
+	    function fixSubscriber(subscriber) {
+	      return subscriber && isFunction(subscriber.dispose) ? subscriber :
+	        isFunction(subscriber) ? disposableCreate(subscriber) : disposableEmpty;
+	    }
+	
+	    function setDisposable(s, state) {
+	      var ado = state[0], self = state[1];
+	      var sub = tryCatch(self.subscribeCore).call(self, ado);
+	
+	      if (sub === errorObj) {
+	        if(!ado.fail(errorObj.e)) { return thrower(errorObj.e); }
+	      }
+	      ado.setDisposable(fixSubscriber(sub));
+	    }
+	
+	    function subscribe(observer) {
+	      var ado = new AutoDetachObserver(observer), state = [ado, this];
+	
+	      if (currentThreadScheduler.scheduleRequired()) {
+	        currentThreadScheduler.scheduleWithState(state, setDisposable);
+	      } else {
+	        setDisposable(null, state);
+	      }
+	      return ado;
+	    }
+	
+	    function ObservableBase() {
+	      __super__.call(this, subscribe);
+	    }
+	
+	    ObservableBase.prototype.subscribeCore = notImplemented;
+	
+	    return ObservableBase;
+	  }(Observable));
 	
 	   /**
 	   *  Wraps the source sequence in order to run its observer callbacks on the specified scheduler.
@@ -16205,7 +14876,7 @@
 	   */
 	  observableProto.toPromise = function (promiseCtor) {
 	    promiseCtor || (promiseCtor = Rx.config.Promise);
-	    if (!promiseCtor) { throw new TypeError('Promise type not provided nor in Rx.config.Promise'); }
+	    if (!promiseCtor) { throw new NotSupportedError('Promise type not provided nor in Rx.config.Promise'); }
 	    var source = this;
 	    return new promiseCtor(function (resolve, reject) {
 	      // No cancellation can be done
@@ -16219,22 +14890,56 @@
 	    });
 	  };
 	
+	  var ToArrayObservable = (function(__super__) {
+	    inherits(ToArrayObservable, __super__);
+	    function ToArrayObservable(source) {
+	      this.source = source;
+	      __super__.call(this);
+	    }
+	
+	    ToArrayObservable.prototype.subscribeCore = function(observer) {
+	      return this.source.subscribe(new ToArrayObserver(observer));
+	    };
+	
+	    return ToArrayObservable;
+	  }(ObservableBase));
+	
+	  function ToArrayObserver(observer) {
+	    this.observer = observer;
+	    this.a = [];
+	    this.isStopped = false;
+	  }
+	  ToArrayObserver.prototype.onNext = function (x) { if(!this.isStopped) { this.a.push(x); } };
+	  ToArrayObserver.prototype.onError = function (e) {
+	    if (!this.isStopped) {
+	      this.isStopped = true;
+	      this.observer.onError(e);
+	    }
+	  };
+	  ToArrayObserver.prototype.onCompleted = function () {
+	    if (!this.isStopped) {
+	      this.isStopped = true;
+	      this.observer.onNext(this.a);
+	      this.observer.onCompleted();
+	    }
+	  };
+	  ToArrayObserver.prototype.dispose = function () { this.isStopped = true; }
+	  ToArrayObserver.prototype.fail = function (e) {
+	    if (!this.isStopped) {
+	      this.isStopped = true;
+	      this.observer.onError(e);
+	      return true;
+	    }
+	
+	    return false;
+	  };
+	
 	  /**
-	   * Creates an array from an observable sequence.
-	   * @returns {Observable} An observable sequence containing a single element with a list containing all the elements of the source sequence.
-	   */
+	  * Creates an array from an observable sequence.
+	  * @returns {Observable} An observable sequence containing a single element with a list containing all the elements of the source sequence.
+	  */
 	  observableProto.toArray = function () {
-	    var source = this;
-	    return new AnonymousObservable(function(observer) {
-	      var arr = [];
-	      return source.subscribe(
-	        function (x) { arr.push(x); },
-	        function (e) { observer.onError(e); },
-	        function () {
-	          observer.onNext(arr);
-	          observer.onCompleted();
-	        });
-	    }, source);
+	    return new ToArrayObservable(this);
 	  };
 	
 	  /**
@@ -16289,6 +14994,65 @@
 	    });
 	  };
 	
+	  var FromObservable = (function(__super__) {
+	    inherits(FromObservable, __super__);
+	    function FromObservable(iterable, mapper, scheduler) {
+	      this.iterable = iterable;
+	      this.mapper = mapper;
+	      this.scheduler = scheduler;
+	      __super__.call(this);
+	    }
+	
+	    FromObservable.prototype.subscribeCore = function (observer) {
+	      var sink = new FromSink(observer, this);
+	      return sink.run();
+	    };
+	
+	    return FromObservable;
+	  }(ObservableBase));
+	
+	  var FromSink = (function () {
+	    function FromSink(observer, parent) {
+	      this.observer = observer;
+	      this.parent = parent;
+	    }
+	
+	    FromSink.prototype.run = function () {
+	      var list = Object(this.parent.iterable),
+	          it = getIterable(list),
+	          observer = this.observer,
+	          mapper = this.parent.mapper;
+	
+	      function loopRecursive(i, recurse) {
+	        try {
+	          var next = it.next();
+	        } catch (e) {
+	          return observer.onError(e);
+	        }
+	        if (next.done) {
+	          return observer.onCompleted();
+	        }
+	
+	        var result = next.value;
+	
+	        if (mapper) {
+	          try {
+	            result = mapper(result, i);
+	          } catch (e) {
+	            return observer.onError(e);
+	          }
+	        }
+	
+	        observer.onNext(result);
+	        recurse(i + 1);
+	      }
+	
+	      return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
+	    };
+	
+	    return FromSink;
+	  }());
+	
 	  var maxSafeInteger = Math.pow(2, 53) - 1;
 	
 	  function StringIterable(str) {
@@ -16310,12 +15074,7 @@
 	  };
 	
 	  StringIterator.prototype.next = function () {
-	    if (this._i < this._l) {
-	      var val = this._s.charAt(this._i++);
-	      return { done: false, value: val };
-	    } else {
-	      return doneEnumerator;
-	    }
+	    return this._i < this._l ? { done: false, value: this._s.charAt(this._i++) } : doneEnumerator;
 	  };
 	
 	  function ArrayIterable(a) {
@@ -16337,12 +15096,7 @@
 	  };
 	
 	  ArrayIterator.prototype.next = function () {
-	    if (this._i < this._l) {
-	      var val = this._a[this._i++];
-	      return { done: false, value: val };
-	    } else {
-	      return doneEnumerator;
-	    }
+	    return this._i < this._l ? { done: false, value: this._a[this._i++] } : doneEnumerator;
 	  };
 	
 	  function numberIsFinite(value) {
@@ -16385,12 +15139,12 @@
 	  }
 	
 	  /**
-	   * This method creates a new Observable sequence from an array-like or iterable object.
-	   * @param {Any} arrayLike An array-like or iterable object to convert to an Observable sequence.
-	   * @param {Function} [mapFn] Map function to call on every element of the array.
-	   * @param {Any} [thisArg] The context to use calling the mapFn if provided.
-	   * @param {Scheduler} [scheduler] Optional scheduler to use for scheduling.  If not provided, defaults to Scheduler.currentThread.
-	   */
+	  * This method creates a new Observable sequence from an array-like or iterable object.
+	  * @param {Any} arrayLike An array-like or iterable object to convert to an Observable sequence.
+	  * @param {Function} [mapFn] Map function to call on every element of the array.
+	  * @param {Any} [thisArg] The context to use calling the mapFn if provided.
+	  * @param {Scheduler} [scheduler] Optional scheduler to use for scheduling.  If not provided, defaults to Scheduler.currentThread.
+	  */
 	  var observableFrom = Observable.from = function (iterable, mapFn, thisArg, scheduler) {
 	    if (iterable == null) {
 	      throw new Error('iterable cannot be null.')
@@ -16402,60 +15156,53 @@
 	      var mapper = bindCallback(mapFn, thisArg, 2);
 	    }
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
-	    var list = Object(iterable), it = getIterable(list);
-	    return new AnonymousObservable(function (observer) {
-	      var i = 0;
-	      return scheduler.scheduleRecursive(function (self) {
-	        var next;
-	        try {
-	          next = it.next();
-	        } catch (e) {
-	          observer.onError(e);
-	          return;
-	        }
-	        if (next.done) {
-	          observer.onCompleted();
-	          return;
-	        }
+	    return new FromObservable(iterable, mapper, scheduler);
+	  }
 	
-	        var result = next.value;
+	  var FromArrayObservable = (function(__super__) {
+	    inherits(FromArrayObservable, __super__);
+	    function FromArrayObservable(args, scheduler) {
+	      this.args = args;
+	      this.scheduler = scheduler;
+	      __super__.call(this);
+	    }
 	
-	        if (mapper) {
-	          try {
-	            result = mapper(result, i);
-	          } catch (e) {
-	            observer.onError(e);
-	            return;
-	          }
-	        }
+	    FromArrayObservable.prototype.subscribeCore = function (observer) {
+	      var sink = new FromArraySink(observer, this);
+	      return sink.run();
+	    };
 	
-	        observer.onNext(result);
-	        i++;
-	        self();
-	      });
-	    });
+	    return FromArrayObservable;
+	  }(ObservableBase));
+	
+	  function FromArraySink(observer, parent) {
+	    this.observer = observer;
+	    this.parent = parent;
+	  }
+	
+	  FromArraySink.prototype.run = function () {
+	    var observer = this.observer, args = this.parent.args, len = args.length;
+	    function loopRecursive(i, recurse) {
+	      if (i < len) {
+	        observer.onNext(args[i]);
+	        recurse(i + 1);
+	      } else {
+	        observer.onCompleted();
+	      }
+	    }
+	
+	    return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	  };
 	
 	  /**
-	   *  Converts an array to an observable sequence, using an optional scheduler to enumerate the array.
-	   * @deprecated use Observable.from or Observable.of
-	   * @param {Scheduler} [scheduler] Scheduler to run the enumeration of the input sequence on.
-	   * @returns {Observable} The observable sequence whose elements are pulled from the given enumerable sequence.
-	   */
+	  *  Converts an array to an observable sequence, using an optional scheduler to enumerate the array.
+	  * @deprecated use Observable.from or Observable.of
+	  * @param {Scheduler} [scheduler] Scheduler to run the enumeration of the input sequence on.
+	  * @returns {Observable} The observable sequence whose elements are pulled from the given enumerable sequence.
+	  */
 	  var observableFromArray = Observable.fromArray = function (array, scheduler) {
-	    //deprecate('fromArray', 'from');
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
-	    return new AnonymousObservable(function (observer) {
-	      var count = 0, len = array.length;
-	      return scheduler.scheduleRecursive(function (self) {
-	        if (count < len) {
-	          observer.onNext(array[count++]);
-	          self();
-	        } else {
-	          observer.onCompleted();
-	        }
-	      });
-	    });
+	    return new FromArrayObservable(array, scheduler)
 	  };
 	
 	  /**
@@ -16503,34 +15250,74 @@
 	
 	  function observableOf (scheduler, array) {
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
-	    return new AnonymousObservable(function (observer) {
-	      var count = 0, len = array.length;
-	      return scheduler.scheduleRecursive(function (self) {
-	        if (count < len) {
-	          observer.onNext(array[count++]);
-	          self();
-	        } else {
-	          observer.onCompleted();
-	        }
-	      });
-	    });
+	    return new FromArrayObservable(array, scheduler);
 	  }
 	
 	  /**
-	   *  This method creates a new Observable instance with a variable number of arguments, regardless of number or type of the arguments.
-	   * @returns {Observable} The observable sequence whose elements are pulled from the given arguments.
-	   */
+	  *  This method creates a new Observable instance with a variable number of arguments, regardless of number or type of the arguments.
+	  * @returns {Observable} The observable sequence whose elements are pulled from the given arguments.
+	  */
 	  Observable.of = function () {
-	    return observableOf(null, arguments);
+	    var len = arguments.length, args = new Array(len);
+	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
+	    return new FromArrayObservable(args, currentThreadScheduler);
 	  };
 	
 	  /**
-	   *  This method creates a new Observable instance with a variable number of arguments, regardless of number or type of the arguments.
-	   * @param {Scheduler} scheduler A scheduler to use for scheduling the arguments.
-	   * @returns {Observable} The observable sequence whose elements are pulled from the given arguments.
-	   */
+	  *  This method creates a new Observable instance with a variable number of arguments, regardless of number or type of the arguments.
+	  * @param {Scheduler} scheduler A scheduler to use for scheduling the arguments.
+	  * @returns {Observable} The observable sequence whose elements are pulled from the given arguments.
+	  */
 	  Observable.ofWithScheduler = function (scheduler) {
-	    return observableOf(scheduler, slice.call(arguments, 1));
+	    var len = arguments.length, args = new Array(len - 1);
+	    for(var i = 1; i < len; i++) { args[i - 1] = arguments[i]; }
+	    return new FromArrayObservable(args, scheduler);
+	  };
+	
+	  /**
+	   * Creates an Observable sequence from changes to an array using Array.observe.
+	   * @param {Array} array An array to observe changes.
+	   * @returns {Observable} An observable sequence containing changes to an array from Array.observe.
+	   */
+	  Observable.ofArrayChanges = function(array) {
+	    if (!Array.isArray(array)) { throw new TypeError('Array.observe only accepts arrays.'); }
+	    if (typeof Array.observe !== 'function' && typeof Array.unobserve !== 'function') { throw new TypeError('Array.observe is not supported on your platform') }
+	    return new AnonymousObservable(function(observer) {
+	      function observerFn(changes) {
+	        for(var i = 0, len = changes.length; i < len; i++) {
+	          observer.onNext(changes[i]);
+	        }
+	      }
+	      
+	      Array.observe(array, observerFn);
+	
+	      return function () {
+	        Array.unobserve(array, observerFn);
+	      };
+	    });
+	  };
+	
+	  /**
+	   * Creates an Observable sequence from changes to an object using Object.observe.
+	   * @param {Object} obj An object to observe changes.
+	   * @returns {Observable} An observable sequence containing changes to an object from Object.observe.
+	   */
+	  Observable.ofObjectChanges = function(obj) {
+	    if (obj == null) { throw new TypeError('object must not be null or undefined.'); }
+	    if (typeof Object.observe !== 'function' && typeof Object.unobserve !== 'function') { throw new TypeError('Array.observe is not supported on your platform') }
+	    return new AnonymousObservable(function(observer) {
+	      function observerFn(changes) {
+	        for(var i = 0, len = changes.length; i < len; i++) {
+	          observer.onNext(changes[i]);
+	        }
+	      }
+	
+	      Object.observe(obj, observerFn);
+	
+	      return function () {
+	        Object.unobserve(obj, observerFn);
+	      };
+	    });
 	  };
 	
 	  /**
@@ -16552,12 +15339,12 @@
 	  Observable.pairs = function (obj, scheduler) {
 	    scheduler || (scheduler = Rx.Scheduler.currentThread);
 	    return new AnonymousObservable(function (observer) {
-	      var idx = 0, keys = Object.keys(obj), len = keys.length;
-	      return scheduler.scheduleRecursive(function (self) {
+	      var keys = Object.keys(obj), len = keys.length;
+	      return scheduler.scheduleRecursiveWithState(0, function (idx, self) {
 	        if (idx < len) {
-	          var key = keys[idx++];
+	          var key = keys[idx];
 	          observer.onNext([key, obj[key]]);
-	          self();
+	          self(idx + 1);
 	        } else {
 	          observer.onCompleted();
 	        }
@@ -16565,29 +15352,56 @@
 	    });
 	  };
 	
-	  /**
-	   *  Generates an observable sequence of integral numbers within a specified range, using the specified scheduler to send out observer messages.
-	   *
-	   * @example
-	   *  var res = Rx.Observable.range(0, 10);
-	   *  var res = Rx.Observable.range(0, 10, Rx.Scheduler.timeout);
-	   * @param {Number} start The value of the first integer in the sequence.
-	   * @param {Number} count The number of sequential integers to generate.
-	   * @param {Scheduler} [scheduler] Scheduler to run the generator loop on. If not specified, defaults to Scheduler.currentThread.
-	   * @returns {Observable} An observable sequence that contains a range of sequential integral numbers.
-	   */
-	  Observable.range = function (start, count, scheduler) {
-	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
-	    return new AnonymousObservable(function (observer) {
-	      return scheduler.scheduleRecursiveWithState(0, function (i, self) {
+	    var RangeObservable = (function(__super__) {
+	    inherits(RangeObservable, __super__);
+	    function RangeObservable(start, count, scheduler) {
+	      this.start = start;
+	      this.count = count;
+	      this.scheduler = scheduler;
+	      __super__.call(this);
+	    }
+	
+	    RangeObservable.prototype.subscribeCore = function (observer) {
+	      var sink = new RangeSink(observer, this);
+	      return sink.run();
+	    };
+	
+	    return RangeObservable;
+	  }(ObservableBase));
+	
+	  var RangeSink = (function () {
+	    function RangeSink(observer, parent) {
+	      this.observer = observer;
+	      this.parent = parent;
+	    }
+	
+	    RangeSink.prototype.run = function () {
+	      var start = this.parent.start, count = this.parent.count, observer = this.observer;
+	      function loopRecursive(i, recurse) {
 	        if (i < count) {
 	          observer.onNext(start + i);
-	          self(i + 1);
+	          recurse(i + 1);
 	        } else {
 	          observer.onCompleted();
 	        }
-	      });
-	    });
+	      }
+	
+	      return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
+	    };
+	
+	    return RangeSink;
+	  }());
+	
+	  /**
+	  *  Generates an observable sequence of integral numbers within a specified range, using the specified scheduler to send out observer messages.
+	  * @param {Number} start The value of the first integer in the sequence.
+	  * @param {Number} count The number of sequential integers to generate.
+	  * @param {Scheduler} [scheduler] Scheduler to run the generator loop on. If not specified, defaults to Scheduler.currentThread.
+	  * @returns {Observable} An observable sequence that contains a range of sequential integral numbers.
+	  */
+	  Observable.range = function (start, count, scheduler) {
+	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
+	    return new RangeObservable(start, count, scheduler);
 	  };
 	
 	  /**
@@ -16748,8 +15562,13 @@
 	   * @returns {Observable} An observable sequence that surfaces any of the given sequences, whichever reacted first.
 	   */
 	  Observable.amb = function () {
-	    var acc = observableNever(),
-	      items = argsOrArray(arguments, 0);
+	    var acc = observableNever(), items = [];
+	    if (Array.isArray(arguments[0])) {
+	      items = arguments[0];
+	    } else {
+	      for(var i = 0, len = arguments.length; i < len; i++) { items.push(arguments[i]); }
+	    }
+	
 	    function func(previous, current) {
 	      return previous.amb(current);
 	    }
@@ -16760,23 +15579,21 @@
 	  };
 	
 	  function observableCatchHandler(source, handler) {
-	    return new AnonymousObservable(function (observer) {
+	    return new AnonymousObservable(function (o) {
 	      var d1 = new SingleAssignmentDisposable(), subscription = new SerialDisposable();
 	      subscription.setDisposable(d1);
-	      d1.setDisposable(source.subscribe(observer.onNext.bind(observer), function (exception) {
-	        var d, result;
+	      d1.setDisposable(source.subscribe(function (x) { o.onNext(x); }, function (e) {
 	        try {
-	          result = handler(exception);
+	          var result = handler(e);
 	        } catch (ex) {
-	          observer.onError(ex);
-	          return;
+	          return o.onError(ex);
 	        }
 	        isPromise(result) && (result = observableFromPromise(result));
 	
-	        d = new SingleAssignmentDisposable();
+	        var d = new SingleAssignmentDisposable();
 	        subscription.setDisposable(d);
-	        d.setDisposable(result.subscribe(observer));
-	      }, observer.onCompleted.bind(observer)));
+	        d.setDisposable(result.subscribe(o));
+	      }, function (x) { o.onCompleted(x); }));
 	
 	      return subscription;
 	    }, source);
@@ -16790,18 +15607,10 @@
 	   * @param {Mixed} handlerOrSecond Exception handler function that returns an observable sequence given the error that occurred in the first sequence, or a second observable sequence used to produce results when an error occurred in the first sequence.
 	   * @returns {Observable} An observable sequence containing the first sequence's elements, followed by the elements of the handler sequence in case an exception occurred.
 	   */
-	  observableProto['catch'] = observableProto.catchError = function (handlerOrSecond) {
+	  observableProto['catch'] = observableProto.catchError = observableProto.catchException = function (handlerOrSecond) {
 	    return typeof handlerOrSecond === 'function' ?
 	      observableCatchHandler(this, handlerOrSecond) :
 	      observableCatch([this, handlerOrSecond]);
-	  };
-	
-	  /**
-	   * @deprecated use #catch or #catchError instead.
-	   */
-	  observableProto.catchException = function (handlerOrSecond) {
-	    //deprecate('catchException', 'catch or catchError');
-	    return this.catchError(handlerOrSecond);
 	  };
 	
 	  /**
@@ -16809,16 +15618,14 @@
 	   * @param {Array | Arguments} args Arguments or an array to use as the next sequence if an error occurs.
 	   * @returns {Observable} An observable sequence containing elements from consecutive source sequences until a source sequence terminates successfully.
 	   */
-	  var observableCatch = Observable.catchError = Observable['catch'] = function () {
-	    return enumerableOf(argsOrArray(arguments, 0)).catchError();
-	  };
-	
-	  /**
-	   * @deprecated use #catch or #catchError instead.
-	   */
-	  Observable.catchException = function () {
-	    //deprecate('catchException', 'catch or catchError');
-	    return observableCatch.apply(null, arguments);
+	  var observableCatch = Observable.catchError = Observable['catch'] = Observable.catchException = function () {
+	    var items = [];
+	    if (Array.isArray(arguments[0])) {
+	      items = arguments[0];
+	    } else {
+	      for(var i = 0, len = arguments.length; i < len; i++) { items.push(arguments[i]); }
+	    }
+	    return enumerableOf(items).catchError();
 	  };
 	
 	  /**
@@ -16831,7 +15638,8 @@
 	   * @returns {Observable} An observable sequence containing the result of combining elements of the sources using the specified result selector function.
 	   */
 	  observableProto.combineLatest = function () {
-	    var args = slice.call(arguments);
+	    var len = arguments.length, args = new Array(len);
+	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	    if (Array.isArray(args[0])) {
 	      args[0].unshift(this);
 	    } else {
@@ -16849,41 +15657,36 @@
 	   * @returns {Observable} An observable sequence containing the result of combining elements of the sources using the specified result selector function.
 	   */
 	  var combineLatest = Observable.combineLatest = function () {
-	    var args = slice.call(arguments), resultSelector = args.pop();
+	    var len = arguments.length, args = new Array(len);
+	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
+	    var resultSelector = args.pop();
+	    Array.isArray(args[0]) && (args = args[0]);
 	
-	    if (Array.isArray(args[0])) {
-	      args = args[0];
-	    }
-	
-	    return new AnonymousObservable(function (observer) {
-	      var falseFactory = function () { return false; },
-	        n = args.length,
+	    return new AnonymousObservable(function (o) {
+	      var n = args.length,
+	        falseFactory = function () { return false; },
 	        hasValue = arrayInitialize(n, falseFactory),
 	        hasValueAll = false,
 	        isDone = arrayInitialize(n, falseFactory),
 	        values = new Array(n);
 	
 	      function next(i) {
-	        var res;
 	        hasValue[i] = true;
 	        if (hasValueAll || (hasValueAll = hasValue.every(identity))) {
 	          try {
-	            res = resultSelector.apply(null, values);
-	          } catch (ex) {
-	            observer.onError(ex);
-	            return;
+	            var res = resultSelector.apply(null, values);
+	          } catch (e) {
+	            return o.onError(e);
 	          }
-	          observer.onNext(res);
+	          o.onNext(res);
 	        } else if (isDone.filter(function (x, j) { return j !== i; }).every(identity)) {
-	          observer.onCompleted();
+	          o.onCompleted();
 	        }
 	      }
 	
 	      function done (i) {
 	        isDone[i] = true;
-	        if (isDone.every(identity)) {
-	          observer.onCompleted();
-	        }
+	        isDone.every(identity) && o.onCompleted();
 	      }
 	
 	      var subscriptions = new Array(n);
@@ -16895,7 +15698,7 @@
 	              values[i] = x;
 	              next(i);
 	            },
-	            function(e) { observer.onError(e); },
+	            function(e) { o.onError(e); },
 	            function () { done(i); }
 	          ));
 	          subscriptions[i] = sad;
@@ -16911,9 +15714,9 @@
 	   * @returns {Observable} An observable sequence that contains the elements of each given sequence, in sequential order.
 	   */
 	  observableProto.concat = function () {
-	    var items = slice.call(arguments, 0);
-	    items.unshift(this);
-	    return observableConcat.apply(this, items);
+	    for(var args = [], i = 0, len = arguments.length; i < len; i++) { args.push(arguments[i]); }
+	    args.unshift(this);
+	    return observableConcat.apply(null, args);
 	  };
 	
 	  /**
@@ -16922,69 +15725,148 @@
 	   * @returns {Observable} An observable sequence that contains the elements of each given sequence, in sequential order.
 	   */
 	  var observableConcat = Observable.concat = function () {
-	    return enumerableOf(argsOrArray(arguments, 0)).concat();
+	    var args;
+	    if (Array.isArray(arguments[0])) {
+	      args = arguments[0];
+	    } else {
+	      args = new Array(arguments.length);
+	      for(var i = 0, len = arguments.length; i < len; i++) { args[i] = arguments[i]; }
+	    }
+	    return enumerableOf(args).concat();
 	  };
 	
 	  /**
 	   * Concatenates an observable sequence of observable sequences.
 	   * @returns {Observable} An observable sequence that contains the elements of each observed inner sequence, in sequential order.
 	   */
-	  observableProto.concatAll = function () {
+	  observableProto.concatAll = observableProto.concatObservable = function () {
 	    return this.merge(1);
 	  };
 	
-	  /** @deprecated Use `concatAll` instead. */
-	  observableProto.concatObservable = function () {
-	    //deprecate('concatObservable', 'concatAll');
-	    return this.merge(1);
-	  };
+	  var MergeObservable = (function (__super__) {
+	    inherits(MergeObservable, __super__);
+	
+	    function MergeObservable(source, maxConcurrent) {
+	      this.source = source;
+	      this.maxConcurrent = maxConcurrent;
+	      __super__.call(this);
+	    }
+	
+	    MergeObservable.prototype.subscribeCore = function(observer) {
+	      var g = new CompositeDisposable();
+	      g.add(this.source.subscribe(new MergeObserver(observer, this.maxConcurrent, g)));
+	      return g;
+	    };
+	
+	    return MergeObservable;
+	
+	  }(ObservableBase));
+	
+	  var MergeObserver = (function () {
+	    function MergeObserver(o, max, g) {
+	      this.o = o;
+	      this.max = max;
+	      this.g = g;
+	      this.done = false;
+	      this.q = [];
+	      this.activeCount = 0;
+	      this.isStopped = false;
+	    }
+	    MergeObserver.prototype.handleSubscribe = function (xs) {
+	      var sad = new SingleAssignmentDisposable();
+	      this.g.add(sad);
+	      isPromise(xs) && (xs = observableFromPromise(xs));
+	      sad.setDisposable(xs.subscribe(new InnerObserver(this, sad)));
+	    };
+	    MergeObserver.prototype.onNext = function (innerSource) {
+	      if (this.isStopped) { return; }
+	        if(this.activeCount < this.max) {
+	          this.activeCount++;
+	          this.handleSubscribe(innerSource);
+	        } else {
+	          this.q.push(innerSource);
+	        }
+	      };
+	      MergeObserver.prototype.onError = function (e) {
+	        if (!this.isStopped) {
+	          this.isStopped = true;
+	          this.o.onError(e);
+	        }
+	      };
+	      MergeObserver.prototype.onCompleted = function () {
+	        if (!this.isStopped) {
+	          this.isStopped = true;
+	          this.done = true;
+	          this.activeCount === 0 && this.o.onCompleted();
+	        }
+	      };
+	      MergeObserver.prototype.dispose = function() { this.isStopped = true; };
+	      MergeObserver.prototype.fail = function (e) {
+	        if (!this.isStopped) {
+	          this.isStopped = true;
+	          this.o.onError(e);
+	          return true;
+	        }
+	
+	        return false;
+	      };
+	
+	      function InnerObserver(parent, sad) {
+	        this.parent = parent;
+	        this.sad = sad;
+	        this.isStopped = false;
+	      }
+	      InnerObserver.prototype.onNext = function (x) { if(!this.isStopped) { this.parent.o.onNext(x); } };
+	      InnerObserver.prototype.onError = function (e) {
+	        if (!this.isStopped) {
+	          this.isStopped = true;
+	          this.parent.o.onError(e);
+	        }
+	      };
+	      InnerObserver.prototype.onCompleted = function () {
+	        if(!this.isStopped) {
+	          var parent = this.parent;
+	          parent.g.remove(this.sad);
+	          if (parent.q.length > 0) {
+	            parent.handleSubscribe(parent.q.shift());
+	          } else {
+	            parent.activeCount--;
+	            parent.done && parent.activeCount === 0 && parent.o.onCompleted();
+	          }
+	        }
+	      };
+	      InnerObserver.prototype.dispose = function() { this.isStopped = true; };
+	      InnerObserver.prototype.fail = function (e) {
+	        if (!this.isStopped) {
+	          this.isStopped = true;
+	          this.parent.o.onError(e);
+	          return true;
+	        }
+	
+	        return false;
+	      };
+	
+	      return MergeObserver;
+	  }());
+	
+	
+	
+	
 	
 	  /**
-	   * Merges an observable sequence of observable sequences into an observable sequence, limiting the number of concurrent subscriptions to inner sequences.
-	   * Or merges two observable sequences into a single observable sequence.
-	   *
-	   * @example
-	   * 1 - merged = sources.merge(1);
-	   * 2 - merged = source.merge(otherSource);
-	   * @param {Mixed} [maxConcurrentOrOther] Maximum number of inner observable sequences being subscribed to concurrently or the second observable sequence.
-	   * @returns {Observable} The observable sequence that merges the elements of the inner sequences.
-	   */
+	  * Merges an observable sequence of observable sequences into an observable sequence, limiting the number of concurrent subscriptions to inner sequences.
+	  * Or merges two observable sequences into a single observable sequence.
+	  *
+	  * @example
+	  * 1 - merged = sources.merge(1);
+	  * 2 - merged = source.merge(otherSource);
+	  * @param {Mixed} [maxConcurrentOrOther] Maximum number of inner observable sequences being subscribed to concurrently or the second observable sequence.
+	  * @returns {Observable} The observable sequence that merges the elements of the inner sequences.
+	  */
 	  observableProto.merge = function (maxConcurrentOrOther) {
-	    if (typeof maxConcurrentOrOther !== 'number') { return observableMerge(this, maxConcurrentOrOther); }
-	    var sources = this;
-	    return new AnonymousObservable(function (o) {
-	      var activeCount = 0, group = new CompositeDisposable(), isStopped = false, q = [];
-	
-	      function subscribe(xs) {
-	        var subscription = new SingleAssignmentDisposable();
-	        group.add(subscription);
-	
-	        // Check for promises support
-	        isPromise(xs) && (xs = observableFromPromise(xs));
-	
-	        subscription.setDisposable(xs.subscribe(function (x) { o.onNext(x); }, function (e) { o.onError(e); }, function () {
-	          group.remove(subscription);
-	          if (q.length > 0) {
-	            subscribe(q.shift());
-	          } else {
-	            activeCount--;
-	            isStopped && activeCount === 0 && o.onCompleted();
-	          }
-	        }));
-	      }
-	      group.add(sources.subscribe(function (innerSource) {
-	        if (activeCount < maxConcurrentOrOther) {
-	          activeCount++;
-	          subscribe(innerSource);
-	        } else {
-	          q.push(innerSource);
-	        }
-	      }, function (e) { o.onError(e); }, function () {
-	        isStopped = true;
-	        activeCount === 0 && o.onCompleted();
-	      }));
-	      return group;
-	    }, sources);
+	    return typeof maxConcurrentOrOther !== 'number' ?
+	      observableMerge(this, maxConcurrentOrOther) :
+	      new MergeObservable(this, maxConcurrentOrOther);
 	  };
 	
 	  /**
@@ -16993,16 +15875,16 @@
 	   * @returns {Observable} The observable sequence that merges the elements of the observable sequences.
 	   */
 	  var observableMerge = Observable.merge = function () {
-	    var scheduler, sources;
+	    var scheduler, sources = [], i, len = arguments.length;
 	    if (!arguments[0]) {
 	      scheduler = immediateScheduler;
-	      sources = slice.call(arguments, 1);
+	      for(i = 1; i < len; i++) { sources.push(arguments[i]); }
 	    } else if (isScheduler(arguments[0])) {
 	      scheduler = arguments[0];
-	      sources = slice.call(arguments, 1);
+	      for(i = 1; i < len; i++) { sources.push(arguments[i]); }
 	    } else {
 	      scheduler = immediateScheduler;
-	      sources = slice.call(arguments, 0);
+	      for(i = 0; i < len; i++) { sources.push(arguments[i]); }
 	    }
 	    if (Array.isArray(sources[0])) {
 	      sources = sources[0];
@@ -17010,43 +15892,188 @@
 	    return observableOf(scheduler, sources).mergeAll();
 	  };
 	
+	  var MergeAllObservable = (function (__super__) {
+	    inherits(MergeAllObservable, __super__);
+	
+	    function MergeAllObservable(source) {
+	      this.source = source;
+	      __super__.call(this);
+	    }
+	
+	    MergeAllObservable.prototype.subscribeCore = function (observer) {
+	      var g = new CompositeDisposable(), m = new SingleAssignmentDisposable();
+	      g.add(m);
+	      m.setDisposable(this.source.subscribe(new MergeAllObserver(observer, g)));
+	      return g;
+	    };
+	
+	    return MergeAllObservable;
+	  }(ObservableBase));
+	
+	  var MergeAllObserver = (function() {
+	
+	    function MergeAllObserver(o, g) {
+	      this.o = o;
+	      this.g = g;
+	      this.isStopped = false;
+	      this.done = false;
+	    }
+	    MergeAllObserver.prototype.onNext = function(innerSource) {
+	      if(this.isStopped) { return; }
+	      var sad = new SingleAssignmentDisposable();
+	      this.g.add(sad);
+	
+	      isPromise(innerSource) && (innerSource = observableFromPromise(innerSource));
+	
+	      sad.setDisposable(innerSource.subscribe(new InnerObserver(this, this.g, sad)));
+	    };
+	    MergeAllObserver.prototype.onError = function (e) {
+	      if(!this.isStopped) {
+	        this.isStopped = true;
+	        this.o.onError(e);
+	      }
+	    };
+	    MergeAllObserver.prototype.onCompleted = function () {
+	      if(!this.isStopped) {
+	        this.isStopped = true;
+	        this.done = true;
+	        this.g.length === 1 && this.o.onCompleted();
+	      }
+	    };
+	    MergeAllObserver.prototype.dispose = function() { this.isStopped = true; };
+	    MergeAllObserver.prototype.fail = function (e) {
+	      if (!this.isStopped) {
+	        this.isStopped = true;
+	        this.o.onError(e);
+	        return true;
+	      }
+	
+	      return false;
+	    };
+	
+	    function InnerObserver(parent, g, sad) {
+	      this.parent = parent;
+	      this.g = g;
+	      this.sad = sad;
+	      this.isStopped = false;
+	    }
+	    InnerObserver.prototype.onNext = function (x) { if (!this.isStopped) { this.parent.o.onNext(x); } };
+	    InnerObserver.prototype.onError = function (e) {
+	      if(!this.isStopped) {
+	        this.isStopped = true;
+	        this.parent.o.onError(e);
+	      }
+	    };
+	    InnerObserver.prototype.onCompleted = function () {
+	      if(!this.isStopped) {
+	        var parent = this.parent;
+	        this.isStopped = true;
+	        parent.g.remove(this.sad);
+	        parent.done && parent.g.length === 1 && parent.o.onCompleted();
+	      }
+	    };
+	    InnerObserver.prototype.dispose = function() { this.isStopped = true; };
+	    InnerObserver.prototype.fail = function (e) {
+	      if (!this.isStopped) {
+	        this.isStopped = true;
+	        this.parent.o.onError(e);
+	        return true;
+	      }
+	
+	      return false;
+	    };
+	
+	    return MergeAllObserver;
+	
+	  }());
+	
 	  /**
-	   * Merges an observable sequence of observable sequences into an observable sequence.
-	   * @returns {Observable} The observable sequence that merges the elements of the inner sequences.
-	   */
-	  observableProto.mergeAll = function () {
-	    var sources = this;
-	    return new AnonymousObservable(function (o) {
-	      var group = new CompositeDisposable(),
-	        isStopped = false,
-	        m = new SingleAssignmentDisposable();
-	
-	      group.add(m);
-	      m.setDisposable(sources.subscribe(function (innerSource) {
-	        var innerSubscription = new SingleAssignmentDisposable();
-	        group.add(innerSubscription);
-	
-	        // Check for promises support
-	        isPromise(innerSource) && (innerSource = observableFromPromise(innerSource));
-	
-	        innerSubscription.setDisposable(innerSource.subscribe(function (x) { o.onNext(x); }, function (e) { o.onError(e); }, function () {
-	          group.remove(innerSubscription);
-	          isStopped && group.length === 1 && o.onCompleted();
-	        }));
-	      }, function (e) { o.onError(e); }, function () {
-	        isStopped = true;
-	        group.length === 1 && o.onCompleted();
-	      }));
-	      return group;
-	    }, sources);
+	  * Merges an observable sequence of observable sequences into an observable sequence.
+	  * @returns {Observable} The observable sequence that merges the elements of the inner sequences.
+	  */
+	  observableProto.mergeAll = observableProto.mergeObservable = function () {
+	    return new MergeAllObservable(this);
 	  };
 	
+	  var CompositeError = Rx.CompositeError = function(errors) {
+	    this.name = "NotImplementedError";
+	    this.innerErrors = errors;
+	    this.message = 'This contains multiple errors. Check the innerErrors';
+	    Error.call(this);
+	  }
+	  CompositeError.prototype = Error.prototype;
+	
 	  /**
-	   * @deprecated use #mergeAll instead.
-	   */
-	  observableProto.mergeObservable = function () {
-	    //deprecate('mergeObservable', 'mergeAll');
-	    return this.mergeAll.apply(this, arguments);
+	  * Flattens an Observable that emits Observables into one Observable, in a way that allows an Observer to
+	  * receive all successfully emitted items from all of the source Observables without being interrupted by
+	  * an error notification from one of them.
+	  *
+	  * This behaves like Observable.prototype.mergeAll except that if any of the merged Observables notify of an
+	  * error via the Observer's onError, mergeDelayError will refrain from propagating that
+	  * error notification until all of the merged Observables have finished emitting items.
+	  * @param {Array | Arguments} args Arguments or an array to merge.
+	  * @returns {Observable} an Observable that emits all of the items emitted by the Observables emitted by the Observable
+	  */
+	  Observable.mergeDelayError = function() {
+	    var args;
+	    if (Array.isArray(arguments[0])) {
+	      args = arguments[0];
+	    } else {
+	      var len = arguments.length;
+	      args = new Array(len);
+	      for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
+	    }
+	    var source = observableOf(null, args);
+	
+	    return new AnonymousObservable(function (o) {
+	      var group = new CompositeDisposable(),
+	        m = new SingleAssignmentDisposable(),
+	        isStopped = false,
+	        errors = [];
+	
+	      function setCompletion() {
+	        if (errors.length === 0) {
+	          o.onCompleted();
+	        } else if (errors.length === 1) {
+	          o.onError(errors[0]);
+	        } else {
+	          o.onError(new CompositeError(errors));
+	        }
+	      }
+	
+	      group.add(m);
+	
+	      m.setDisposable(source.subscribe(
+	        function (innerSource) {
+	          var innerSubscription = new SingleAssignmentDisposable();
+	          group.add(innerSubscription);
+	
+	          // Check for promises support
+	          isPromise(innerSource) && (innerSource = observableFromPromise(innerSource));
+	
+	          innerSubscription.setDisposable(innerSource.subscribe(
+	            function (x) { o.onNext(x); },
+	            function (e) {
+	              errors.push(e);
+	              group.remove(innerSubscription);
+	              isStopped && group.length === 1 && setCompletion();
+	            },
+	            function () {
+	              group.remove(innerSubscription);
+	              isStopped && group.length === 1 && setCompletion();
+	          }));
+	        },
+	        function (e) {
+	          errors.push(e);
+	          isStopped = true;
+	          group.length === 1 && setCompletion();
+	        },
+	        function () {
+	          isStopped = true;
+	          group.length === 1 && setCompletion();
+	        }));
+	      return group;
+	    });
 	  };
 	
 	  /**
@@ -17068,7 +16095,12 @@
 	   * @returns {Observable} An observable sequence that concatenates the source sequences, even if a sequence terminates exceptionally.
 	   */
 	  var onErrorResumeNext = Observable.onErrorResumeNext = function () {
-	    var sources = argsOrArray(arguments, 0);
+	    var sources = [];
+	    if (Array.isArray(arguments[0])) {
+	      sources = arguments[0];
+	    } else {
+	      for(var i = 0, len = arguments.length; i < len; i++) { sources.push(arguments[i]); }
+	    }
 	    return new AnonymousObservable(function (observer) {
 	      var pos = 0, subscription = new SerialDisposable(),
 	      cancelable = immediateScheduler.scheduleRecursive(function (self) {
@@ -17147,7 +16179,7 @@
 	                }
 	              }));
 	          },
-	          observer.onError.bind(observer),
+	          function (e) { observer.onError(e); },
 	          function () {
 	            isStopped = true;
 	            !hasLatest && observer.onCompleted();
@@ -17181,9 +16213,9 @@
 	   * @returns {Observable} An observable sequence containing the result of combining elements of the sources using the specified result selector function.
 	   */
 	  observableProto.withLatestFrom = function () {
-	    var source = this;
-	    var args = slice.call(arguments);
-	    var resultSelector = args.pop();
+	    var len = arguments.length, args = new Array(len)
+	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
+	    var resultSelector = args.pop(), source = this;
 	
 	    if (typeof source === 'undefined') {
 	      throw new Error('Source observable not found for withLatestFrom().');
@@ -17247,8 +16279,7 @@
 	          try {
 	            result = resultSelector(left, right);
 	          } catch (e) {
-	            observer.onError(e);
-	            return;
+	            return observer.onError(e);
 	          }
 	          observer.onNext(result);
 	        } else {
@@ -17258,25 +16289,29 @@
 	    }, first);
 	  }
 	
+	  function falseFactory() { return false; }
+	  function emptyArrayFactory() { return []; }
+	
 	  /**
 	   * Merges the specified observable sequences into one observable sequence by using the selector function whenever all of the observable sequences or an array have produced an element at a corresponding index.
-	   * The last element in the arguments must be a function to invoke for each series of elements at corresponding indexes in the sources.
+	   * The last element in the arguments must be a function to invoke for each series of elements at corresponding indexes in the args.
 	   *
 	   * @example
 	   * 1 - res = obs1.zip(obs2, fn);
 	   * 1 - res = x1.zip([1,2,3], fn);
-	   * @returns {Observable} An observable sequence containing the result of combining elements of the sources using the specified result selector function.
+	   * @returns {Observable} An observable sequence containing the result of combining elements of the args using the specified result selector function.
 	   */
 	  observableProto.zip = function () {
-	    if (Array.isArray(arguments[0])) {
-	      return zipArray.apply(this, arguments);
-	    }
-	    var parent = this, sources = slice.call(arguments), resultSelector = sources.pop();
-	    sources.unshift(parent);
+	    if (Array.isArray(arguments[0])) { return zipArray.apply(this, arguments); }
+	    var len = arguments.length, args = new Array(len);
+	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
+	
+	    var parent = this, resultSelector = args.pop();
+	    args.unshift(parent);
 	    return new AnonymousObservable(function (observer) {
-	      var n = sources.length,
-	        queues = arrayInitialize(n, function () { return []; }),
-	        isDone = arrayInitialize(n, function () { return false; });
+	      var n = args.length,
+	        queues = arrayInitialize(n, emptyArrayFactory),
+	        isDone = arrayInitialize(n, falseFactory);
 	
 	      function next(i) {
 	        var res, queuedValues;
@@ -17304,7 +16339,7 @@
 	      var subscriptions = new Array(n);
 	      for (var idx = 0; idx < n; idx++) {
 	        (function (i) {
-	          var source = sources[i], sad = new SingleAssignmentDisposable();
+	          var source = args[i], sad = new SingleAssignmentDisposable();
 	          isPromise(source) && (source = observableFromPromise(source));
 	          sad.setDisposable(source.subscribe(function (x) {
 	            queues[i].push(x);
@@ -17327,7 +16362,9 @@
 	   * @returns {Observable} An observable sequence containing the result of combining elements of the sources using the specified result selector function.
 	   */
 	  Observable.zip = function () {
-	    var args = slice.call(arguments, 0), first = args.shift();
+	    var len = arguments.length, args = new Array(len);
+	    for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
+	    var first = args.shift();
 	    return first.zip.apply(first, args);
 	  };
 	
@@ -17337,7 +16374,14 @@
 	   * @returns {Observable} An observable sequence containing lists of elements at corresponding indexes.
 	   */
 	  Observable.zipArray = function () {
-	    var sources = argsOrArray(arguments, 0);
+	    var sources;
+	    if (Array.isArray(arguments[0])) {
+	      sources = arguments[0];
+	    } else {
+	      var len = arguments.length;
+	      sources = new Array(len);
+	      for(var i = 0; i < len; i++) { sources[i] = arguments[i]; }
+	    }
 	    return new AnonymousObservable(function (observer) {
 	      var n = sources.length,
 	        queues = arrayInitialize(n, function () { return []; }),
@@ -17432,31 +16476,32 @@
 	   */
 	  observableProto.distinctUntilChanged = function (keySelector, comparer) {
 	    var source = this;
-	    keySelector || (keySelector = identity);
 	    comparer || (comparer = defaultComparer);
 	    return new AnonymousObservable(function (o) {
 	      var hasCurrentKey = false, currentKey;
 	      return source.subscribe(function (value) {
-	          var comparerEquals = false, key;
+	        var key = value;
+	        if (keySelector) {
 	          try {
 	            key = keySelector(value);
 	          } catch (e) {
 	            o.onError(e);
 	            return;
 	          }
-	          if (hasCurrentKey) {
-	            try {
-	              comparerEquals = comparer(currentKey, key);
-	            } catch (e) {
-	              o.onError(e);
-	              return;
-	            }
+	        }
+	        if (hasCurrentKey) {
+	          try {
+	            var comparerEquals = comparer(currentKey, key);
+	          } catch (e) {
+	            o.onError(e);
+	            return;
 	          }
-	          if (!hasCurrentKey || !comparerEquals) {
-	            hasCurrentKey = true;
-	            currentKey = key;
-	            o.onNext(value);
-	          }
+	        }
+	        if (!hasCurrentKey || !comparerEquals) {
+	          hasCurrentKey = true;
+	          currentKey = key;
+	          o.onNext(value);
+	        }
 	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
 	    }, this);
 	  };
@@ -17469,49 +16514,34 @@
 	   * @param {Function} [onCompleted]  Action to invoke upon graceful termination of the observable sequence. Used if only the observerOrOnNext parameter is also a function.
 	   * @returns {Observable} The source sequence with the side-effecting behavior applied.
 	   */
-	  observableProto['do'] = observableProto.tap = function (observerOrOnNext, onError, onCompleted) {
-	    var source = this, onNextFunc;
-	    if (typeof observerOrOnNext === 'function') {
-	      onNextFunc = observerOrOnNext;
-	    } else {
-	      onNextFunc = function (x) { observerOrOnNext.onNext(x); };
-	      onError = function (e) { observerOrOnNext.onError(e); };
-	      onCompleted = function () { observerOrOnNext.onCompleted(); }
-	    }
+	  observableProto['do'] = observableProto.tap = observableProto.doAction = function (observerOrOnNext, onError, onCompleted) {
+	    var source = this, tapObserver = typeof observerOrOnNext === 'function' || typeof observerOrOnNext === 'undefined'?
+	      observerCreate(observerOrOnNext || noop, onError || noop, onCompleted || noop) :
+	      observerOrOnNext;
 	    return new AnonymousObservable(function (observer) {
 	      return source.subscribe(function (x) {
 	        try {
-	          onNextFunc(x);
+	          tapObserver.onNext(x);
 	        } catch (e) {
 	          observer.onError(e);
 	        }
 	        observer.onNext(x);
 	      }, function (err) {
-	        if (onError) {
 	          try {
-	            onError(err);
+	            tapObserver.onError(err);
 	          } catch (e) {
 	            observer.onError(e);
 	          }
-	        }
 	        observer.onError(err);
 	      }, function () {
-	        if (onCompleted) {
-	          try {
-	            onCompleted();
-	          } catch (e) {
-	            observer.onError(e);
-	          }
+	        try {
+	          tapObserver.onCompleted();
+	        } catch (e) {
+	          observer.onError(e);
 	        }
 	        observer.onCompleted();
 	      });
 	    }, this);
-	  };
-	
-	  /** @deprecated use #do or #tap instead. */
-	  observableProto.doAction = function () {
-	    //deprecate('doAction', 'do or tap');
-	    return this.tap.apply(this, arguments);
 	  };
 	
 	  /**
@@ -17704,6 +16734,7 @@
 	   * @returns {Observable} An observable sequence containing the source sequence elements except for the bypassed ones at the end.
 	   */
 	  observableProto.skipLast = function (count) {
+	    if (count < 0) { throw new ArgumentOutOfRangeError(); }
 	    var source = this;
 	    return new AnonymousObservable(function (o) {
 	      var q = [];
@@ -17730,8 +16761,8 @@
 	    } else {
 	      scheduler = immediateScheduler;
 	    }
-	    values = slice.call(arguments, start);
-	    return enumerableOf([observableFromArray(values, scheduler), this]).concat();
+	    for(var args = [], i = start, len = arguments.length; i < len; i++) { args.push(arguments[i]); }
+	    return enumerableOf([observableFromArray(args, scheduler), this]).concat();
 	  };
 	
 	  /**
@@ -17743,6 +16774,7 @@
 	   * @returns {Observable} An observable sequence containing the specified number of elements from the end of the source sequence.
 	   */
 	  observableProto.takeLast = function (count) {
+	    if (count < 0) { throw new ArgumentOutOfRangeError(); }
 	    var source = this;
 	    return new AnonymousObservable(function (o) {
 	      var q = [];
@@ -17792,12 +16824,12 @@
 	    var source = this;
 	    +count || (count = 0);
 	    Math.abs(count) === Infinity && (count = 0);
-	    if (count <= 0) { throw new Error(argumentOutOfRange); }
+	    if (count <= 0) { throw new ArgumentOutOfRangeError(); }
 	    skip == null && (skip = count);
 	    +skip || (skip = 0);
 	    Math.abs(skip) === Infinity && (skip = 0);
 	
-	    if (skip <= 0) { throw new Error(argumentOutOfRange); }
+	    if (skip <= 0) { throw new ArgumentOutOfRangeError(); }
 	    return new AnonymousObservable(function (observer) {
 	      var m = new SingleAssignmentDisposable(),
 	        refCountDisposable = new RefCountDisposable(m),
@@ -18125,36 +17157,101 @@
 	    }, source);
 	  };
 	
-	  /**
-	   * Projects each element of an observable sequence into a new form by incorporating the element's index.
-	   * @param {Function} selector A transform function to apply to each source element; the second parameter of the function represents the index of the source element.
-	   * @param {Any} [thisArg] Object to use as this when executing callback.
-	   * @returns {Observable} An observable sequence whose elements are the result of invoking the transform function on each element of source.
-	   */
-	  observableProto.select = observableProto.map = function (selector, thisArg) {
-	    var selectorFn = isFunction(selector) ? bindCallback(selector, thisArg, 3) : function () { return selector; },
-	        source = this;
-	    return new AnonymousObservable(function (o) {
-	      var count = 0;
-	      return source.subscribe(function (value) {
-	        try {
-	          var result = selectorFn(value, count++, source);
-	        } catch (e) {
-	          o.onError(e);
-	          return;
-	        }
-	        o.onNext(result);
-	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
-	    }, source);
+	  var MapObservable = (function (__super__) {
+	    inherits(MapObservable, __super__);
+	
+	    function MapObservable(source, selector, thisArg) {
+	      this.source = source;
+	      this.selector = bindCallback(selector, thisArg, 3);
+	      __super__.call(this);
+	    }
+	
+	    MapObservable.prototype.internalMap = function (selector, thisArg) {
+	      var self = this;
+	      return new MapObservable(this.source, function (x, i, o) { return selector(self.selector(x, i, o), i, o); }, thisArg)
+	    };
+	
+	    MapObservable.prototype.subscribeCore = function (observer) {
+	      return this.source.subscribe(new MapObserver(observer, this.selector, this));
+	    };
+	
+	    return MapObservable;
+	
+	  }(ObservableBase));
+	
+	  function MapObserver(observer, selector, source) {
+	    this.observer = observer;
+	    this.selector = selector;
+	    this.source = source;
+	    this.i = 0;
+	    this.isStopped = false;
+	  }
+	
+	  MapObserver.prototype.onNext = function(x) {
+	    if (this.isStopped) { return; }
+	    var result = tryCatch(this.selector).call(this, x, this.i++, this.source);
+	    if (result === errorObj) {
+	      return this.observer.onError(result.e);
+	    }
+	    this.observer.onNext(result);
+	    /*try {
+	      var result = this.selector(x, this.i++, this.source);
+	    } catch (e) {
+	      return this.observer.onError(e);
+	    }
+	    this.observer.onNext(result);*/
+	  };
+	  MapObserver.prototype.onError = function (e) {
+	    if(!this.isStopped) { this.isStopped = true; this.observer.onError(e); }
+	  };
+	  MapObserver.prototype.onCompleted = function () {
+	    if(!this.isStopped) { this.isStopped = true; this.observer.onCompleted(); }
+	  };
+	  MapObserver.prototype.dispose = function() { this.isStopped = true; };
+	  MapObserver.prototype.fail = function (e) {
+	    if (!this.isStopped) {
+	      this.isStopped = true;
+	      this.observer.onError(e);
+	      return true;
+	    }
+	
+	    return false;
 	  };
 	
 	  /**
-	   * Retrieves the value of a specified property from all elements in the Observable sequence.
-	   * @param {String} prop The property to pluck.
+	  * Projects each element of an observable sequence into a new form by incorporating the element's index.
+	  * @param {Function} selector A transform function to apply to each source element; the second parameter of the function represents the index of the source element.
+	  * @param {Any} [thisArg] Object to use as this when executing callback.
+	  * @returns {Observable} An observable sequence whose elements are the result of invoking the transform function on each element of source.
+	  */
+	  observableProto.map = observableProto.select = function (selector, thisArg) {
+	    var selectorFn = typeof selector === 'function' ? selector : function () { return selector; };
+	    return this instanceof MapObservable ?
+	      this.internalMap(selectorFn, thisArg) :
+	      new MapObservable(this, selectorFn, thisArg);
+	  };
+	
+	  /**
+	   * Retrieves the value of a specified nested property from all elements in
+	   * the Observable sequence.
+	   * @param {Arguments} arguments The nested properties to pluck.
 	   * @returns {Observable} Returns a new Observable sequence of property values.
 	   */
-	  observableProto.pluck = function (prop) {
-	    return this.map(function (x) { return x[prop]; });
+	  observableProto.pluck = function () {
+	    var args = arguments, len = arguments.length;
+	    if (len === 0) { throw new Error('List of properties cannot be empty.'); }
+	    return this.map(function (x) {
+	      var currentProp = x;
+	      for (var i = 0; i < len; i++) {
+	        var p = currentProp[args[i]];
+	        if (typeof p !== 'undefined') {
+	          currentProp = p;
+	        } else {
+	          return undefined;
+	        }
+	      }
+	      return currentProp;
+	    });
 	  };
 	
 	  function flatMap(source, selector, thisArg) {
@@ -18273,7 +17370,7 @@
 	   * @returns {Observable} An observable sequence that contains the elements that occur after the specified index in the input sequence.
 	   */
 	  observableProto.skip = function (count) {
-	    if (count < 0) { throw new Error(argumentOutOfRange); }
+	    if (count < 0) { throw new ArgumentOutOfRangeError(); }
 	    var source = this;
 	    return new AnonymousObservable(function (o) {
 	      var remaining = count;
@@ -18326,7 +17423,7 @@
 	   * @returns {Observable} An observable sequence that contains the specified number of elements from the start of the input sequence.
 	   */
 	  observableProto.take = function (count, scheduler) {
-	    if (count < 0) { throw new RangeError(argumentOutOfRange); }
+	    if (count < 0) { throw new ArgumentOutOfRangeError(); }
 	    if (count === 0) { return observableEmpty(scheduler); }
 	    var source = this;
 	    return new AnonymousObservable(function (o) {
@@ -18370,31 +17467,69 @@
 	    }, source);
 	  };
 	
+	  var FilterObservable = (function (__super__) {
+	    inherits(FilterObservable, __super__);
+	
+	    function FilterObservable(source, predicate, thisArg) {
+	      this.source = source;
+	      this.predicate = bindCallback(predicate, thisArg, 3);
+	      __super__.call(this);
+	    }
+	
+	    FilterObservable.prototype.subscribeCore = function (observer) {
+	      return this.source.subscribe(new FilterObserver(observer, this.predicate, this));
+	    };
+	
+	    FilterObservable.prototype.internalFilter = function(predicate, thisArg) {
+	      var self = this;
+	      return new FilterObservable(this.source, function(x, i, o) { return self.predicate(x, i, o) && predicate(x, i, o); }, thisArg);
+	    };
+	
+	    return FilterObservable;
+	
+	  }(ObservableBase));
+	
+	  function FilterObserver(observer, predicate, source) {
+	    this.observer = observer;
+	    this.predicate = predicate;
+	    this.source = source;
+	    this.i = 0;
+	    this.isStopped = false;
+	  }
+	
+	  FilterObserver.prototype.onNext = function(x) {
+	    if (this.isStopped) { return; }
+	    var shouldYield = tryCatch(this.predicate).call(this, x, this.i++, this.source);
+	    if (shouldYield === errorObj) {
+	      return this.observer.onError(shouldYield.e);
+	    }
+	    shouldYield && this.observer.onNext(x);
+	  };
+	  FilterObserver.prototype.onError = function (e) {
+	    if(!this.isStopped) { this.isStopped = true; this.observer.onError(e); }
+	  };
+	  FilterObserver.prototype.onCompleted = function () {
+	    if(!this.isStopped) { this.isStopped = true; this.observer.onCompleted(); }
+	  };
+	  FilterObserver.prototype.dispose = function() { this.isStopped = true; };
+	  FilterObserver.prototype.fail = function (e) {
+	    if (!this.isStopped) {
+	      this.isStopped = true;
+	      this.observer.onError(e);
+	      return true;
+	    }
+	    return false;
+	  };
+	
 	  /**
-	   *  Filters the elements of an observable sequence based on a predicate by incorporating the element's index.
-	   *
-	   * @example
-	   *  var res = source.where(function (value) { return value < 10; });
-	   *  var res = source.where(function (value, index) { return value < 10 || index < 10; });
-	   * @param {Function} predicate A function to test each source element for a condition; the second parameter of the function represents the index of the source element.
-	   * @param {Any} [thisArg] Object to use as this when executing callback.
-	   * @returns {Observable} An observable sequence that contains elements from the input sequence that satisfy the condition.
-	   */
-	  observableProto.where = observableProto.filter = function (predicate, thisArg) {
-	    var source = this;
-	    predicate = bindCallback(predicate, thisArg, 3);
-	    return new AnonymousObservable(function (o) {
-	      var count = 0;
-	      return source.subscribe(function (value) {
-	        try {
-	          var shouldRun = predicate(value, count++, source);
-	        } catch (e) {
-	          o.onError(e);
-	          return;
-	        }
-	        shouldRun && o.onNext(value);
-	      }, function (e) { o.onError(e); }, function () { o.onCompleted(); });
-	    }, source);
+	  *  Filters the elements of an observable sequence based on a predicate by incorporating the element's index.
+	  * @param {Function} predicate A function to test each source element for a condition; the second parameter of the function represents the index of the source element.
+	  * @param {Any} [thisArg] Object to use as this when executing callback.
+	  * @returns {Observable} An observable sequence that contains elements from the input sequence that satisfy the condition.
+	  */
+	  observableProto.filter = observableProto.where = function (predicate, thisArg) {
+	    return this instanceof FilterObservable ? this.internalFilter(predicate, thisArg) :
+	      new FilterObservable(this, predicate, thisArg);
 	  };
 	
 	  function extremaBy(source, keySelector, comparer) {
@@ -18433,7 +17568,7 @@
 	  }
 	
 	  function firstOnly(x) {
-	    if (x.length === 0) { throw new Error(sequenceContainsNoElements); }
+	    if (x.length === 0) { throw new EmptyError(); }
 	    return x[0];
 	  }
 	
@@ -18446,7 +17581,6 @@
 	   * @returns {Observable} An observable sequence containing a single element with the final accumulator value.
 	   */
 	  observableProto.aggregate = function () {
-	    //deprecate('aggregate', 'reduce');
 	    var hasSeed = false, accumulator, seed, source = this;
 	    if (arguments.length === 2) {
 	      hasSeed = true;
@@ -18468,15 +17602,14 @@
 	              hasAccumulation = true;
 	            }
 	          } catch (e) {
-	            o.onError(e);
-	            return;
+	            return o.onError(e);
 	          }
 	        },
 	        function (e) { o.onError(e); },
 	        function () {
 	          hasValue && o.onNext(accumulation);
 	          !hasValue && hasSeed && o.onNext(seed);
-	          !hasValue && !hasSeed && o.onError(new Error(sequenceContainsNoElements));
+	          !hasValue && !hasSeed && o.onError(new EmptyError());
 	          o.onCompleted();
 	        }
 	      );
@@ -18509,15 +17642,14 @@
 	              hasAccumulation = true;
 	            }
 	          } catch (e) {
-	            o.onError(e);
-	            return;
+	            return o.onError(e);
 	          }
 	        },
 	        function (e) { o.onError(e); },
 	        function () {
 	          hasValue && o.onNext(accumulation);
 	          !hasValue && hasSeed && o.onNext(seed);
-	          !hasValue && !hasSeed && o.onError(new Error(sequenceContainsNoElements));
+	          !hasValue && !hasSeed && o.onError(new EmptyError());
 	          o.onCompleted();
 	        }
 	      );
@@ -18575,12 +17707,12 @@
 	  };
 	
 	  /**
-	   * Determines whether an observable sequence contains a specified element with an optional equality comparer.
+	   * Determines whether an observable sequence includes a specified element with an optional equality comparer.
 	   * @param searchElement The value to locate in the source sequence.
 	   * @param {Number} [fromIndex] An equality comparer to compare elements.
-	   * @returns {Observable} An observable sequence containing a single element determining whether the source sequence contains an element that has the specified value from the given index.
+	   * @returns {Observable} An observable sequence containing a single element determining whether the source sequence includes an element that has the specified value from the given index.
 	   */
-	  observableProto.contains = function (searchElement, fromIndex) {
+	  observableProto.includes = function (searchElement, fromIndex) {
 	    var source = this;
 	    function comparer(a, b) {
 	      return (a === 0 && b === 0) || (a === b || (isNaN(a) && isNaN(b)));
@@ -18608,6 +17740,13 @@
 	    }, this);
 	  };
 	
+	  /**
+	   * @deprecated use #includes instead.
+	   */
+	  observableProto.contains = function (searchElement, fromIndex) {
+	    //deprecate('contains', 'includes');
+	    observableProto.includes(searchElement, fromIndex);
+	  };
 	  /**
 	   * Returns an observable sequence containing a value that represents how many elements in the specified observable sequence satisfy a condition if provided, else the count of items.
 	   * @example
@@ -18734,7 +17873,7 @@
 	          count: prev.count + 1
 	        };
 	      }, {sum: 0, count: 0 }).map(function (s) {
-	        if (s.count === 0) { throw new Error(sequenceContainsNoElements); }
+	        if (s.count === 0) { throw new EmptyError(); }
 	        return s.sum / s.count;
 	      });
 	  };
@@ -18828,7 +17967,7 @@
 	  };
 	
 	  function elementAtOrDefault(source, index, hasDefault, defaultValue) {
-	    if (index < 0) { throw new Error(argumentOutOfRange); }
+	    if (index < 0) { throw new ArgumentOutOfRangeError(); }
 	    return new AnonymousObservable(function (o) {
 	      var i = index;
 	      return source.subscribe(function (x) {
@@ -18838,7 +17977,7 @@
 	        }
 	      }, function (e) { o.onError(e); }, function () {
 	        if (!hasDefault) {
-	          o.onError(new Error(argumentOutOfRange));
+	          o.onError(new ArgumentOutOfRangeError());
 	        } else {
 	          o.onNext(defaultValue);
 	          o.onCompleted();
@@ -18883,7 +18022,7 @@
 	        }
 	      }, function (e) { o.onError(e); }, function () {
 	        if (!seenValue && !hasDefault) {
-	          o.onError(new Error(sequenceContainsNoElements));
+	          o.onError(new EmptyError());
 	        } else {
 	          o.onNext(value);
 	          o.onCompleted();
@@ -18930,7 +18069,7 @@
 	        o.onCompleted();
 	      }, function (e) { o.onError(e); }, function () {
 	        if (!hasDefault) {
-	          o.onError(new Error(sequenceContainsNoElements));
+	          o.onError(new EmptyError());
 	        } else {
 	          o.onNext(defaultValue);
 	          o.onCompleted();
@@ -18975,7 +18114,7 @@
 	        seenValue = true;
 	      }, function (e) { o.onError(e); }, function () {
 	        if (!seenValue && !hasDefault) {
-	          o.onError(new Error(sequenceContainsNoElements));
+	          o.onError(new EmptyError());
 	        } else {
 	          o.onNext(value);
 	          o.onCompleted();
@@ -19226,8 +18365,8 @@
 	        gen = fn;
 	
 	      if (isGenFun) {
-	        var args = slice.call(arguments),
-	          len = args.length,
+	        for(var args = [], i = 0, len = arguments.length; i < len; i++) { args.push(arguments[i]); }
+	        var len = args.length,
 	          hasCallback = len && typeof args[len - 1] === fnString;
 	
 	        done = hasCallback ? args.pop() : handleError;
@@ -19247,7 +18386,7 @@
 	
 	        // multiple args
 	        if (arguments.length > 2) {
-	          res = slice.call(arguments, 1);
+	          for(var res = [], i = 1, len = arguments.length; i < len; i++) { res.push(arguments[i]); }
 	        }
 	
 	        if (err) {
@@ -19368,7 +18507,7 @@
 	   */
 	  Observable.fromCallback = function (func, context, selector) {
 	    return function () {
-	      var args = slice.call(arguments, 0);
+	      for(var args = [], i = 0, len = arguments.length; i < len; i++) { args.push(arguments[i]); }
 	
 	      return new AnonymousObservable(function (observer) {
 	        function handler() {
@@ -19377,9 +18516,8 @@
 	          if (selector) {
 	            try {
 	              results = selector(results);
-	            } catch (err) {
-	              observer.onError(err);
-	              return;
+	            } catch (e) {
+	              return observer.onError(e);
 	            }
 	
 	            observer.onNext(results);
@@ -19409,7 +18547,8 @@
 	   */
 	  Observable.fromNodeCallback = function (func, context, selector) {
 	    return function () {
-	      var args = slice.call(arguments, 0);
+	      var len = arguments.length, args = new Array(len);
+	      for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	
 	      return new AnonymousObservable(function (observer) {
 	        function handler(err) {
@@ -19418,14 +18557,14 @@
 	            return;
 	          }
 	
-	          var results = slice.call(arguments, 1);
+	          var len = arguments.length, results = new Array(len - 1);
+	          for(var i = 1; i < len; i++) { results[i - 1] = arguments[i]; }
 	
 	          if (selector) {
 	            try {
 	              results = selector(results);
 	            } catch (e) {
-	              observer.onError(e);
-	              return;
+	              return observer.onError(e);
 	            }
 	            observer.onNext(results);
 	          } else {
@@ -19497,17 +18636,11 @@
 	
 	    // Use only if non-native events are allowed
 	    if (!Rx.config.useNativeEvents) {
-	      // Handles jq, Angular.js, Zepto, Marionette
+	      // Handles jq, Angular.js, Zepto, Marionette, Ember.js
 	      if (typeof element.on === 'function' && typeof element.off === 'function') {
 	        return fromEventPattern(
 	          function (h) { element.on(eventName, h); },
 	          function (h) { element.off(eventName, h); },
-	          selector);
-	      }
-	      if (!!root.Ember && typeof root.Ember.addListener === 'function') {
-	        return fromEventPattern(
-	          function (h) { Ember.addListener(element, eventName, h); },
-	          function (h) { Ember.removeListener(element, eventName, h); },
 	          selector);
 	      }
 	    }
@@ -19522,8 +18655,7 @@
 	            try {
 	              results = selector(arguments);
 	            } catch (err) {
-	              observer.onError(err);
-	              return
+	              return observer.onError(err);
 	            }
 	          }
 	
@@ -19547,8 +18679,7 @@
 	          try {
 	            result = selector(arguments);
 	          } catch (err) {
-	            observer.onError(err);
-	            return;
+	            return observer.onError(err);
 	          }
 	        }
 	        observer.onNext(result);
@@ -20229,7 +19360,7 @@
 	   */
 	  var BehaviorSubject = Rx.BehaviorSubject = (function (__super__) {
 	    function subscribe(observer) {
-	      checkDisposed.call(this);
+	      checkDisposed(this);
 	      if (!this.isStopped) {
 	        this.observers.push(observer);
 	        observer.onNext(this.value);
@@ -20268,10 +19399,10 @@
 	       * Notifies all subscribed observers about the end of the sequence.
 	       */
 	      onCompleted: function () {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (this.isStopped) { return; }
 	        this.isStopped = true;
-	        for (var i = 0, os = this.observers.slice(0), len = os.length; i < len; i++) {
+	        for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	          os[i].onCompleted();
 	        }
 	
@@ -20282,13 +19413,13 @@
 	       * @param {Mixed} error The exception to send to all observers.
 	       */
 	      onError: function (error) {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (this.isStopped) { return; }
 	        this.isStopped = true;
 	        this.hasError = true;
 	        this.error = error;
 	
-	        for (var i = 0, os = this.observers.slice(0), len = os.length; i < len; i++) {
+	        for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	          os[i].onError(error);
 	        }
 	
@@ -20299,10 +19430,10 @@
 	       * @param {Mixed} value The value to send to all observers.
 	       */
 	      onNext: function (value) {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (this.isStopped) { return; }
 	        this.value = value;
-	        for (var i = 0, os = this.observers.slice(0), len = os.length; i < len; i++) {
+	        for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	          os[i].onNext(value);
 	        }
 	      },
@@ -20336,7 +19467,7 @@
 	    function subscribe(observer) {
 	      var so = new ScheduledObserver(this.scheduler, observer),
 	        subscription = createRemovableDisposable(this, so);
-	      checkDisposed.call(this);
+	      checkDisposed(this);
 	      this._trim(this.scheduler.now());
 	      this.observers.push(so);
 	
@@ -20396,15 +19527,14 @@
 	       * @param {Mixed} value The value to send to all observers.
 	       */
 	      onNext: function (value) {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (this.isStopped) { return; }
 	        var now = this.scheduler.now();
 	        this.q.push({ interval: now, value: value });
 	        this._trim(now);
 	
-	        var o = this.observers.slice(0);
-	        for (var i = 0, len = o.length; i < len; i++) {
-	          var observer = o[i];
+	        for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
+	          var observer = os[i];
 	          observer.onNext(value);
 	          observer.ensureActive();
 	        }
@@ -20414,37 +19544,35 @@
 	       * @param {Mixed} error The exception to send to all observers.
 	       */
 	      onError: function (error) {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (this.isStopped) { return; }
 	        this.isStopped = true;
 	        this.error = error;
 	        this.hasError = true;
 	        var now = this.scheduler.now();
 	        this._trim(now);
-	        var o = this.observers.slice(0);
-	        for (var i = 0, len = o.length; i < len; i++) {
-	          var observer = o[i];
+	        for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
+	          var observer = os[i];
 	          observer.onError(error);
 	          observer.ensureActive();
 	        }
-	        this.observers = [];
+	        this.observers.length = 0;
 	      },
 	      /**
 	       * Notifies all subscribed observers about the end of the sequence.
 	       */
 	      onCompleted: function () {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (this.isStopped) { return; }
 	        this.isStopped = true;
 	        var now = this.scheduler.now();
 	        this._trim(now);
-	        var o = this.observers.slice(0);
-	        for (var i = 0, len = o.length; i < len; i++) {
-	          var observer = o[i];
+	        for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
+	          var observer = os[i];
 	          observer.onCompleted();
 	          observer.ensureActive();
 	        }
-	        this.observers = [];
+	        this.observers.length = 0;
 	      },
 	      /**
 	       * Unsubscribe all observers and release resources.
@@ -20563,7 +19691,7 @@
 	          // Hack check for valueOf
 	          var valueOf = obj.valueOf();
 	          if (typeof valueOf === 'number') { return numberHashFn(valueOf); }
-	          if (typeof obj === 'string') { return stringHashFn(valueOf); }
+	          if (typeof valueOf === 'string') { return stringHashFn(valueOf); }
 	        }
 	        if (obj.hashCode) { return obj.hashCode(); }
 	
@@ -20578,7 +19706,7 @@
 	    }
 	
 	    function Dictionary(capacity, comparer) {
-	      if (capacity < 0) { throw new Error('out of range'); }
+	      if (capacity < 0) { throw new ArgumentOutOfRangeError(); }
 	      if (capacity > 0) { this._initialize(capacity); }
 	
 	      this.comparer = comparer || defaultComparer;
@@ -21303,7 +20431,12 @@
 	   * @returns {Observable} An observable sequence with an array collecting the last elements of all the input sequences.
 	   */
 	  Observable.forkJoin = function () {
-	    var allSources = argsOrArray(arguments, 0);
+	    var allSources = [];
+	    if (Array.isArray(arguments[0])) {
+	      allSources = arguments[0];
+	    } else {
+	      for(var i = 0, len = arguments.length; i < len; i++) { allSources.push(arguments[i]); }
+	    }
 	    return new AnonymousObservable(function (subscriber) {
 	      var count = allSources.length;
 	      if (count === 0) {
@@ -21364,7 +20497,6 @@
 	   */
 	  observableProto.forkJoin = function (second, resultSelector) {
 	    var first = this;
-	
 	    return new AnonymousObservable(function (observer) {
 	      var leftStopped = false, rightStopped = false,
 	        hasLeft = false, hasRight = false,
@@ -21491,7 +20623,7 @@
 	        this.onNext(Observable.empty());
 	      },
 	      onError: function (e) {
-	        this.onNext(Observable.throwException(e));
+	        this.onNext(Observable.throwError(e));
 	      },
 	      onNext: function (v) {
 	        this.tail.onNext(v);
@@ -21643,7 +20775,6 @@
 	  };
 	
 	  var JoinObserver = (function (__super__) {
-	
 	    inherits(JoinObserver, __super__);
 	
 	    function JoinObserver(source, onError) {
@@ -21661,8 +20792,7 @@
 	    JoinObserverPrototype.next = function (notification) {
 	      if (!this.isDisposed) {
 	        if (notification.kind === 'E') {
-	          this.onError(notification.exception);
-	          return;
+	          return this.onError(notification.exception);
 	        }
 	        this.queue.push(notification);
 	        var activePlans = this.activePlans.slice(0);
@@ -21712,7 +20842,7 @@
 	  /**
 	   *  Matches when the observable sequence has an available value and projects the value.
 	   *
-	   *  @param selector Selector that will be invoked for values in the source sequence.
+	   *  @param {Function} selector Selector that will be invoked for values in the source sequence.
 	   *  @returns {Plan} Plan that produces the projected values, to be fed (with other plans) to the when operator.
 	   */
 	  observableProto.thenDo = function (selector) {
@@ -21726,28 +20856,34 @@
 	   *  @returns {Observable} Observable sequence with the results form matching several patterns.
 	   */
 	  Observable.when = function () {
-	    var plans = argsOrArray(arguments, 0);
-	    return new AnonymousObservable(function (observer) {
+	    var len = arguments.length, plans;
+	    if (Array.isArray(arguments[0])) {
+	      plans = arguments[0];
+	    } else {
+	      plans = new Array(len);
+	      for(var i = 0; i < len; i++) { plans[i] = arguments[i]; }
+	    }
+	    return new AnonymousObservable(function (o) {
 	      var activePlans = [],
 	          externalSubscriptions = new Map();
 	      var outObserver = observerCreate(
-	        observer.onNext.bind(observer),
+	        function (x) { o.onNext(x); },
 	        function (err) {
 	          externalSubscriptions.forEach(function (v) { v.onError(err); });
-	          observer.onError(err);
+	          o.onError(err);
 	        },
-	        observer.onCompleted.bind(observer)
+	        function (x) { o.onCompleted(); }
 	      );
 	      try {
 	        for (var i = 0, len = plans.length; i < len; i++) {
 	          activePlans.push(plans[i].activate(externalSubscriptions, outObserver, function (activePlan) {
 	            var idx = activePlans.indexOf(activePlan);
 	            activePlans.splice(idx, 1);
-	            activePlans.length === 0 && observer.onCompleted();
+	            activePlans.length === 0 && o.onCompleted();
 	          }));
 	        }
 	      } catch (e) {
-	        observableThrow(e).subscribe(observer);
+	        observableThrow(e).subscribe(o);
 	      }
 	      var group = new CompositeDisposable();
 	      externalSubscriptions.forEach(function (joinObserver) {
@@ -21770,15 +20906,15 @@
 	
 	  function observableTimerDateAndPeriod(dueTime, period, scheduler) {
 	    return new AnonymousObservable(function (observer) {
-	      var count = 0, d = dueTime, p = normalizeTime(period);
-	      return scheduler.scheduleRecursiveWithAbsolute(d, function (self) {
+	      var d = dueTime, p = normalizeTime(period);
+	      return scheduler.scheduleRecursiveWithAbsoluteAndState(0, d, function (count, self) {
 	        if (p > 0) {
 	          var now = scheduler.now();
 	          d = d + p;
 	          d <= now && (d = now + p);
 	        }
-	        observer.onNext(count++);
-	        self(d);
+	        observer.onNext(count);
+	        self(count + 1, d);
 	      });
 	    });
 	  }
@@ -22487,7 +21623,7 @@
 	    /**
 	     *  Returns the source observable sequence, switching to the other observable sequence if a timeout is signaled.
 	     * @param {Observable} [firstTimeout]  Observable sequence that represents the timeout for the first element. If not provided, this defaults to Observable.never().
-	     * @param {Function} [timeoutDurationSelector] Selector to retrieve an observable sequence that represents the timeout between the current element and the next element.
+	     * @param {Function} timeoutDurationSelector Selector to retrieve an observable sequence that represents the timeout between the current element and the next element.
 	     * @param {Observable} [other]  Sequence to return in case of a timeout. If not provided, this is set to Observable.throwException().
 	     * @returns {Observable} The source sequence switching to the other sequence in case of a timeout.
 	     */
@@ -22980,10 +22116,6 @@
 	  /** Provides a set of extension methods for virtual time scheduling. */
 	  Rx.VirtualTimeScheduler = (function (__super__) {
 	
-	    function notImplemented() {
-	        throw new Error('Not implemented');
-	    }
-	
 	    function localNow() {
 	      return this.toDateTimeOffset(this.clock);
 	    }
@@ -23111,12 +22243,8 @@
 	     */
 	    VirtualTimeSchedulerPrototype.advanceTo = function (time) {
 	      var dueToClock = this.comparer(this.clock, time);
-	      if (this.comparer(this.clock, time) > 0) {
-	        throw new Error(argumentOutOfRange);
-	      }
-	      if (dueToClock === 0) {
-	        return;
-	      }
+	      if (this.comparer(this.clock, time) > 0) { throw new ArgumentOutOfRangeError(); }
+	      if (dueToClock === 0) { return; }
 	      if (!this.isEnabled) {
 	        this.isEnabled = true;
 	        do {
@@ -23139,7 +22267,7 @@
 	    VirtualTimeSchedulerPrototype.advanceBy = function (time) {
 	      var dt = this.add(this.clock, time),
 	          dueToClock = this.comparer(this.clock, dt);
-	      if (dueToClock > 0) { throw new Error(argumentOutOfRange); }
+	      if (dueToClock > 0) { throw new ArgumentOutOfRangeError(); }
 	      if (dueToClock === 0) {  return; }
 	
 	      this.advanceTo(dt);
@@ -23151,7 +22279,7 @@
 	     */
 	    VirtualTimeSchedulerPrototype.sleep = function (time) {
 	      var dt = this.add(this.clock, time);
-	      if (this.comparer(this.clock, dt) >= 0) { throw new Error(argumentOutOfRange); }
+	      if (this.comparer(this.clock, dt) >= 0) { throw new ArgumentOutOfRangeError(); }
 	
 	      this.clock = dt;
 	    };
@@ -23257,38 +22385,32 @@
 	
 	    // Fix subscriber to check for undefined or function returned to decorate as Disposable
 	    function fixSubscriber(subscriber) {
-	      if (subscriber && typeof subscriber.dispose === 'function') { return subscriber; }
+	      return subscriber && isFunction(subscriber.dispose) ? subscriber :
+	        isFunction(subscriber) ? disposableCreate(subscriber) : disposableEmpty;
+	    }
 	
-	      return typeof subscriber === 'function' ?
-	        disposableCreate(subscriber) :
-	        disposableEmpty;
+	    function setDisposable(s, state) {
+	      var ado = state[0], subscribe = state[1];
+	      var sub = tryCatch(subscribe)(ado);
+	
+	      if (sub === errorObj) {
+	        if(!ado.fail(errorObj.e)) { return thrower(errorObj.e); }
+	      }
+	      ado.setDisposable(fixSubscriber(sub));
 	    }
 	
 	    function AnonymousObservable(subscribe, parent) {
 	      this.source = parent;
-	      if (!(this instanceof AnonymousObservable)) {
-	        return new AnonymousObservable(subscribe);
-	      }
 	
 	      function s(observer) {
-	        var setDisposable = function () {
-	          try {
-	            autoDetachObserver.setDisposable(fixSubscriber(subscribe(autoDetachObserver)));
-	          } catch (e) {
-	            if (!autoDetachObserver.fail(e)) {
-	              throw e;
-	            }
-	          }
-	        };
+	        var ado = new AutoDetachObserver(observer), state = [ado, subscribe];
 	
-	        var autoDetachObserver = new AutoDetachObserver(observer);
 	        if (currentThreadScheduler.scheduleRequired()) {
-	          currentThreadScheduler.schedule(setDisposable);
+	          currentThreadScheduler.scheduleWithState(state, setDisposable);
 	        } else {
-	          setDisposable();
+	          setDisposable(null, state);
 	        }
-	
-	        return autoDetachObserver;
+	        return ado;
 	      }
 	
 	      __super__.call(this, s);
@@ -23310,35 +22432,23 @@
 	    var AutoDetachObserverPrototype = AutoDetachObserver.prototype;
 	
 	    AutoDetachObserverPrototype.next = function (value) {
-	      var noError = false;
-	      try {
-	        this.observer.onNext(value);
-	        noError = true;
-	      } catch (e) {
-	        throw e;
-	      } finally {
-	        !noError && this.dispose();
+	      var result = tryCatch(this.observer.onNext).call(this.observer, value);
+	      if (result === errorObj) {
+	        this.dispose();
+	        thrower(result.e);
 	      }
 	    };
 	
 	    AutoDetachObserverPrototype.error = function (err) {
-	      try {
-	        this.observer.onError(err);
-	      } catch (e) {
-	        throw e;
-	      } finally {
-	        this.dispose();
-	      }
+	      var result = tryCatch(this.observer.onError).call(this.observer, err);
+	      this.dispose();
+	      result === errorObj && thrower(result.e);
 	    };
 	
 	    AutoDetachObserverPrototype.completed = function () {
-	      try {
-	        this.observer.onCompleted();
-	      } catch (e) {
-	        throw e;
-	      } finally {
-	        this.dispose();
-	      }
+	      var result = tryCatch(this.observer.onCompleted).call(this.observer);
+	      this.dispose();
+	      result === errorObj && thrower(result.e);
 	    };
 	
 	    AutoDetachObserverPrototype.setDisposable = function (value) { this.m.setDisposable(value); };
@@ -23378,7 +22488,7 @@
 	   */
 	  var Subject = Rx.Subject = (function (__super__) {
 	    function subscribe(observer) {
-	      checkDisposed.call(this);
+	      checkDisposed(this);
 	      if (!this.isStopped) {
 	        this.observers.push(observer);
 	        return new InnerSubscription(this, observer);
@@ -23414,11 +22524,10 @@
 	       * Notifies all subscribed observers about the end of the sequence.
 	       */
 	      onCompleted: function () {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (!this.isStopped) {
-	          var os = this.observers.slice(0);
 	          this.isStopped = true;
-	          for (var i = 0, len = os.length; i < len; i++) {
+	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onCompleted();
 	          }
 	
@@ -23430,13 +22539,12 @@
 	       * @param {Mixed} error The exception to send to all observers.
 	       */
 	      onError: function (error) {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (!this.isStopped) {
-	          var os = this.observers.slice(0);
 	          this.isStopped = true;
 	          this.error = error;
 	          this.hasError = true;
-	          for (var i = 0, len = os.length; i < len; i++) {
+	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onError(error);
 	          }
 	
@@ -23448,10 +22556,9 @@
 	       * @param {Mixed} value The value to send to all observers.
 	       */
 	      onNext: function (value) {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (!this.isStopped) {
-	          var os = this.observers.slice(0);
-	          for (var i = 0, len = os.length; i < len; i++) {
+	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onNext(value);
 	          }
 	        }
@@ -23485,7 +22592,7 @@
 	  var AsyncSubject = Rx.AsyncSubject = (function (__super__) {
 	
 	    function subscribe(observer) {
-	      checkDisposed.call(this);
+	      checkDisposed(this);
 	
 	      if (!this.isStopped) {
 	        this.observers.push(observer);
@@ -23526,7 +22633,7 @@
 	       * @returns {Boolean} Indicates whether the subject has observers subscribed to it.
 	       */
 	      hasObservers: function () {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        return this.observers.length > 0;
 	      },
 	      /**
@@ -23534,10 +22641,10 @@
 	       */
 	      onCompleted: function () {
 	        var i, len;
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (!this.isStopped) {
 	          this.isStopped = true;
-	          var os = this.observers.slice(0), len = os.length;
+	          var os = cloneArray(this.observers), len = os.length;
 	
 	          if (this.hasValue) {
 	            for (i = 0; i < len; i++) {
@@ -23559,14 +22666,13 @@
 	       * @param {Mixed} error The Error to send to all observers.
 	       */
 	      onError: function (error) {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (!this.isStopped) {
-	          var os = this.observers.slice(0);
 	          this.isStopped = true;
 	          this.hasError = true;
 	          this.error = error;
 	
-	          for (var i = 0, len = os.length; i < len; i++) {
+	          for (var i = 0, os = cloneArray(this.observers), len = os.length; i < len; i++) {
 	            os[i].onError(error);
 	          }
 	
@@ -23578,7 +22684,7 @@
 	       * @param {Mixed} value The value to store in the subject.
 	       */
 	      onNext: function (value) {
-	        checkDisposed.call(this);
+	        checkDisposed(this);
 	        if (this.isStopped) { return; }
 	        this.value = value;
 	        this.hasValue = true;
@@ -23601,7 +22707,7 @@
 	    inherits(AnonymousSubject, __super__);
 	
 	    function subscribe(observer) {
-	      this.observable.subscribe(observer);
+	      return this.observable.subscribe(observer);
 	    }
 	
 	    function AnonymousSubject(observer, observable) {
@@ -23671,160 +22777,124 @@
 	
 	}.call(this));
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 28)(module), (function() { return this; }()), __webpack_require__(/*! (webpack)/~/node-libs-browser/~/process/browser.js */ 54)))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 19)(module), (function() { return this; }()), __webpack_require__(/*! (webpack)/~/node-libs-browser/~/process/browser.js */ 48)))
 
 /***/ },
-/* 35 */
-/*!****************************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js ***!
-  \****************************************************************************/
+/* 18 */
+/*!*********************************!*\
+  !*** ./~/cyclejs/lib/errors.js ***!
+  \*********************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	'use strict';
+	"use strict";
 	
-	module.exports = SoftSetHook;
+	function CycleInterfaceError(message, missingMember) {
+	  this.name = "CycleInterfaceError";
+	  this.message = message || "";
+	  this.missingMember = missingMember || "";
+	}
+	CycleInterfaceError.prototype = Error.prototype;
 	
-	function SoftSetHook(value) {
-	    if (!(this instanceof SoftSetHook)) {
-	        return new SoftSetHook(value);
+	function customInterfaceErrorMessageInInject(dataFlowNode, message) {
+	  var originalInject = dataFlowNode.inject;
+	  dataFlowNode.inject = function inject() {
+	    try {
+	      return originalInject.apply({}, arguments);
+	    } catch (err) {
+	      if (err.name === "CycleInterfaceError") {
+	        throw new CycleInterfaceError(message + err.missingMember, err.missingMember);
+	      } else {
+	        throw err;
+	      }
 	    }
-	
-	    this.value = value;
+	  };
+	  return dataFlowNode;
 	}
 	
-	SoftSetHook.prototype.hook = function (node, propertyName) {
-	    if (node[propertyName] !== this.value) {
-	        node[propertyName] = this.value;
-	    }
+	module.exports = {
+	  CycleInterfaceError: CycleInterfaceError,
+	  customInterfaceErrorMessageInInject: customInterfaceErrorMessageInInject
 	};
 
-
 /***/ },
-/* 36 */
-/*!************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/vtext.js ***!
-  \************************************************/
+/* 19 */
+/*!***********************************!*\
+  !*** (webpack)/buildin/module.js ***!
+  \***********************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 46)
-	
-	module.exports = VirtualText
-	
-	function VirtualText(text) {
-	    this.text = String(text)
+	module.exports = function(module) {
+		if(!module.webpackPolyfill) {
+			module.deprecate = function() {};
+			module.paths = [];
+			// module.parent = undefined by default
+			module.children = [];
+			module.webpackPolyfill = 1;
+		}
+		return module;
 	}
-	
-	VirtualText.prototype.version = version
-	VirtualText.prototype.type = "VirtualText"
 
 
 /***/ },
-/* 37 */
-/*!*************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
-  \*************************************************/
+/* 20 */
+/*!*****************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/diff.js ***!
+  \*****************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 46)
+	var diff = __webpack_require__(/*! ./vtree/diff.js */ 27)
 	
-	VirtualPatch.NONE = 0
-	VirtualPatch.VTEXT = 1
-	VirtualPatch.VNODE = 2
-	VirtualPatch.WIDGET = 3
-	VirtualPatch.PROPS = 4
-	VirtualPatch.ORDER = 5
-	VirtualPatch.INSERT = 6
-	VirtualPatch.REMOVE = 7
-	VirtualPatch.THUNK = 8
-	
-	module.exports = VirtualPatch
-	
-	function VirtualPatch(type, vNode, patch) {
-	    this.type = Number(type)
-	    this.vNode = vNode
-	    this.patch = patch
-	}
-	
-	VirtualPatch.prototype.version = version
-	VirtualPatch.prototype.type = "VirtualPatch"
+	module.exports = diff
 
 
 /***/ },
-/* 38 */
+/* 21 */
+/*!******************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/patch.js ***!
+  \******************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var patch = __webpack_require__(/*! ./vdom/patch.js */ 26)
+	
+	module.exports = patch
+
+
+/***/ },
+/* 22 */
+/*!**************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/h.js ***!
+  \**************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 29)
+	
+	module.exports = h
+
+
+/***/ },
+/* 23 */
 /*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
+  !*** ./~/cyclejs/~/virtual-dom/create-element.js ***!
   \***************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = isThunk
+	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 28)
 	
-	function isThunk(t) {
-	    return t && t.type === "Thunk"
-	}
+	module.exports = createElement
 
 
 /***/ },
-/* 39 */
-/*!****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-widget.js ***!
-  \****************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = isWidget
-	
-	function isWidget(w) {
-	    return w && w.type === "Widget"
-	}
-
-
-/***/ },
-/* 40 */
-/*!**********************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/ev-hook.js ***!
-  \**********************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var EvStore = __webpack_require__(/*! ev-store */ 51);
-	
-	module.exports = EvHook;
-	
-	function EvHook(value) {
-	    if (!(this instanceof EvHook)) {
-	        return new EvHook(value);
-	    }
-	
-	    this.value = value;
-	}
-	
-	EvHook.prototype.hook = function (node, propertyName) {
-	    var es = EvStore(node);
-	    var propName = propertyName.substr(3);
-	
-	    es[propName] = this.value;
-	};
-	
-	EvHook.prototype.unhook = function(node, propertyName) {
-	    var es = EvStore(node);
-	    var propName = propertyName.substr(3);
-	
-	    es[propName] = undefined;
-	};
-
-
-/***/ },
-/* 41 */
+/* 24 */
 /*!************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/vnode.js ***!
   \************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 46)
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 42)
-	var isWidget = __webpack_require__(/*! ./is-widget */ 39)
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 38)
-	var isVHook = __webpack_require__(/*! ./is-vhook */ 44)
+	var version = __webpack_require__(/*! ./version */ 30)
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 34)
+	var isWidget = __webpack_require__(/*! ./is-widget */ 36)
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 37)
+	var isVHook = __webpack_require__(/*! ./is-vhook */ 41)
 	
 	module.exports = VirtualNode
 	
@@ -23895,13 +22965,870 @@
 
 
 /***/ },
-/* 42 */
+/* 25 */
+/*!************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/vtext.js ***!
+  \************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 30)
+	
+	module.exports = VirtualText
+	
+	function VirtualText(text) {
+	    this.text = String(text)
+	}
+	
+	VirtualText.prototype.version = version
+	VirtualText.prototype.type = "VirtualText"
+
+
+/***/ },
+/* 26 */
+/*!***********************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vdom/patch.js ***!
+  \***********************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var document = __webpack_require__(/*! global/document */ 50)
+	var isArray = __webpack_require__(/*! x-is-array */ 49)
+	
+	var domIndex = __webpack_require__(/*! ./dom-index */ 42)
+	var patchOp = __webpack_require__(/*! ./patch-op */ 43)
+	module.exports = patch
+	
+	function patch(rootNode, patches) {
+	    return patchRecursive(rootNode, patches)
+	}
+	
+	function patchRecursive(rootNode, patches, renderOptions) {
+	    var indices = patchIndices(patches)
+	
+	    if (indices.length === 0) {
+	        return rootNode
+	    }
+	
+	    var index = domIndex(rootNode, patches.a, indices)
+	    var ownerDocument = rootNode.ownerDocument
+	
+	    if (!renderOptions) {
+	        renderOptions = { patch: patchRecursive }
+	        if (ownerDocument !== document) {
+	            renderOptions.document = ownerDocument
+	        }
+	    }
+	
+	    for (var i = 0; i < indices.length; i++) {
+	        var nodeIndex = indices[i]
+	        rootNode = applyPatch(rootNode,
+	            index[nodeIndex],
+	            patches[nodeIndex],
+	            renderOptions)
+	    }
+	
+	    return rootNode
+	}
+	
+	function applyPatch(rootNode, domNode, patchList, renderOptions) {
+	    if (!domNode) {
+	        return rootNode
+	    }
+	
+	    var newNode
+	
+	    if (isArray(patchList)) {
+	        for (var i = 0; i < patchList.length; i++) {
+	            newNode = patchOp(patchList[i], domNode, renderOptions)
+	
+	            if (domNode === rootNode) {
+	                rootNode = newNode
+	            }
+	        }
+	    } else {
+	        newNode = patchOp(patchList, domNode, renderOptions)
+	
+	        if (domNode === rootNode) {
+	            rootNode = newNode
+	        }
+	    }
+	
+	    return rootNode
+	}
+	
+	function patchIndices(patches) {
+	    var indices = []
+	
+	    for (var key in patches) {
+	        if (key !== "a") {
+	            indices.push(Number(key))
+	        }
+	    }
+	
+	    return indices
+	}
+
+
+/***/ },
+/* 27 */
+/*!***********************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vtree/diff.js ***!
+  \***********************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isArray = __webpack_require__(/*! x-is-array */ 49)
+	
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 33)
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 34)
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 35)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 36)
+	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 37)
+	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk */ 38)
+	
+	var diffProps = __webpack_require__(/*! ./diff-props */ 39)
+	
+	module.exports = diff
+	
+	function diff(a, b) {
+	    var patch = { a: a }
+	    walk(a, b, patch, 0)
+	    return patch
+	}
+	
+	function walk(a, b, patch, index) {
+	    if (a === b) {
+	        return
+	    }
+	
+	    var apply = patch[index]
+	    var applyClear = false
+	
+	    if (isThunk(a) || isThunk(b)) {
+	        thunks(a, b, patch, index)
+	    } else if (b == null) {
+	
+	        // If a is a widget we will add a remove patch for it
+	        // Otherwise any child widgets/hooks must be destroyed.
+	        // This prevents adding two remove patches for a widget.
+	        if (!isWidget(a)) {
+	            clearState(a, patch, index)
+	            apply = patch[index]
+	        }
+	
+	        apply = appendPatch(apply, new VPatch(VPatch.REMOVE, a, b))
+	    } else if (isVNode(b)) {
+	        if (isVNode(a)) {
+	            if (a.tagName === b.tagName &&
+	                a.namespace === b.namespace &&
+	                a.key === b.key) {
+	                var propsPatch = diffProps(a.properties, b.properties)
+	                if (propsPatch) {
+	                    apply = appendPatch(apply,
+	                        new VPatch(VPatch.PROPS, a, propsPatch))
+	                }
+	                apply = diffChildren(a, b, patch, apply, index)
+	            } else {
+	                apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
+	                applyClear = true
+	            }
+	        } else {
+	            apply = appendPatch(apply, new VPatch(VPatch.VNODE, a, b))
+	            applyClear = true
+	        }
+	    } else if (isVText(b)) {
+	        if (!isVText(a)) {
+	            apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
+	            applyClear = true
+	        } else if (a.text !== b.text) {
+	            apply = appendPatch(apply, new VPatch(VPatch.VTEXT, a, b))
+	        }
+	    } else if (isWidget(b)) {
+	        if (!isWidget(a)) {
+	            applyClear = true
+	        }
+	
+	        apply = appendPatch(apply, new VPatch(VPatch.WIDGET, a, b))
+	    }
+	
+	    if (apply) {
+	        patch[index] = apply
+	    }
+	
+	    if (applyClear) {
+	        clearState(a, patch, index)
+	    }
+	}
+	
+	function diffChildren(a, b, patch, apply, index) {
+	    var aChildren = a.children
+	    var orderedSet = reorder(aChildren, b.children)
+	    var bChildren = orderedSet.children
+	
+	    var aLen = aChildren.length
+	    var bLen = bChildren.length
+	    var len = aLen > bLen ? aLen : bLen
+	
+	    for (var i = 0; i < len; i++) {
+	        var leftNode = aChildren[i]
+	        var rightNode = bChildren[i]
+	        index += 1
+	
+	        if (!leftNode) {
+	            if (rightNode) {
+	                // Excess nodes in b need to be added
+	                apply = appendPatch(apply,
+	                    new VPatch(VPatch.INSERT, null, rightNode))
+	            }
+	        } else {
+	            walk(leftNode, rightNode, patch, index)
+	        }
+	
+	        if (isVNode(leftNode) && leftNode.count) {
+	            index += leftNode.count
+	        }
+	    }
+	
+	    if (orderedSet.moves) {
+	        // Reorder nodes last
+	        apply = appendPatch(apply, new VPatch(
+	            VPatch.ORDER,
+	            a,
+	            orderedSet.moves
+	        ))
+	    }
+	
+	    return apply
+	}
+	
+	function clearState(vNode, patch, index) {
+	    // TODO: Make this a single walk, not two
+	    unhook(vNode, patch, index)
+	    destroyWidgets(vNode, patch, index)
+	}
+	
+	// Patch records for all destroyed widgets must be added because we need
+	// a DOM node reference for the destroy function
+	function destroyWidgets(vNode, patch, index) {
+	    if (isWidget(vNode)) {
+	        if (typeof vNode.destroy === "function") {
+	            patch[index] = appendPatch(
+	                patch[index],
+	                new VPatch(VPatch.REMOVE, vNode, null)
+	            )
+	        }
+	    } else if (isVNode(vNode) && (vNode.hasWidgets || vNode.hasThunks)) {
+	        var children = vNode.children
+	        var len = children.length
+	        for (var i = 0; i < len; i++) {
+	            var child = children[i]
+	            index += 1
+	
+	            destroyWidgets(child, patch, index)
+	
+	            if (isVNode(child) && child.count) {
+	                index += child.count
+	            }
+	        }
+	    } else if (isThunk(vNode)) {
+	        thunks(vNode, null, patch, index)
+	    }
+	}
+	
+	// Create a sub-patch for thunks
+	function thunks(a, b, patch, index) {
+	    var nodes = handleThunk(a, b)
+	    var thunkPatch = diff(nodes.a, nodes.b)
+	    if (hasPatches(thunkPatch)) {
+	        patch[index] = new VPatch(VPatch.THUNK, null, thunkPatch)
+	    }
+	}
+	
+	function hasPatches(patch) {
+	    for (var index in patch) {
+	        if (index !== "a") {
+	            return true
+	        }
+	    }
+	
+	    return false
+	}
+	
+	// Execute hooks when two nodes are identical
+	function unhook(vNode, patch, index) {
+	    if (isVNode(vNode)) {
+	        if (vNode.hooks) {
+	            patch[index] = appendPatch(
+	                patch[index],
+	                new VPatch(
+	                    VPatch.PROPS,
+	                    vNode,
+	                    undefinedKeys(vNode.hooks)
+	                )
+	            )
+	        }
+	
+	        if (vNode.descendantHooks || vNode.hasThunks) {
+	            var children = vNode.children
+	            var len = children.length
+	            for (var i = 0; i < len; i++) {
+	                var child = children[i]
+	                index += 1
+	
+	                unhook(child, patch, index)
+	
+	                if (isVNode(child) && child.count) {
+	                    index += child.count
+	                }
+	            }
+	        }
+	    } else if (isThunk(vNode)) {
+	        thunks(vNode, null, patch, index)
+	    }
+	}
+	
+	function undefinedKeys(obj) {
+	    var result = {}
+	
+	    for (var key in obj) {
+	        result[key] = undefined
+	    }
+	
+	    return result
+	}
+	
+	// List diff, naive left to right reordering
+	function reorder(aChildren, bChildren) {
+	    // O(M) time, O(M) memory
+	    var bChildIndex = keyIndex(bChildren)
+	    var bKeys = bChildIndex.keys
+	    var bFree = bChildIndex.free
+	
+	    if (bFree.length === bChildren.length) {
+	        return {
+	            children: bChildren,
+	            moves: null
+	        }
+	    }
+	
+	    // O(N) time, O(N) memory
+	    var aChildIndex = keyIndex(aChildren)
+	    var aKeys = aChildIndex.keys
+	    var aFree = aChildIndex.free
+	
+	    if (aFree.length === aChildren.length) {
+	        return {
+	            children: bChildren,
+	            moves: null
+	        }
+	    }
+	
+	    // O(MAX(N, M)) memory
+	    var newChildren = []
+	
+	    var freeIndex = 0
+	    var freeCount = bFree.length
+	    var deletedItems = 0
+	
+	    // Iterate through a and match a node in b
+	    // O(N) time,
+	    for (var i = 0 ; i < aChildren.length; i++) {
+	        var aItem = aChildren[i]
+	        var itemIndex
+	
+	        if (aItem.key) {
+	            if (bKeys.hasOwnProperty(aItem.key)) {
+	                // Match up the old keys
+	                itemIndex = bKeys[aItem.key]
+	                newChildren.push(bChildren[itemIndex])
+	
+	            } else {
+	                // Remove old keyed items
+	                itemIndex = i - deletedItems++
+	                newChildren.push(null)
+	            }
+	        } else {
+	            // Match the item in a with the next free item in b
+	            if (freeIndex < freeCount) {
+	                itemIndex = bFree[freeIndex++]
+	                newChildren.push(bChildren[itemIndex])
+	            } else {
+	                // There are no free items in b to match with
+	                // the free items in a, so the extra free nodes
+	                // are deleted.
+	                itemIndex = i - deletedItems++
+	                newChildren.push(null)
+	            }
+	        }
+	    }
+	
+	    var lastFreeIndex = freeIndex >= bFree.length ?
+	        bChildren.length :
+	        bFree[freeIndex]
+	
+	    // Iterate through b and append any new keys
+	    // O(M) time
+	    for (var j = 0; j < bChildren.length; j++) {
+	        var newItem = bChildren[j]
+	
+	        if (newItem.key) {
+	            if (!aKeys.hasOwnProperty(newItem.key)) {
+	                // Add any new keyed items
+	                // We are adding new items to the end and then sorting them
+	                // in place. In future we should insert new items in place.
+	                newChildren.push(newItem)
+	            }
+	        } else if (j >= lastFreeIndex) {
+	            // Add any leftover non-keyed items
+	            newChildren.push(newItem)
+	        }
+	    }
+	
+	    var simulate = newChildren.slice()
+	    var simulateIndex = 0
+	    var removes = []
+	    var inserts = []
+	    var simulateItem
+	
+	    for (var k = 0; k < bChildren.length;) {
+	        var wantedItem = bChildren[k]
+	        simulateItem = simulate[simulateIndex]
+	
+	        // remove items
+	        while (simulateItem === null && simulate.length) {
+	            removes.push(remove(simulate, simulateIndex, null))
+	            simulateItem = simulate[simulateIndex]
+	        }
+	
+	        if (!simulateItem || simulateItem.key !== wantedItem.key) {
+	            // if we need a key in this position...
+	            if (wantedItem.key) {
+	                if (simulateItem && simulateItem.key) {
+	                    // if an insert doesn't put this key in place, it needs to move
+	                    if (bKeys[simulateItem.key] !== k + 1) {
+	                        removes.push(remove(simulate, simulateIndex, simulateItem.key))
+	                        simulateItem = simulate[simulateIndex]
+	                        // if the remove didn't put the wanted item in place, we need to insert it
+	                        if (!simulateItem || simulateItem.key !== wantedItem.key) {
+	                            inserts.push({key: wantedItem.key, to: k})
+	                        }
+	                        // items are matching, so skip ahead
+	                        else {
+	                            simulateIndex++
+	                        }
+	                    }
+	                    else {
+	                        inserts.push({key: wantedItem.key, to: k})
+	                    }
+	                }
+	                else {
+	                    inserts.push({key: wantedItem.key, to: k})
+	                }
+	                k++
+	            }
+	            // a key in simulate has no matching wanted key, remove it
+	            else if (simulateItem && simulateItem.key) {
+	                removes.push(remove(simulate, simulateIndex, simulateItem.key))
+	            }
+	        }
+	        else {
+	            simulateIndex++
+	            k++
+	        }
+	    }
+	
+	    // remove all the remaining nodes from simulate
+	    while(simulateIndex < simulate.length) {
+	        simulateItem = simulate[simulateIndex]
+	        removes.push(remove(simulate, simulateIndex, simulateItem && simulateItem.key))
+	    }
+	
+	    // If the only moves we have are deletes then we can just
+	    // let the delete patch remove these items.
+	    if (removes.length === deletedItems && !inserts.length) {
+	        return {
+	            children: newChildren,
+	            moves: null
+	        }
+	    }
+	
+	    return {
+	        children: newChildren,
+	        moves: {
+	            removes: removes,
+	            inserts: inserts
+	        }
+	    }
+	}
+	
+	function remove(arr, index, key) {
+	    arr.splice(index, 1)
+	
+	    return {
+	        from: index,
+	        key: key
+	    }
+	}
+	
+	function keyIndex(children) {
+	    var keys = {}
+	    var free = []
+	    var length = children.length
+	
+	    for (var i = 0; i < length; i++) {
+	        var child = children[i]
+	
+	        if (child.key) {
+	            keys[child.key] = i
+	        } else {
+	            free.push(i)
+	        }
+	    }
+	
+	    return {
+	        keys: keys,     // A hash of key name to index
+	        free: free,     // An array of unkeyed item indices
+	    }
+	}
+	
+	function appendPatch(apply, patch) {
+	    if (apply) {
+	        if (isArray(apply)) {
+	            apply.push(patch)
+	        } else {
+	            apply = [apply, patch]
+	        }
+	
+	        return apply
+	    } else {
+	        return patch
+	    }
+	}
+
+
+/***/ },
+/* 28 */
+/*!********************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vdom/create-element.js ***!
+  \********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var document = __webpack_require__(/*! global/document */ 50)
+	
+	var applyProperties = __webpack_require__(/*! ./apply-properties */ 40)
+	
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 34)
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 35)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 36)
+	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 38)
+	
+	module.exports = createElement
+	
+	function createElement(vnode, opts) {
+	    var doc = opts ? opts.document || document : document
+	    var warn = opts ? opts.warn : null
+	
+	    vnode = handleThunk(vnode).a
+	
+	    if (isWidget(vnode)) {
+	        return vnode.init()
+	    } else if (isVText(vnode)) {
+	        return doc.createTextNode(vnode.text)
+	    } else if (!isVNode(vnode)) {
+	        if (warn) {
+	            warn("Item is not a valid virtual dom node", vnode)
+	        }
+	        return null
+	    }
+	
+	    var node = (vnode.namespace === null) ?
+	        doc.createElement(vnode.tagName) :
+	        doc.createElementNS(vnode.namespace, vnode.tagName)
+	
+	    var props = vnode.properties
+	    applyProperties(node, props)
+	
+	    var children = vnode.children
+	
+	    for (var i = 0; i < children.length; i++) {
+	        var childNode = createElement(children[i], opts)
+	        if (childNode) {
+	            node.appendChild(childNode)
+	        }
+	    }
+	
+	    return node
+	}
+
+
+/***/ },
+/* 29 */
+/*!**************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/index.js ***!
+  \**************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var isArray = __webpack_require__(/*! x-is-array */ 49);
+	
+	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 24);
+	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 25);
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 34);
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 35);
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 36);
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 41);
+	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 37);
+	
+	var parseTag = __webpack_require__(/*! ./parse-tag.js */ 44);
+	var softSetHook = __webpack_require__(/*! ./hooks/soft-set-hook.js */ 45);
+	var evHook = __webpack_require__(/*! ./hooks/ev-hook.js */ 46);
+	
+	module.exports = h;
+	
+	function h(tagName, properties, children) {
+	    var childNodes = [];
+	    var tag, props, key, namespace;
+	
+	    if (!children && isChildren(properties)) {
+	        children = properties;
+	        props = {};
+	    }
+	
+	    props = props || properties || {};
+	    tag = parseTag(tagName, props);
+	
+	    // support keys
+	    if (props.hasOwnProperty('key')) {
+	        key = props.key;
+	        props.key = undefined;
+	    }
+	
+	    // support namespace
+	    if (props.hasOwnProperty('namespace')) {
+	        namespace = props.namespace;
+	        props.namespace = undefined;
+	    }
+	
+	    // fix cursor bug
+	    if (tag === 'INPUT' &&
+	        !namespace &&
+	        props.hasOwnProperty('value') &&
+	        props.value !== undefined &&
+	        !isHook(props.value)
+	    ) {
+	        props.value = softSetHook(props.value);
+	    }
+	
+	    transformProperties(props);
+	
+	    if (children !== undefined && children !== null) {
+	        addChild(children, childNodes, tag, props);
+	    }
+	
+	
+	    return new VNode(tag, props, childNodes, key, namespace);
+	}
+	
+	function addChild(c, childNodes, tag, props) {
+	    if (typeof c === 'string') {
+	        childNodes.push(new VText(c));
+	    } else if (isChild(c)) {
+	        childNodes.push(c);
+	    } else if (isArray(c)) {
+	        for (var i = 0; i < c.length; i++) {
+	            addChild(c[i], childNodes, tag, props);
+	        }
+	    } else if (c === null || c === undefined) {
+	        return;
+	    } else {
+	        throw UnexpectedVirtualElement({
+	            foreignObject: c,
+	            parentVnode: {
+	                tagName: tag,
+	                properties: props
+	            }
+	        });
+	    }
+	}
+	
+	function transformProperties(props) {
+	    for (var propName in props) {
+	        if (props.hasOwnProperty(propName)) {
+	            var value = props[propName];
+	
+	            if (isHook(value)) {
+	                continue;
+	            }
+	
+	            if (propName.substr(0, 3) === 'ev-') {
+	                // add ev-foo support
+	                props[propName] = evHook(value);
+	            }
+	        }
+	    }
+	}
+	
+	function isChild(x) {
+	    return isVNode(x) || isVText(x) || isWidget(x) || isVThunk(x);
+	}
+	
+	function isChildren(x) {
+	    return typeof x === 'string' || isArray(x) || isChild(x);
+	}
+	
+	function UnexpectedVirtualElement(data) {
+	    var err = new Error();
+	
+	    err.type = 'virtual-hyperscript.unexpected.virtual-element';
+	    err.message = 'Unexpected virtual child passed to h().\n' +
+	        'Expected a VNode / Vthunk / VWidget / string but:\n' +
+	        'got:\n' +
+	        errorString(data.foreignObject) +
+	        '.\n' +
+	        'The parent vnode is:\n' +
+	        errorString(data.parentVnode)
+	        '\n' +
+	        'Suggested fix: change your `h(..., [ ... ])` callsite.';
+	    err.foreignObject = data.foreignObject;
+	    err.parentVnode = data.parentVnode;
+	
+	    return err;
+	}
+	
+	function errorString(obj) {
+	    try {
+	        return JSON.stringify(obj, null, '    ');
+	    } catch (e) {
+	        return String(obj);
+	    }
+	}
+
+
+/***/ },
+/* 30 */
+/*!**************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/version.js ***!
+  \**************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = "2"
+
+
+/***/ },
+/* 31 */
+/*!**************************************!*\
+  !*** ./~/cyclejs/lib/input-proxy.js ***!
+  \**************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+	
+	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+	
+	var Rx = __webpack_require__(/*! rx */ 17);
+	
+	var InputProxy = (function () {
+	  function InputProxy() {
+	    _classCallCheck(this, InputProxy);
+	
+	    this.proxiedProps = {};
+	  }
+	
+	  _createClass(InputProxy, {
+	    get: {
+	
+	      // For any DataFlowNode
+	
+	      value: function get(streamKey) {
+	        if (typeof this.proxiedProps[streamKey] === "undefined") {
+	          this.proxiedProps[streamKey] = new Rx.Subject();
+	        }
+	        return this.proxiedProps[streamKey];
+	      }
+	    },
+	    event$: {
+	
+	      // For the DOMUser
+	
+	      value: function event$(selector, eventName) {
+	        if (typeof this.proxiedProps[selector] === "undefined") {
+	          this.proxiedProps[selector] = {
+	            _hasEvent$: true
+	          };
+	        }
+	        if (typeof this.proxiedProps[selector][eventName] === "undefined") {
+	          this.proxiedProps[selector][eventName] = new Rx.Subject();
+	        }
+	        return this.proxiedProps[selector][eventName];
+	      }
+	    }
+	  });
+	
+	  return InputProxy;
+	})();
+	
+	module.exports = InputProxy;
+
+/***/ },
+/* 32 */
+/*!********************************!*\
+  !*** ./~/cyclejs/lib/utils.js ***!
+  \********************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	function endsWithDollarSign(str) {
+	  if (typeof str !== "string") {
+	    return false;
+	  }
+	  return str.indexOf("$", str.length - 1) !== -1;
+	}
+	
+	module.exports = {
+	  endsWithDollarSign: endsWithDollarSign
+	};
+
+/***/ },
+/* 33 */
+/*!*************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
+  \*************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 30)
+	
+	VirtualPatch.NONE = 0
+	VirtualPatch.VTEXT = 1
+	VirtualPatch.VNODE = 2
+	VirtualPatch.WIDGET = 3
+	VirtualPatch.PROPS = 4
+	VirtualPatch.ORDER = 5
+	VirtualPatch.INSERT = 6
+	VirtualPatch.REMOVE = 7
+	VirtualPatch.THUNK = 8
+	
+	module.exports = VirtualPatch
+	
+	function VirtualPatch(type, vNode, patch) {
+	    this.type = Number(type)
+	    this.vNode = vNode
+	    this.patch = patch
+	}
+	
+	VirtualPatch.prototype.version = version
+	VirtualPatch.prototype.type = "VirtualPatch"
+
+
+/***/ },
+/* 34 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/is-vnode.js ***!
   \***************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 46)
+	var version = __webpack_require__(/*! ./version */ 30)
 	
 	module.exports = isVirtualNode
 	
@@ -23911,16 +23838,60 @@
 
 
 /***/ },
-/* 43 */
+/* 35 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vtext.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 30)
+	
+	module.exports = isVirtualText
+	
+	function isVirtualText(x) {
+	    return x && x.type === "VirtualText" && x.version === version
+	}
+
+
+/***/ },
+/* 36 */
+/*!****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-widget.js ***!
+  \****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = isWidget
+	
+	function isWidget(w) {
+	    return w && w.type === "Widget"
+	}
+
+
+/***/ },
+/* 37 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = isThunk
+	
+	function isThunk(t) {
+	    return t && t.type === "Thunk"
+	}
+
+
+/***/ },
+/* 38 */
 /*!*******************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/handle-thunk.js ***!
   \*******************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 42)
-	var isVText = __webpack_require__(/*! ./is-vtext */ 45)
-	var isWidget = __webpack_require__(/*! ./is-widget */ 39)
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 38)
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 34)
+	var isVText = __webpack_require__(/*! ./is-vtext */ 35)
+	var isWidget = __webpack_require__(/*! ./is-widget */ 36)
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 37)
 	
 	module.exports = handleThunk
 	
@@ -23960,7 +23931,180 @@
 
 
 /***/ },
-/* 44 */
+/* 39 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isObject = __webpack_require__(/*! is-object */ 56)
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 41)
+	
+	module.exports = diffProps
+	
+	function diffProps(a, b) {
+	    var diff
+	
+	    for (var aKey in a) {
+	        if (!(aKey in b)) {
+	            diff = diff || {}
+	            diff[aKey] = undefined
+	        }
+	
+	        var aValue = a[aKey]
+	        var bValue = b[aKey]
+	
+	        if (aValue === bValue) {
+	            continue
+	        } else if (isObject(aValue) && isObject(bValue)) {
+	            if (getPrototype(bValue) !== getPrototype(aValue)) {
+	                diff = diff || {}
+	                diff[aKey] = bValue
+	            } else if (isHook(bValue)) {
+	                 diff = diff || {}
+	                 diff[aKey] = bValue
+	            } else {
+	                var objectDiff = diffProps(aValue, bValue)
+	                if (objectDiff) {
+	                    diff = diff || {}
+	                    diff[aKey] = objectDiff
+	                }
+	            }
+	        } else {
+	            diff = diff || {}
+	            diff[aKey] = bValue
+	        }
+	    }
+	
+	    for (var bKey in b) {
+	        if (!(bKey in a)) {
+	            diff = diff || {}
+	            diff[bKey] = b[bKey]
+	        }
+	    }
+	
+	    return diff
+	}
+	
+	function getPrototype(value) {
+	  if (Object.getPrototypeOf) {
+	    return Object.getPrototypeOf(value)
+	  } else if (value.__proto__) {
+	    return value.__proto__
+	  } else if (value.constructor) {
+	    return value.constructor.prototype
+	  }
+	}
+
+
+/***/ },
+/* 40 */
+/*!**********************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vdom/apply-properties.js ***!
+  \**********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isObject = __webpack_require__(/*! is-object */ 56)
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook.js */ 41)
+	
+	module.exports = applyProperties
+	
+	function applyProperties(node, props, previous) {
+	    for (var propName in props) {
+	        var propValue = props[propName]
+	
+	        if (propValue === undefined) {
+	            removeProperty(node, propName, propValue, previous);
+	        } else if (isHook(propValue)) {
+	            removeProperty(node, propName, propValue, previous)
+	            if (propValue.hook) {
+	                propValue.hook(node,
+	                    propName,
+	                    previous ? previous[propName] : undefined)
+	            }
+	        } else {
+	            if (isObject(propValue)) {
+	                patchObject(node, props, previous, propName, propValue);
+	            } else {
+	                node[propName] = propValue
+	            }
+	        }
+	    }
+	}
+	
+	function removeProperty(node, propName, propValue, previous) {
+	    if (previous) {
+	        var previousValue = previous[propName]
+	
+	        if (!isHook(previousValue)) {
+	            if (propName === "attributes") {
+	                for (var attrName in previousValue) {
+	                    node.removeAttribute(attrName)
+	                }
+	            } else if (propName === "style") {
+	                for (var i in previousValue) {
+	                    node.style[i] = ""
+	                }
+	            } else if (typeof previousValue === "string") {
+	                node[propName] = ""
+	            } else {
+	                node[propName] = null
+	            }
+	        } else if (previousValue.unhook) {
+	            previousValue.unhook(node, propName, propValue)
+	        }
+	    }
+	}
+	
+	function patchObject(node, props, previous, propName, propValue) {
+	    var previousValue = previous ? previous[propName] : undefined
+	
+	    // Set attributes
+	    if (propName === "attributes") {
+	        for (var attrName in propValue) {
+	            var attrValue = propValue[attrName]
+	
+	            if (attrValue === undefined) {
+	                node.removeAttribute(attrName)
+	            } else {
+	                node.setAttribute(attrName, attrValue)
+	            }
+	        }
+	
+	        return
+	    }
+	
+	    if(previousValue && isObject(previousValue) &&
+	        getPrototype(previousValue) !== getPrototype(propValue)) {
+	        node[propName] = propValue
+	        return
+	    }
+	
+	    if (!isObject(node[propName])) {
+	        node[propName] = {}
+	    }
+	
+	    var replacer = propName === "style" ? "" : undefined
+	
+	    for (var k in propValue) {
+	        var value = propValue[k]
+	        node[propName][k] = (value === undefined) ? replacer : value
+	    }
+	}
+	
+	function getPrototype(value) {
+	    if (Object.getPrototypeOf) {
+	        return Object.getPrototypeOf(value)
+	    } else if (value.__proto__) {
+	        return value.__proto__
+	    } else if (value.constructor) {
+	        return value.constructor.prototype
+	    }
+	}
+
+
+/***/ },
+/* 41 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/is-vhook.js ***!
   \***************************************************/
@@ -23976,57 +24120,597 @@
 
 
 /***/ },
-/* 45 */
+/* 42 */
 /*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vtext.js ***!
+  !*** ./~/cyclejs/~/virtual-dom/vdom/dom-index.js ***!
   \***************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 46)
+	// Maps a virtual DOM tree onto a real DOM tree in an efficient manner.
+	// We don't want to read all of the DOM nodes in the tree so we use
+	// the in-order tree indexing to eliminate recursion down certain branches.
+	// We only recurse into a DOM node if we know that it contains a child of
+	// interest.
 	
-	module.exports = isVirtualText
+	var noChild = {}
 	
-	function isVirtualText(x) {
-	    return x && x.type === "VirtualText" && x.version === version
+	module.exports = domIndex
+	
+	function domIndex(rootNode, tree, indices, nodes) {
+	    if (!indices || indices.length === 0) {
+	        return {}
+	    } else {
+	        indices.sort(ascending)
+	        return recurse(rootNode, tree, indices, nodes, 0)
+	    }
 	}
+	
+	function recurse(rootNode, tree, indices, nodes, rootIndex) {
+	    nodes = nodes || {}
+	
+	
+	    if (rootNode) {
+	        if (indexInRange(indices, rootIndex, rootIndex)) {
+	            nodes[rootIndex] = rootNode
+	        }
+	
+	        var vChildren = tree.children
+	
+	        if (vChildren) {
+	
+	            var childNodes = rootNode.childNodes
+	
+	            for (var i = 0; i < tree.children.length; i++) {
+	                rootIndex += 1
+	
+	                var vChild = vChildren[i] || noChild
+	                var nextIndex = rootIndex + (vChild.count || 0)
+	
+	                // skip recursion down the tree if there are no nodes down here
+	                if (indexInRange(indices, rootIndex, nextIndex)) {
+	                    recurse(childNodes[i], vChild, indices, nodes, rootIndex)
+	                }
+	
+	                rootIndex = nextIndex
+	            }
+	        }
+	    }
+	
+	    return nodes
+	}
+	
+	// Binary search for an index in the interval [left, right]
+	function indexInRange(indices, left, right) {
+	    if (indices.length === 0) {
+	        return false
+	    }
+	
+	    var minIndex = 0
+	    var maxIndex = indices.length - 1
+	    var currentIndex
+	    var currentItem
+	
+	    while (minIndex <= maxIndex) {
+	        currentIndex = ((maxIndex + minIndex) / 2) >> 0
+	        currentItem = indices[currentIndex]
+	
+	        if (minIndex === maxIndex) {
+	            return currentItem >= left && currentItem <= right
+	        } else if (currentItem < left) {
+	            minIndex = currentIndex + 1
+	        } else  if (currentItem > right) {
+	            maxIndex = currentIndex - 1
+	        } else {
+	            return true
+	        }
+	    }
+	
+	    return false;
+	}
+	
+	function ascending(a, b) {
+	    return a > b ? 1 : -1
+	}
+
+
+/***/ },
+/* 43 */
+/*!**************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vdom/patch-op.js ***!
+  \**************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var applyProperties = __webpack_require__(/*! ./apply-properties */ 40)
+	
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 36)
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 33)
+	
+	var render = __webpack_require__(/*! ./create-element */ 28)
+	var updateWidget = __webpack_require__(/*! ./update-widget */ 57)
+	
+	module.exports = applyPatch
+	
+	function applyPatch(vpatch, domNode, renderOptions) {
+	    var type = vpatch.type
+	    var vNode = vpatch.vNode
+	    var patch = vpatch.patch
+	
+	    switch (type) {
+	        case VPatch.REMOVE:
+	            return removeNode(domNode, vNode)
+	        case VPatch.INSERT:
+	            return insertNode(domNode, patch, renderOptions)
+	        case VPatch.VTEXT:
+	            return stringPatch(domNode, vNode, patch, renderOptions)
+	        case VPatch.WIDGET:
+	            return widgetPatch(domNode, vNode, patch, renderOptions)
+	        case VPatch.VNODE:
+	            return vNodePatch(domNode, vNode, patch, renderOptions)
+	        case VPatch.ORDER:
+	            reorderChildren(domNode, patch)
+	            return domNode
+	        case VPatch.PROPS:
+	            applyProperties(domNode, patch, vNode.properties)
+	            return domNode
+	        case VPatch.THUNK:
+	            return replaceRoot(domNode,
+	                renderOptions.patch(domNode, patch, renderOptions))
+	        default:
+	            return domNode
+	    }
+	}
+	
+	function removeNode(domNode, vNode) {
+	    var parentNode = domNode.parentNode
+	
+	    if (parentNode) {
+	        parentNode.removeChild(domNode)
+	    }
+	
+	    destroyWidget(domNode, vNode);
+	
+	    return null
+	}
+	
+	function insertNode(parentNode, vNode, renderOptions) {
+	    var newNode = render(vNode, renderOptions)
+	
+	    if (parentNode) {
+	        parentNode.appendChild(newNode)
+	    }
+	
+	    return parentNode
+	}
+	
+	function stringPatch(domNode, leftVNode, vText, renderOptions) {
+	    var newNode
+	
+	    if (domNode.nodeType === 3) {
+	        domNode.replaceData(0, domNode.length, vText.text)
+	        newNode = domNode
+	    } else {
+	        var parentNode = domNode.parentNode
+	        newNode = render(vText, renderOptions)
+	
+	        if (parentNode && newNode !== domNode) {
+	            parentNode.replaceChild(newNode, domNode)
+	        }
+	    }
+	
+	    return newNode
+	}
+	
+	function widgetPatch(domNode, leftVNode, widget, renderOptions) {
+	    var updating = updateWidget(leftVNode, widget)
+	    var newNode
+	
+	    if (updating) {
+	        newNode = widget.update(leftVNode, domNode) || domNode
+	    } else {
+	        newNode = render(widget, renderOptions)
+	    }
+	
+	    var parentNode = domNode.parentNode
+	
+	    if (parentNode && newNode !== domNode) {
+	        parentNode.replaceChild(newNode, domNode)
+	    }
+	
+	    if (!updating) {
+	        destroyWidget(domNode, leftVNode)
+	    }
+	
+	    return newNode
+	}
+	
+	function vNodePatch(domNode, leftVNode, vNode, renderOptions) {
+	    var parentNode = domNode.parentNode
+	    var newNode = render(vNode, renderOptions)
+	
+	    if (parentNode && newNode !== domNode) {
+	        parentNode.replaceChild(newNode, domNode)
+	    }
+	
+	    return newNode
+	}
+	
+	function destroyWidget(domNode, w) {
+	    if (typeof w.destroy === "function" && isWidget(w)) {
+	        w.destroy(domNode)
+	    }
+	}
+	
+	function reorderChildren(domNode, moves) {
+	    var childNodes = domNode.childNodes
+	    var keyMap = {}
+	    var node
+	    var remove
+	    var insert
+	
+	    for (var i = 0; i < moves.removes.length; i++) {
+	        remove = moves.removes[i]
+	        node = childNodes[remove.from]
+	        if (remove.key) {
+	            keyMap[remove.key] = node
+	        }
+	        domNode.removeChild(node)
+	    }
+	
+	    var length = childNodes.length
+	    for (var j = 0; j < moves.inserts.length; j++) {
+	        insert = moves.inserts[j]
+	        node = keyMap[insert.key]
+	        // this is the weirdest bug i've ever seen in webkit
+	        domNode.insertBefore(node, insert.to >= length++ ? null : childNodes[insert.to])
+	    }
+	}
+	
+	function replaceRoot(oldRoot, newRoot) {
+	    if (oldRoot && newRoot && oldRoot !== newRoot && oldRoot.parentNode) {
+	        oldRoot.parentNode.replaceChild(newRoot, oldRoot)
+	    }
+	
+	    return newRoot;
+	}
+
+
+/***/ },
+/* 44 */
+/*!******************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/parse-tag.js ***!
+  \******************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var split = __webpack_require__(/*! browser-split */ 55);
+	
+	var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/;
+	var notClassId = /^\.|#/;
+	
+	module.exports = parseTag;
+	
+	function parseTag(tag, props) {
+	    if (!tag) {
+	        return 'DIV';
+	    }
+	
+	    var noId = !(props.hasOwnProperty('id'));
+	
+	    var tagParts = split(tag, classIdSplit);
+	    var tagName = null;
+	
+	    if (notClassId.test(tagParts[1])) {
+	        tagName = 'DIV';
+	    }
+	
+	    var classes, part, type, i;
+	
+	    for (i = 0; i < tagParts.length; i++) {
+	        part = tagParts[i];
+	
+	        if (!part) {
+	            continue;
+	        }
+	
+	        type = part.charAt(0);
+	
+	        if (!tagName) {
+	            tagName = part;
+	        } else if (type === '.') {
+	            classes = classes || [];
+	            classes.push(part.substring(1, part.length));
+	        } else if (type === '#' && noId) {
+	            props.id = part.substring(1, part.length);
+	        }
+	    }
+	
+	    if (classes) {
+	        if (props.className) {
+	            classes.push(props.className);
+	        }
+	
+	        props.className = classes.join(' ');
+	    }
+	
+	    return props.namespace ? tagName : tagName.toUpperCase();
+	}
+
+
+/***/ },
+/* 45 */
+/*!****************************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js ***!
+  \****************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = SoftSetHook;
+	
+	function SoftSetHook(value) {
+	    if (!(this instanceof SoftSetHook)) {
+	        return new SoftSetHook(value);
+	    }
+	
+	    this.value = value;
+	}
+	
+	SoftSetHook.prototype.hook = function (node, propertyName) {
+	    if (node[propertyName] !== this.value) {
+	        node[propertyName] = this.value;
+	    }
+	};
 
 
 /***/ },
 /* 46 */
-/*!**************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/version.js ***!
-  \**************************************************/
+/*!**********************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/ev-hook.js ***!
+  \**********************************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = "1"
+	'use strict';
+	
+	var EvStore = __webpack_require__(/*! ev-store */ 52);
+	
+	module.exports = EvHook;
+	
+	function EvHook(value) {
+	    if (!(this instanceof EvHook)) {
+	        return new EvHook(value);
+	    }
+	
+	    this.value = value;
+	}
+	
+	EvHook.prototype.hook = function (node, propertyName) {
+	    var es = EvStore(node);
+	    var propName = propertyName.substr(3);
+	
+	    es[propName] = this.value;
+	};
+	
+	EvHook.prototype.unhook = function(node, propertyName) {
+	    var es = EvStore(node);
+	    var propName = propertyName.substr(3);
+	
+	    es[propName] = undefined;
+	};
 
 
 /***/ },
 /* 47 */
-/*!*******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/update-widget.js ***!
-  \*******************************************************/
+/*!******************************************!*\
+  !*** ./~/cyclejs/lib/custom-elements.js ***!
+  \******************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 39)
+	"use strict";
 	
-	module.exports = updateWidget
+	var InputProxy = __webpack_require__(/*! ./input-proxy */ 31);
+	var Utils = __webpack_require__(/*! ./utils */ 32);
+	var Rx = __webpack_require__(/*! rx */ 17);
 	
-	function updateWidget(a, b) {
-	    if (isWidget(a) && isWidget(b)) {
-	        if ("name" in a && "name" in b) {
-	            return a.id === b.id
-	        } else {
-	            return a.init === b.init
-	        }
+	function makeDispatchFunction(element, eventName) {
+	  return function dispatchCustomEvent(evData) {
+	    var event;
+	    try {
+	      event = new Event(eventName);
+	    } catch (err) {
+	      event = document.createEvent("Event");
+	      event.initEvent(eventName, true, true);
+	    }
+	    event.data = evData;
+	    element.dispatchEvent(event);
+	  };
+	}
+	
+	function subscribeDispatchers(element, eventStreams) {
+	  if (!eventStreams || typeof eventStreams !== "object") {
+	    return;
+	  }
+	
+	  var disposables = new Rx.CompositeDisposable();
+	  for (var streamName in eventStreams) {
+	    if (eventStreams.hasOwnProperty(streamName)) {
+	      if (Utils.endsWithDollarSign(streamName) && typeof eventStreams[streamName].subscribe === "function") {
+	        var eventName = streamName.slice(0, -1);
+	        var disposable = eventStreams[streamName].subscribe(makeDispatchFunction(element, eventName));
+	        disposables.add(disposable);
+	      }
+	    }
+	  }
+	  return disposables;
+	}
+	
+	function subscribeDispatchersWhenRootChanges(widget, eventStreams) {
+	  widget._rootElem$.distinctUntilChanged(Rx.helpers.identity, function (x, y) {
+	    return x && y && x.isEqualNode && x.isEqualNode(y);
+	  }).subscribe(function (rootElem) {
+	    if (widget.eventStreamsSubscriptions) {
+	      widget.eventStreamsSubscriptions.dispose();
+	    }
+	    widget.eventStreamsSubscriptions = subscribeDispatchers(rootElem, eventStreams);
+	  });
+	}
+	
+	function makeInputPropertiesProxy() {
+	  var inputProxy = new InputProxy();
+	  var oldGet = inputProxy.get;
+	  inputProxy.get = function get(streamName) {
+	    var result = oldGet.call(this, streamName);
+	    if (result && result.distinctUntilChanged) {
+	      return result.distinctUntilChanged();
+	    } else {
+	      return result;
+	    }
+	  };
+	  return inputProxy;
+	}
+	
+	function createContainerElement(tagName, vtreeProperties) {
+	  var elem = document.createElement("div");
+	  elem.className = vtreeProperties.className || "";
+	  elem.id = vtreeProperties.id || "";
+	  elem.className += " cycleCustomElement-" + tagName.toUpperCase();
+	  elem.cycleCustomElementProperties = makeInputPropertiesProxy();
+	  return elem;
+	}
+	
+	function replicateUserRootElem$(user, widget) {
+	  user._rootElem$.subscribe(function (elem) {
+	    return widget._rootElem$.onNext(elem);
+	  });
+	}
+	
+	function makeConstructor() {
+	  return function customElementConstructor(vtree) {
+	    this.type = "Widget";
+	    this.properties = vtree.properties;
+	    this.key = vtree.key;
+	  };
+	}
+	
+	function makeInit(tagName, definitionFn) {
+	  var DOMUser = __webpack_require__(/*! ./dom-user */ 11);
+	  return function initCustomElement() {
+	    var widget = this;
+	    var element = createContainerElement(tagName, widget.properties);
+	    var user = new DOMUser(element);
+	    var eventStreams = definitionFn(user, element.cycleCustomElementProperties);
+	    widget._rootElem$ = new Rx.ReplaySubject(1);
+	    replicateUserRootElem$(user, widget);
+	    widget.eventStreamsSubscriptions = subscribeDispatchers(element, eventStreams);
+	    subscribeDispatchersWhenRootChanges(widget, eventStreams);
+	    widget.update(null, element);
+	    return element;
+	  };
+	}
+	
+	function makeUpdate() {
+	  return function updateCustomElement(prev, elem) {
+	    if (!elem) {
+	      return;
+	    }
+	    if (!elem.cycleCustomElementProperties) {
+	      return;
+	    }
+	    if (!(elem.cycleCustomElementProperties instanceof InputProxy)) {
+	      return;
+	    }
+	    if (!elem.cycleCustomElementProperties.proxiedProps) {
+	      return;
 	    }
 	
-	    return false
+	    var proxiedProps = elem.cycleCustomElementProperties.proxiedProps;
+	    for (var prop in proxiedProps) {
+	      if (proxiedProps.hasOwnProperty(prop)) {
+	        var propStreamName = prop;
+	        var propName = prop.slice(0, -1);
+	        if (this.properties.hasOwnProperty(propName)) {
+	          proxiedProps[propStreamName].onNext(this.properties[propName]);
+	        }
+	      }
+	    }
+	  };
 	}
-
+	
+	module.exports = {
+	  makeConstructor: makeConstructor,
+	  makeInit: makeInit,
+	  makeUpdate: makeUpdate
+	};
 
 /***/ },
 /* 48 */
+/*!**********************************************************!*\
+  !*** (webpack)/~/node-libs-browser/~/process/browser.js ***!
+  \**********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	// shim for using process in browser
+	
+	var process = module.exports = {};
+	var queue = [];
+	var draining = false;
+	
+	function drainQueue() {
+	    if (draining) {
+	        return;
+	    }
+	    draining = true;
+	    var currentQueue;
+	    var len = queue.length;
+	    while(len) {
+	        currentQueue = queue;
+	        queue = [];
+	        var i = -1;
+	        while (++i < len) {
+	            currentQueue[i]();
+	        }
+	        len = queue.length;
+	    }
+	    draining = false;
+	}
+	process.nextTick = function (fun) {
+	    queue.push(fun);
+	    if (!draining) {
+	        setTimeout(drainQueue, 0);
+	    }
+	};
+	
+	process.title = 'browser';
+	process.browser = true;
+	process.env = {};
+	process.argv = [];
+	process.version = ''; // empty string to avoid regexp issues
+	process.versions = {};
+	
+	function noop() {}
+	
+	process.on = noop;
+	process.addListener = noop;
+	process.once = noop;
+	process.off = noop;
+	process.removeListener = noop;
+	process.removeAllListeners = noop;
+	process.emit = noop;
+	
+	process.binding = function (name) {
+	    throw new Error('process.binding is not supported');
+	};
+	
+	// TODO(shtylman)
+	process.cwd = function () { return '/' };
+	process.chdir = function (dir) {
+	    throw new Error('process.chdir is not supported');
+	};
+	process.umask = function() { return 0; };
+
+
+/***/ },
+/* 49 */
 /*!*******************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/x-is-array/index.js ***!
   \*******************************************************/
@@ -24043,7 +24727,7 @@
 
 
 /***/ },
-/* 49 */
+/* 50 */
 /*!******************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/global/document.js ***!
   \******************************************************/
@@ -24051,7 +24735,7 @@
 
 	/* WEBPACK VAR INJECTION */(function(global) {var topLevel = typeof global !== 'undefined' ? global :
 	    typeof window !== 'undefined' ? window : {}
-	var minDoc = __webpack_require__(/*! min-document */ 50);
+	var minDoc = __webpack_require__(/*! min-document */ 51);
 	
 	if (typeof document !== 'undefined') {
 	    module.exports = document;
@@ -24068,7 +24752,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
-/* 50 */
+/* 51 */
 /*!******************************!*\
   !*** min-document (ignored) ***!
   \******************************/
@@ -24077,7 +24761,7 @@
 	/* (ignored) */
 
 /***/ },
-/* 51 */
+/* 52 */
 /*!*****************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/ev-store/index.js ***!
   \*****************************************************/
@@ -24085,7 +24769,7 @@
 
 	'use strict';
 	
-	var OneVersionConstraint = __webpack_require__(/*! individual/one-version */ 55);
+	var OneVersionConstraint = __webpack_require__(/*! individual/one-version */ 53);
 	
 	var MY_VERSION = '7';
 	OneVersionConstraint('ev-store', MY_VERSION);
@@ -24106,7 +24790,67 @@
 
 
 /***/ },
-/* 52 */
+/* 53 */
+/*!************************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/ev-store/~/individual/one-version.js ***!
+  \************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var Individual = __webpack_require__(/*! ./index.js */ 54);
+	
+	module.exports = OneVersion;
+	
+	function OneVersion(moduleName, version, defaultValue) {
+	    var key = '__INDIVIDUAL_ONE_VERSION_' + moduleName;
+	    var enforceKey = key + '_ENFORCE_SINGLETON';
+	
+	    var versionValue = Individual(enforceKey, version);
+	
+	    if (versionValue !== version) {
+	        throw new Error('Can only have one copy of ' +
+	            moduleName + '.\n' +
+	            'You already have version ' + versionValue +
+	            ' installed.\n' +
+	            'This means you cannot install version ' + version);
+	    }
+	
+	    return Individual(key, defaultValue);
+	}
+
+
+/***/ },
+/* 54 */
+/*!******************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/ev-store/~/individual/index.js ***!
+  \******************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	/* WEBPACK VAR INJECTION */(function(global) {'use strict';
+	
+	/*global window, global*/
+	
+	var root = typeof window !== 'undefined' ?
+	    window : typeof global !== 'undefined' ?
+	    global : {};
+	
+	module.exports = Individual;
+	
+	function Individual(key, value) {
+	    if (key in root) {
+	        return root[key];
+	    }
+	
+	    root[key] = value;
+	
+	    return value;
+	}
+	
+	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
+
+/***/ },
+/* 55 */
 /*!**********************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/browser-split/index.js ***!
   \**********************************************************/
@@ -24221,7 +24965,7 @@
 
 
 /***/ },
-/* 53 */
+/* 56 */
 /*!******************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/is-object/index.js ***!
   \******************************************************/
@@ -24235,193 +24979,28 @@
 
 
 /***/ },
-/* 54 */
-/*!**********************************************************!*\
-  !*** (webpack)/~/node-libs-browser/~/process/browser.js ***!
-  \**********************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	// shim for using process in browser
-	
-	var process = module.exports = {};
-	var queue = [];
-	var draining = false;
-	
-	function drainQueue() {
-	    if (draining) {
-	        return;
-	    }
-	    draining = true;
-	    var currentQueue;
-	    var len = queue.length;
-	    while(len) {
-	        currentQueue = queue;
-	        queue = [];
-	        var i = -1;
-	        while (++i < len) {
-	            currentQueue[i]();
-	        }
-	        len = queue.length;
-	    }
-	    draining = false;
-	}
-	process.nextTick = function (fun) {
-	    queue.push(fun);
-	    if (!draining) {
-	        setTimeout(drainQueue, 0);
-	    }
-	};
-	
-	process.title = 'browser';
-	process.browser = true;
-	process.env = {};
-	process.argv = [];
-	process.version = ''; // empty string to avoid regexp issues
-	process.versions = {};
-	
-	function noop() {}
-	
-	process.on = noop;
-	process.addListener = noop;
-	process.once = noop;
-	process.off = noop;
-	process.removeListener = noop;
-	process.removeAllListeners = noop;
-	process.emit = noop;
-	
-	process.binding = function (name) {
-	    throw new Error('process.binding is not supported');
-	};
-	
-	// TODO(shtylman)
-	process.cwd = function () { return '/' };
-	process.chdir = function (dir) {
-	    throw new Error('process.chdir is not supported');
-	};
-	process.umask = function() { return 0; };
-
-
-/***/ },
-/* 55 */
-/*!************************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/ev-store/~/individual/one-version.js ***!
-  \************************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var Individual = __webpack_require__(/*! ./index.js */ 56);
-	
-	module.exports = OneVersion;
-	
-	function OneVersion(moduleName, version, defaultValue) {
-	    var key = '__INDIVIDUAL_ONE_VERSION_' + moduleName;
-	    var enforceKey = key + '_ENFORCE_SINGLETON';
-	
-	    var versionValue = Individual(enforceKey, version);
-	
-	    if (versionValue !== version) {
-	        throw new Error('Can only have one copy of ' +
-	            moduleName + '.\n' +
-	            'You already have version ' + versionValue +
-	            ' installed.\n' +
-	            'This means you cannot install version ' + version);
-	    }
-	
-	    return Individual(key, defaultValue);
-	}
-
-
-/***/ },
-/* 56 */
-/*!******************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/ev-store/~/individual/index.js ***!
-  \******************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	/* WEBPACK VAR INJECTION */(function(global) {'use strict';
-	
-	/*global window, global*/
-	
-	var root = typeof window !== 'undefined' ?
-	    window : typeof global !== 'undefined' ?
-	    global : {};
-	
-	module.exports = Individual;
-	
-	function Individual(key, value) {
-	    if (key in root) {
-	        return root[key];
-	    }
-	
-	    root[key] = value;
-	
-	    return value;
-	}
-	
-	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
-
-/***/ },
 /* 57 */
-/*!********************!*\
-  !*** ./src/mvp.js ***!
-  \********************/
+/*!*******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vdom/update-widget.js ***!
+  \*******************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	"use strict";
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 36)
 	
-	module.exports = calculatePurchaseOptions;
-	function updateTotal(option) {
-	  option.total = _(option.pizzas).map("diameter").map(function (d) {
-	    return d / 2;
-	  }).map(function (r) {
-	    return r * r;
-	  }).map(function (r2) {
-	    return r2 * Math.PI;
-	  }).reduce(function (sum, area) {
-	    return area + sum;
-	  });
-	}
+	module.exports = updateWidget
 	
-	function addPizza(totalSize, pizzas, option, options, index) {
-	  index = index || 0;
-	  if (option.total > totalSize) {
-	    options.push(option);
-	  } else {
-	    for (var i = index; i < pizzas.length; ++i) {
-	      var newOp = { pizzas: _.clone(option.pizzas) };
-	      newOp.pizzas.push(pizzas[i]);
-	      updateTotal(newOp);
-	      addPizza(totalSize, pizzas, newOp, options, i);
+	function updateWidget(a, b) {
+	    if (isWidget(a) && isWidget(b)) {
+	        if ("name" in a && "name" in b) {
+	            return a.id === b.id
+	        } else {
+	            return a.init === b.init
+	        }
 	    }
-	  }
-	  return options;
-	}
 	
-	function calculatePurchaseOptions(eaters, pizzas, servingSize, sortBy) {
-	  var pizzas = _.sortBy(_.cloneDeep(pizzas), "diameter").reverse(),
-	      numServings = _(eaters).map("servings").reduce(function (sum, num) {
-	    return sum + num;
-	  }) || 0,
-	      totalSize = numServings * servingSize;
-	
-	  return _(addPizza(totalSize, pizzas, { pizzas: [], total: 0 }, [])).tap(function (options) {
-	    return console.log("Found " + options.length + " options");
-	  }).forEach(function (option) {
-	    option.cost = _(option.pizzas).map("cost").reduce(function (sum, cost) {
-	      return sum + cost;
-	    });
-	    option.ratio = option.cost / option.total;
-	  }).sortBy("ratio").forEach(function (option, index) {
-	    return option.rank = index + 1;
-	  }).sortBy("total").forEach(function (option, index) {
-	    return option.rank += index;
-	  }).sortBy(sortBy).take(10).sortBy("total").tap(function (options) {
-	    return options.length && (options[options.length - 1].mostPizza = true);
-	  }).sortBy("ratio").tap(function (options) {
-	    return options.length && (options[0].bestDeal = true);
-	  }).sortBy(sortBy).value();
+	    return false
 	}
+
 
 /***/ }
 /******/ ]);
