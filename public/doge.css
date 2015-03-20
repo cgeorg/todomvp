@@ -1,0 +1,36 @@
+
+html {
+    background-size: cover;
+    background: url(../img/pizzadoge.jpg) fixed;
+}
+
+.most-pizza,
+.best-deal,
+.low-price {
+    width: auto;
+    height: auto;
+    background: none;
+    white-space: pre;
+    display:inline;
+}
+
+.most-pizza:after {
+    font-family: 'Comic Sans MS';
+    display:inline-block;
+    content: 'very\A leftover';
+    color: #ff00dd;
+}
+
+.best-deal:after {
+    font-family: 'Comic Sans MS';
+    display:inline-block;
+    content: 'such\A deal';
+    color: #0044ff;
+}
+
+.low-price:after {
+    font-family: 'Comic Sans MS';
+    display:inline-block;
+    content: 'wow\A cheap';
+    color: #0044ff;
+}

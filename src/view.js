@@ -4,27 +4,23 @@ import _ from 'lodash';
 
 function renderOptions(model) {
   return [
-    Cycle.h('h2', 'Let\'s get one of these:'),
-    Cycle.h('table', [
-      Cycle.h('thead', [
-        Cycle.h('tr', [
-          Cycle.h('th', 'Pizzas'),
-          Cycle.h('th', {
-            attributes: {'data-order': 'total'},
-            className: model.sortBy === 'total' ? 'active' : ''
-          }, 'Leftovers'),
-          Cycle.h('th', {
-            attributes: {'data-order': 'cost'},
-            className: model.sortBy === 'cost' ? 'active' : ''
-          }, 'Cost'),
-          Cycle.h('th', {
-            attributes: {'data-order': 'rank'},
-            className: model.sortBy === 'rank' ? 'active' : ''
-          }, 'PizzaRank™'),
-        ])
-      ]),
-      Cycle.h('tbody', model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize, model.numServings)))
-    ])
+    <h2>Let's get one of these:</h2>,
+    <table>
+      <thead>
+        <tr>
+          <th>Pizzas</th>
+          <th attributes={{'data-order': 'total'}}
+            className={model.sortBy === 'total' ? 'active' : ''}>Leftovers</th>
+          <th attributes={{'data-order': 'cost'}}
+            className={model.sortBy === 'cost' ? 'active' : ''}>Cost</th>
+          <th attributes={{'data-order': 'rank'}}
+            className={model.sortBy === 'rank' ? 'active' : ''}>PizzaRank™</th>
+        </tr>
+      </thead>
+      <tbody>
+      {model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize, model.numServings))}
+      </tbody>
+    </table>
   ];
 }
 
@@ -36,15 +32,15 @@ function renderOption(servingSize, servings, option) {
       .value()
       .join(', ')}</td>
     <td>
-      {option.mostPizza ? Cycle.h('span.most-pizza', {title: 'Most Pizza!'}) : null}
-      {Math.round((option.total / servingSize - servings) * 100) / 100 + ' slices'}
+      {option.mostPizza ? <span className='most-pizza' title='Most Pizza!' /> : null}
+      {(option.total / servingSize - servings).toFixed(1) + ' slices'}
     </td>
     <td>
-      {option.cheapest ? Cycle.h('span.low-price', {title: 'Lowest Price!'}) : null}
-      ${'' + Math.round(option.cost * 100) / 100}
+      {option.cheapest ? <span className='low-price' title='Lowest Price!' /> : null}
+      ${'' + option.cost.toFixed(2)}
     </td>
     <td>
-      {option.bestDeal ? Cycle.h('span.best-deal', {title: 'Best Deal!'}) : null}
+      {option.bestDeal ? <span className='best-deal' title='Best Deal!' /> : null}
       {'' + option.rank}
     </td>
   </tr>
@@ -52,18 +48,18 @@ function renderOption(servingSize, servings, option) {
 
 function renderMenuSelection(menus, gathering, numServings) {
   return [
-    <h2>Where are we ordering {''+numServings} slices from?</h2>,
+    <h2>Where are we ordering {'' + numServings} slices from?</h2>,
     <select className='menu'>
-    {_.map(menus, (menu) =>
+      {_.map(menus, (menu) =>
         <option selected={gathering.menu === menu._id}>{menu.name}</option>
-    )}
+      )}
     </select>
   ];
 }
 
 function renderSave(gathering) {
   return gathering._id ? [] : [
-    Cycle.h('button.save', 'Save this gathering')
+    <button className='save'>Save this gathering</button>
   ];
 }
 
@@ -71,7 +67,7 @@ function renderEaters(gathering) {
   return [
     <h2>Who's eating?</h2>,
     <ul>
-    {gathering.eaters.map(renderEater)}
+      {gathering.eaters.map(renderEater)}
       <li>
         <input className="new-eater" />
       </li>
@@ -86,23 +82,27 @@ function renderEater(eater, index) {
       element.selectionStart = element.value.length;
     }
   }
-  return <li className={eater.editing ? 'editing' : ''}>
-    <span className='eater-name' attributes={{'data-index': index}}>{`${eater.name}: ${eater.servings} slice${eater.servings === 1 ? '' : 's'}`}</span>
-    <span className='init-edit' attributes={{'data-index': index}}> edit</span>
-    <input className='edit-eater' value={`${eater.name}: ${eater.servings}`} attributes={{'data-index': index}} vdomPropHook={Cycle.vdomPropHook(propHook)}/>
-  </li>
+
+  return (
+    <li className={eater.editing ? 'editing' : ''}>
+      <span className='eater-name' attributes={{'data-index': index}}>{`${eater.name}: ${eater.servings} slice${eater.servings === 1 ? '' : 's'}`}</span>
+      <span className='init-edit' attributes={{'data-index': index}}> edit</span>
+      <input className='edit-eater' value={`${eater.name}: ${eater.servings}`} attributes={{'data-index': index}} vdomPropHook={Cycle.vdomPropHook(propHook)}/>
+    </li>
+  );
 }
 
 var View = Cycle.createView(Model =>
     ({
       vtree$: Model.get('model$').map(model =>
-        Cycle.h('div', [
-          Cycle.h('h1', 'TODO: Order Minimum Viable Pizza'),
-          renderSave(model.gathering),
-          renderEaters(model.gathering),
-          renderMenuSelection(model.menus, model.gathering, model.numServings),
-          renderOptions(model)
-        ]))
+          <div>
+            <h1>TODO: Order Minimum Viable Pizza</h1>
+            {renderSave(model.gathering)}
+            {renderEaters(model.gathering)}
+            {renderMenuSelection(model.menus, model.gathering, model.numServings)}
+            {renderOptions(model)}
+          </div>
+      )
     })
 );
 

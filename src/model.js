@@ -1,6 +1,6 @@
 import Cycle from 'cyclejs';
 import _ from 'lodash';
-import mvp from './mvp';
+import mvp from 'mvp';
 
 function save(model, forceSave) {
 

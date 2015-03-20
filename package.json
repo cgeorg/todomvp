@@ -17,6 +17,7 @@
     "jade": "^1.9.2",
     "lodash": "^3.3.1",
     "mongodb": "^1.4.33",
+    "mvp": "^0.1.2",
     "q": "^1.2.0"
   },
   "devDependencies": {

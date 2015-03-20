@@ -81,9 +81,9 @@
 	
 	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 5));
 	
-	var _ = _interopRequire(__webpack_require__(/*! lodash */ 7));
+	var _ = _interopRequire(__webpack_require__(/*! lodash */ 6));
 	
-	var mvp = _interopRequire(__webpack_require__(/*! ./mvp */ 6));
+	var mvp = _interopRequire(__webpack_require__(/*! mvp */ 15));
 	
 	function save(model, forceSave) {
 	
@@ -214,19 +214,22 @@
 	
 	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 5));
 	
-	var _ = _interopRequire(__webpack_require__(/*! lodash */ 7));
+	var _ = _interopRequire(__webpack_require__(/*! lodash */ 6));
 	
 	function renderOptions(model) {
-	  return [Cycle.h("h2", "Let's get one of these:"), Cycle.h("table", [Cycle.h("thead", [Cycle.h("tr", [Cycle.h("th", "Pizzas"), Cycle.h("th", {
-	    attributes: { "data-order": "total" },
-	    className: model.sortBy === "total" ? "active" : ""
-	  }, "Leftovers"), Cycle.h("th", {
-	    attributes: { "data-order": "cost" },
-	    className: model.sortBy === "cost" ? "active" : ""
-	  }, "Cost"), Cycle.h("th", {
-	    attributes: { "data-order": "rank" },
-	    className: model.sortBy === "rank" ? "active" : ""
-	  }, "PizzaRank™")])]), Cycle.h("tbody", model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize, model.numServings)))])];
+	  return [Cycle.h('h2', null, ["Let's get one of these:"]), Cycle.h('table', null, [
+	          Cycle.h('thead', null, [
+	              Cycle.h('tr', null, [
+	                  Cycle.h('th', null, ["Pizzas"]),
+	                  Cycle.h('th', {attributes: { "data-order": "total"}, className: model.sortBy === "total" ? "active" : ""}, ["Leftovers"]),
+	                  Cycle.h('th', {attributes: { "data-order": "cost"}, className: model.sortBy === "cost" ? "active" : ""}, ["Cost"]),
+	                  Cycle.h('th', {attributes: { "data-order": "rank"}, className: model.sortBy === "rank" ? "active" : ""}, ["PizzaRank™"])
+	                ])
+	            ]),
+	          Cycle.h('tbody', null, [
+	            model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize, model.numServings))
+	            ])
+	        ])];
 	}
 	
 	function renderOption(servingSize, servings, option) {
@@ -235,15 +238,15 @@
 	        return "" + arr.length + " " + name;
 	      }).value().join(", ")]),
 	        Cycle.h('td', null, [
-	            option.mostPizza ? Cycle.h("span.most-pizza", { title: "Most Pizza!" }) : null,
-	            Math.round((option.total / servingSize - servings) * 100) / 100 + " slices"
+	            option.mostPizza ? Cycle.h('span', {className: "most-pizza", title: "Most Pizza!"}) : null,
+	            (option.total / servingSize - servings).toFixed(1) + " slices"
 	          ]),
 	        Cycle.h('td', null, [
-	            option.cheapest ? Cycle.h("span.low-price", { title: "Lowest Price!" }) : null,
-	            "$", "" + Math.round(option.cost * 100) / 100
+	            option.cheapest ? Cycle.h('span', {className: "low-price", title: "Lowest Price!"}) : null,
+	            "$", "" + option.cost.toFixed(2)
 	          ]),
 	        Cycle.h('td', null, [
-	            option.bestDeal ? Cycle.h("span.best-deal", { title: "Best Deal!" }) : null,
+	            option.bestDeal ? Cycle.h('span', {className: "best-deal", title: "Best Deal!"}) : null,
 	            "" + option.rank
 	          ])
 	      ]);
@@ -251,19 +254,19 @@
 	
 	function renderMenuSelection(menus, gathering, numServings) {
 	  return [Cycle.h('h2', null, ["Where are we ordering ", "" + numServings, " slices from?"]), Cycle.h('select', {className: "menu"}, [
-	        _.map(menus, function (menu) {
+	          _.map(menus, function (menu) {
 	      return Cycle.h('option', {selected: gathering.menu === menu._id}, [menu.name]);
 	    })
 	        ])];
 	}
 	
 	function renderSave(gathering) {
-	  return gathering._id ? [] : [Cycle.h("button.save", "Save this gathering")];
+	  return gathering._id ? [] : [Cycle.h('button', {className: "save"}, ["Save this gathering"])];
 	}
 	
 	function renderEaters(gathering) {
 	  return [Cycle.h('h2', null, ["Who's eating?"]), Cycle.h('ul', null, [
-	        gathering.eaters.map(renderEater),
+	          gathering.eaters.map(renderEater),
 	          Cycle.h('li', null, [
 	              Cycle.h('input', {className: "new-eater"})
 	            ])
@@ -277,17 +280,24 @@
 	      element.selectionStart = element.value.length;
 	    }
 	  }
+	
 	  return Cycle.h('li', {className: eater.editing ? "editing" : ""}, [
-	        Cycle.h('span', {className: "eater-name", attributes: { "data-index": index}}, ["" + eater.name + ": " + eater.servings + " slice" + (eater.servings === 1 ? "" : "s")]),
-	        Cycle.h('span', {className: "init-edit", attributes: { "data-index": index}}, [" edit"]),
-	        Cycle.h('input', {className: "edit-eater", value: "" + eater.name + ": " + eater.servings, attributes: { "data-index": index}, vdomPropHook: Cycle.vdomPropHook(propHook)})
-	      ]);
+	          Cycle.h('span', {className: "eater-name", attributes: { "data-index": index}}, ["" + eater.name + ": " + eater.servings + " slice" + (eater.servings === 1 ? "" : "s")]),
+	          Cycle.h('span', {className: "init-edit", attributes: { "data-index": index}}, [" edit"]),
+	          Cycle.h('input', {className: "edit-eater", value: "" + eater.name + ": " + eater.servings, attributes: { "data-index": index}, vdomPropHook: Cycle.vdomPropHook(propHook)})
+	        ]);
 	}
 	
 	var View = Cycle.createView(function (Model) {
 	  return {
 	    vtree$: Model.get("model$").map(function (model) {
-	      return Cycle.h("div", [Cycle.h("h1", "TODO: Order Minimum Viable Pizza"), renderSave(model.gathering), renderEaters(model.gathering), renderMenuSelection(model.menus, model.gathering, model.numServings), renderOptions(model)]);
+	      return Cycle.h('div', null, [
+	                    Cycle.h('h1', null, ["TODO: Order Minimum Viable Pizza"]),
+	                    renderSave(model.gathering),
+	                    renderEaters(model.gathering),
+	                    renderMenuSelection(model.menus, model.gathering, model.numServings),
+	                    renderOptions(model)
+	                  ]);
 	    })
 	  };
 	});
@@ -424,11 +434,11 @@
 	
 	var VirtualDOM = __webpack_require__(/*! virtual-dom */ 16);
 	var Rx = __webpack_require__(/*! rx */ 17);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
-	var DataFlowSource = __webpack_require__(/*! ./data-flow-source */ 9);
-	var DataFlowSink = __webpack_require__(/*! ./data-flow-sink */ 10);
-	var DOMUser = __webpack_require__(/*! ./dom-user */ 11);
-	var PropertyHook = __webpack_require__(/*! ./property-hook */ 12);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
+	var DataFlowSource = __webpack_require__(/*! ./data-flow-source */ 8);
+	var DataFlowSink = __webpack_require__(/*! ./data-flow-sink */ 9);
+	var DOMUser = __webpack_require__(/*! ./dom-user */ 10);
+	var PropertyHook = __webpack_require__(/*! ./property-hook */ 11);
 	
 	var Cycle = {
 	  /**
@@ -483,7 +493,7 @@
 	   * `inject(intent)` function.
 	   * @function createModel
 	   */
-	  createModel: __webpack_require__(/*! ./create-model */ 13),
+	  createModel: __webpack_require__(/*! ./create-model */ 12),
 	
 	  /**
 	   * Returns a DataFlowNode representing a View, having some Model as input.
@@ -498,7 +508,7 @@
 	   * `inject(model)` function.
 	   * @function createView
 	   */
-	  createView: __webpack_require__(/*! ./create-view */ 14),
+	  createView: __webpack_require__(/*! ./create-view */ 13),
 	
 	  /**
 	   * Returns a DataFlowNode representing an Intent, having some View as input.
@@ -511,7 +521,7 @@
 	   * `inject(view)` function.
 	   * @function createIntent
 	   */
-	  createIntent: __webpack_require__(/*! ./create-intent */ 15),
+	  createIntent: __webpack_require__(/*! ./create-intent */ 14),
 	
 	  /**
 	   * Returns a DOMUser (a DataFlowNode) bound to a DOM container element. Contains an
@@ -581,70 +591,6 @@
 
 /***/ },
 /* 6 */
-/*!********************!*\
-  !*** ./src/mvp.js ***!
-  \********************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	
-	module.exports = calculatePurchaseOptions;
-	function updateTotal(option) {
-	  option.total = _(option.pizzas).map("diameter").map(function (d) {
-	    return d / 2;
-	  }).map(function (r) {
-	    return r * r;
-	  }).map(function (r2) {
-	    return r2 * Math.PI;
-	  }).reduce(function (sum, area) {
-	    return area + sum;
-	  });
-	}
-	
-	function addPizza(totalSize, pizzas, option, options, index) {
-	  index = index || 0;
-	  if (option.total > totalSize) {
-	    options.push(option);
-	  } else {
-	    for (var i = index; i < pizzas.length; ++i) {
-	      var newOp = { pizzas: _.clone(option.pizzas) };
-	      newOp.pizzas.push(pizzas[i]);
-	      updateTotal(newOp);
-	      addPizza(totalSize, pizzas, newOp, options, i);
-	    }
-	  }
-	  return options;
-	}
-	
-	function calculatePurchaseOptions(eaters, pizzas, servingSize, sortBy) {
-	  var pizzas = _.sortBy(_.cloneDeep(pizzas), "diameter").reverse(),
-	      numServings = _(eaters).map("servings").reduce(function (sum, num) {
-	    return sum + num;
-	  }) || 0,
-	      totalSize = numServings * servingSize;
-	
-	  return _(addPizza(totalSize, pizzas, { pizzas: [], total: 0 }, [])).tap(function (options) {
-	    return console.log("Found " + options.length + " options");
-	  }).forEach(function (option) {
-	    option.cost = _(option.pizzas).map("cost").reduce(function (sum, cost) {
-	      return sum + cost;
-	    });
-	    option.ratio = option.cost / option.total;
-	  }).sortBy("ratio").forEach(function (option, index) {
-	    return option.rank = index + 1;
-	  }).sortBy("total").forEach(function (option, index) {
-	    return option.rank += index;
-	  }).sortBy(sortBy).take(10).sortBy("total").tap(function (options) {
-	    return options.length && (options[options.length - 1].mostPizza = true);
-	  }).sortBy("ratio").tap(function (options) {
-	    return options.length && (options[0].bestDeal = true);
-	  }).sortBy("cost").tap(function (options) {
-	    return options.length && (options[0].cheapest = true);
-	  }).sortBy(sortBy).value();
-	}
-
-/***/ },
-/* 7 */
 /*!***************************!*\
   !*** ./~/lodash/index.js ***!
   \***************************/
@@ -12078,10 +12024,10 @@
 	  }
 	}.call(this));
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 24)(module), (function() { return this; }())))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 28)(module), (function() { return this; }())))
 
 /***/ },
-/* 8 */
+/* 7 */
 /*!*****************************************!*\
   !*** ./~/cyclejs/lib/data-flow-node.js ***!
   \*****************************************/
@@ -12209,7 +12155,7 @@
 	module.exports = DataFlowNode;
 
 /***/ },
-/* 9 */
+/* 8 */
 /*!*******************************************!*\
   !*** ./~/cyclejs/lib/data-flow-source.js ***!
   \*******************************************/
@@ -12239,7 +12185,7 @@
 	module.exports = DataFlowSource;
 
 /***/ },
-/* 10 */
+/* 9 */
 /*!*****************************************!*\
   !*** ./~/cyclejs/lib/data-flow-sink.js ***!
   \*****************************************/
@@ -12279,7 +12225,7 @@
 	module.exports = DataFlowSink;
 
 /***/ },
-/* 11 */
+/* 10 */
 /*!***********************************!*\
   !*** ./~/cyclejs/lib/dom-user.js ***!
   \***********************************/
@@ -12295,7 +12241,7 @@
 	  patch: __webpack_require__(/*! virtual-dom/patch */ 22)
 	};
 	var Rx = __webpack_require__(/*! rx */ 17);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
 	var CustomElements = __webpack_require__(/*! ./custom-elements */ 23);
 	
 	function isElement(o) {
@@ -12464,7 +12410,7 @@
 	module.exports = DOMUser;
 
 /***/ },
-/* 12 */
+/* 11 */
 /*!****************************************!*\
   !*** ./~/cyclejs/lib/property-hook.js ***!
   \****************************************/
@@ -12497,7 +12443,7 @@
 	module.exports = PropertyHook;
 
 /***/ },
-/* 13 */
+/* 12 */
 /*!***************************************!*\
   !*** ./~/cyclejs/lib/create-model.js ***!
   \***************************************/
@@ -12505,7 +12451,7 @@
 
 	"use strict";
 	
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
 	var errors = __webpack_require__(/*! ./errors */ 18);
 	
 	function createModel(definitionFn) {
@@ -12520,7 +12466,7 @@
 	module.exports = createModel;
 
 /***/ },
-/* 14 */
+/* 13 */
 /*!**************************************!*\
   !*** ./~/cyclejs/lib/create-view.js ***!
   \**************************************/
@@ -12529,7 +12475,7 @@
 	"use strict";
 	
 	var Rx = __webpack_require__(/*! rx */ 17);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
 	var errors = __webpack_require__(/*! ./errors */ 18);
 	
 	function checkVTree$(view) {
@@ -12591,7 +12537,7 @@
 	module.exports = createView;
 
 /***/ },
-/* 15 */
+/* 14 */
 /*!****************************************!*\
   !*** ./~/cyclejs/lib/create-intent.js ***!
   \****************************************/
@@ -12599,7 +12545,7 @@
 
 	"use strict";
 	
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
+	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 7);
 	var errors = __webpack_require__(/*! ./errors */ 18);
 	
 	function createIntent(definitionFn) {
@@ -12614,6 +12560,71 @@
 	module.exports = createIntent;
 
 /***/ },
+/* 15 */
+/*!**********************!*\
+  !*** ./~/mvp/es5.js ***!
+  \**********************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	module.exports = calculatePurchaseOptions;
+	function updateTotal(option) {
+	  option.total = _(option.pizzas).map("diameter").map(function (d) {
+	    return d / 2;
+	  }).map(function (r) {
+	    return r * r;
+	  }).map(function (r2) {
+	    return r2 * Math.PI;
+	  }).reduce(function (sum, area) {
+	    return area + sum;
+	  });
+	}
+	
+	function addPizza(totalSize, pizzas, option, options, index) {
+	  index = index || 0;
+	  if (option.total > totalSize) {
+	    options.push(option);
+	  } else {
+	    for (var i = index; i < pizzas.length; ++i) {
+	      var newOp = { pizzas: _.clone(option.pizzas) };
+	      newOp.pizzas.push(pizzas[i]);
+	      updateTotal(newOp);
+	      addPizza(totalSize, pizzas, newOp, options, i);
+	    }
+	  }
+	  return options;
+	}
+	
+	function calculatePurchaseOptions(eaters, pizzas, servingSize, sortBy) {
+	  var pizzas = _.sortBy(_.cloneDeep(pizzas), "diameter").reverse(),
+	      numServings = _(eaters).map("servings").reduce(function (sum, num) {
+	    return sum + num;
+	  }) || 0,
+	      totalSize = numServings * servingSize;
+	
+	  return _(addPizza(totalSize, pizzas, { pizzas: [], total: 0 }, [])).tap(function (options) {
+	    return console.log("Found " + options.length + " options");
+	  }).forEach(function (option) {
+	    option.cost = _(option.pizzas).map("cost").reduce(function (sum, cost) {
+	      return sum + cost;
+	    });
+	    option.ratio = option.cost / option.total;
+	  }).sortBy("ratio").forEach(function (option, index) {
+	    return option.rank = index + 1;
+	  }).sortBy("total").forEach(function (option, index) {
+	    return option.rank += index;
+	  }).sortBy(sortBy).take(10).sortBy("total").tap(function (options) {
+	    return options.length && (options[options.length - 1].mostPizza = true);
+	  }).sortBy("ratio").tap(function (options) {
+	    return options.length && (options[0].bestDeal = true);
+	  }).sortBy("cost").tap(function (options) {
+	    return options.length && (options[0].cheapest = true);
+	  }).sortBy(sortBy).value();
+	}
+
+
+/***/ },
 /* 16 */
 /*!******************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/index.js ***!
@@ -12622,10 +12633,10 @@
 
 	var diff = __webpack_require__(/*! ./diff.js */ 21)
 	var patch = __webpack_require__(/*! ./patch.js */ 22)
-	var h = __webpack_require__(/*! ./h.js */ 25)
-	var create = __webpack_require__(/*! ./create-element.js */ 26)
-	var VNode = __webpack_require__(/*! ./vnode/vnode.js */ 27)
-	var VText = __webpack_require__(/*! ./vnode/vtext.js */ 28)
+	var h = __webpack_require__(/*! ./h.js */ 24)
+	var create = __webpack_require__(/*! ./create-element.js */ 25)
+	var VNode = __webpack_require__(/*! ./vnode/vnode.js */ 26)
+	var VText = __webpack_require__(/*! ./vnode/vtext.js */ 27)
 	
 	module.exports = {
 	    diff: diff,
@@ -22829,7 +22840,7 @@
 	
 	}.call(this));
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 24)(module), (function() { return this; }()), __webpack_require__(/*! (webpack)/~/node-libs-browser/~/process/browser.js */ 31)))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 28)(module), (function() { return this; }()), __webpack_require__(/*! (webpack)/~/node-libs-browser/~/process/browser.js */ 31)))
 
 /***/ },
 /* 18 */
@@ -23063,7 +23074,7 @@
 	}
 	
 	function makeInit(tagName, definitionFn) {
-	  var DOMUser = __webpack_require__(/*! ./dom-user */ 11);
+	  var DOMUser = __webpack_require__(/*! ./dom-user */ 10);
 	  return function initCustomElement() {
 	    var widget = this;
 	    var element = createContainerElement(tagName, widget.properties);
@@ -23114,59 +23125,40 @@
 
 /***/ },
 /* 24 */
-/*!***********************************!*\
-  !*** (webpack)/buildin/module.js ***!
-  \***********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = function(module) {
-		if(!module.webpackPolyfill) {
-			module.deprecate = function() {};
-			module.paths = [];
-			// module.parent = undefined by default
-			module.children = [];
-			module.webpackPolyfill = 1;
-		}
-		return module;
-	}
-
-
-/***/ },
-/* 25 */
 /*!**************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/h.js ***!
   \**************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 38)
+	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 33)
 	
 	module.exports = h
 
 
 /***/ },
-/* 26 */
+/* 25 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/create-element.js ***!
   \***************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 37)
+	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 32)
 	
 	module.exports = createElement
 
 
 /***/ },
-/* 27 */
+/* 26 */
 /*!************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/vnode.js ***!
   \************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 32)
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 33)
-	var isWidget = __webpack_require__(/*! ./is-widget */ 34)
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 35)
-	var isVHook = __webpack_require__(/*! ./is-vhook */ 36)
+	var version = __webpack_require__(/*! ./version */ 34)
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 35)
+	var isWidget = __webpack_require__(/*! ./is-widget */ 36)
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 37)
+	var isVHook = __webpack_require__(/*! ./is-vhook */ 38)
 	
 	module.exports = VirtualNode
 	
@@ -23237,13 +23229,13 @@
 
 
 /***/ },
-/* 28 */
+/* 27 */
 /*!************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/vtext.js ***!
   \************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 32)
+	var version = __webpack_require__(/*! ./version */ 34)
 	
 	module.exports = VirtualText
 	
@@ -23256,6 +23248,25 @@
 
 
 /***/ },
+/* 28 */
+/*!***********************************!*\
+  !*** (webpack)/buildin/module.js ***!
+  \***********************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = function(module) {
+		if(!module.webpackPolyfill) {
+			module.deprecate = function() {};
+			module.paths = [];
+			// module.parent = undefined by default
+			module.children = [];
+			module.webpackPolyfill = 1;
+		}
+		return module;
+	}
+
+
+/***/ },
 /* 29 */
 /*!***********************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vtree/diff.js ***!
@@ -23264,14 +23275,14 @@
 
 	var isArray = __webpack_require__(/*! x-is-array */ 49)
 	
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 41)
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 33)
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 42)
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 34)
-	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 35)
-	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk */ 43)
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 39)
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 35)
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 40)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 36)
+	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 37)
+	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk */ 41)
 	
-	var diffProps = __webpack_require__(/*! ./diff-props */ 44)
+	var diffProps = __webpack_require__(/*! ./diff-props */ 42)
 	
 	module.exports = diff
 	
@@ -23701,8 +23712,8 @@
 	var document = __webpack_require__(/*! global/document */ 50)
 	var isArray = __webpack_require__(/*! x-is-array */ 49)
 	
-	var domIndex = __webpack_require__(/*! ./dom-index */ 39)
-	var patchOp = __webpack_require__(/*! ./patch-op */ 40)
+	var domIndex = __webpack_require__(/*! ./dom-index */ 43)
+	var patchOp = __webpack_require__(/*! ./patch-op */ 44)
 	module.exports = patch
 	
 	function patch(rootNode, patches) {
@@ -23845,76 +23856,6 @@
 
 /***/ },
 /* 32 */
-/*!**************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/version.js ***!
-  \**************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = "2"
-
-
-/***/ },
-/* 33 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vnode.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var version = __webpack_require__(/*! ./version */ 32)
-	
-	module.exports = isVirtualNode
-	
-	function isVirtualNode(x) {
-	    return x && x.type === "VirtualNode" && x.version === version
-	}
-
-
-/***/ },
-/* 34 */
-/*!****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-widget.js ***!
-  \****************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = isWidget
-	
-	function isWidget(w) {
-	    return w && w.type === "Widget"
-	}
-
-
-/***/ },
-/* 35 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = isThunk
-	
-	function isThunk(t) {
-	    return t && t.type === "Thunk"
-	}
-
-
-/***/ },
-/* 36 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vhook.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = isHook
-	
-	function isHook(hook) {
-	    return hook &&
-	      (typeof hook.hook === "function" && !hook.hasOwnProperty("hook") ||
-	       typeof hook.unhook === "function" && !hook.hasOwnProperty("unhook"))
-	}
-
-
-/***/ },
-/* 37 */
 /*!********************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/create-element.js ***!
   \********************************************************/
@@ -23924,10 +23865,10 @@
 	
 	var applyProperties = __webpack_require__(/*! ./apply-properties */ 45)
 	
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 33)
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 42)
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 34)
-	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 43)
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 35)
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 40)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 36)
+	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 41)
 	
 	module.exports = createElement
 	
@@ -23969,7 +23910,7 @@
 
 
 /***/ },
-/* 38 */
+/* 33 */
 /*!**************************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/index.js ***!
   \**************************************************************/
@@ -23979,13 +23920,13 @@
 	
 	var isArray = __webpack_require__(/*! x-is-array */ 49);
 	
-	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 27);
-	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 28);
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 33);
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 42);
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 34);
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 36);
-	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 35);
+	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 26);
+	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 27);
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 35);
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 40);
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 36);
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 38);
+	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 37);
 	
 	var parseTag = __webpack_require__(/*! ./parse-tag.js */ 46);
 	var softSetHook = __webpack_require__(/*! ./hooks/soft-set-hook.js */ 47);
@@ -24113,7 +24054,240 @@
 
 
 /***/ },
+/* 34 */
+/*!**************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/version.js ***!
+  \**************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = "2"
+
+
+/***/ },
+/* 35 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vnode.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 34)
+	
+	module.exports = isVirtualNode
+	
+	function isVirtualNode(x) {
+	    return x && x.type === "VirtualNode" && x.version === version
+	}
+
+
+/***/ },
+/* 36 */
+/*!****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-widget.js ***!
+  \****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = isWidget
+	
+	function isWidget(w) {
+	    return w && w.type === "Widget"
+	}
+
+
+/***/ },
+/* 37 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = isThunk
+	
+	function isThunk(t) {
+	    return t && t.type === "Thunk"
+	}
+
+
+/***/ },
+/* 38 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vhook.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = isHook
+	
+	function isHook(hook) {
+	    return hook &&
+	      (typeof hook.hook === "function" && !hook.hasOwnProperty("hook") ||
+	       typeof hook.unhook === "function" && !hook.hasOwnProperty("unhook"))
+	}
+
+
+/***/ },
 /* 39 */
+/*!*************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
+  \*************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 34)
+	
+	VirtualPatch.NONE = 0
+	VirtualPatch.VTEXT = 1
+	VirtualPatch.VNODE = 2
+	VirtualPatch.WIDGET = 3
+	VirtualPatch.PROPS = 4
+	VirtualPatch.ORDER = 5
+	VirtualPatch.INSERT = 6
+	VirtualPatch.REMOVE = 7
+	VirtualPatch.THUNK = 8
+	
+	module.exports = VirtualPatch
+	
+	function VirtualPatch(type, vNode, patch) {
+	    this.type = Number(type)
+	    this.vNode = vNode
+	    this.patch = patch
+	}
+	
+	VirtualPatch.prototype.version = version
+	VirtualPatch.prototype.type = "VirtualPatch"
+
+
+/***/ },
+/* 40 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vtext.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 34)
+	
+	module.exports = isVirtualText
+	
+	function isVirtualText(x) {
+	    return x && x.type === "VirtualText" && x.version === version
+	}
+
+
+/***/ },
+/* 41 */
+/*!*******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/handle-thunk.js ***!
+  \*******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 35)
+	var isVText = __webpack_require__(/*! ./is-vtext */ 40)
+	var isWidget = __webpack_require__(/*! ./is-widget */ 36)
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 37)
+	
+	module.exports = handleThunk
+	
+	function handleThunk(a, b) {
+	    var renderedA = a
+	    var renderedB = b
+	
+	    if (isThunk(b)) {
+	        renderedB = renderThunk(b, a)
+	    }
+	
+	    if (isThunk(a)) {
+	        renderedA = renderThunk(a, null)
+	    }
+	
+	    return {
+	        a: renderedA,
+	        b: renderedB
+	    }
+	}
+	
+	function renderThunk(thunk, previous) {
+	    var renderedThunk = thunk.vnode
+	
+	    if (!renderedThunk) {
+	        renderedThunk = thunk.vnode = thunk.render(previous)
+	    }
+	
+	    if (!(isVNode(renderedThunk) ||
+	            isVText(renderedThunk) ||
+	            isWidget(renderedThunk))) {
+	        throw new Error("thunk did not return a valid node");
+	    }
+	
+	    return renderedThunk
+	}
+
+
+/***/ },
+/* 42 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isObject = __webpack_require__(/*! is-object */ 53)
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 38)
+	
+	module.exports = diffProps
+	
+	function diffProps(a, b) {
+	    var diff
+	
+	    for (var aKey in a) {
+	        if (!(aKey in b)) {
+	            diff = diff || {}
+	            diff[aKey] = undefined
+	        }
+	
+	        var aValue = a[aKey]
+	        var bValue = b[aKey]
+	
+	        if (aValue === bValue) {
+	            continue
+	        } else if (isObject(aValue) && isObject(bValue)) {
+	            if (getPrototype(bValue) !== getPrototype(aValue)) {
+	                diff = diff || {}
+	                diff[aKey] = bValue
+	            } else if (isHook(bValue)) {
+	                 diff = diff || {}
+	                 diff[aKey] = bValue
+	            } else {
+	                var objectDiff = diffProps(aValue, bValue)
+	                if (objectDiff) {
+	                    diff = diff || {}
+	                    diff[aKey] = objectDiff
+	                }
+	            }
+	        } else {
+	            diff = diff || {}
+	            diff[aKey] = bValue
+	        }
+	    }
+	
+	    for (var bKey in b) {
+	        if (!(bKey in a)) {
+	            diff = diff || {}
+	            diff[bKey] = b[bKey]
+	        }
+	    }
+	
+	    return diff
+	}
+	
+	function getPrototype(value) {
+	  if (Object.getPrototypeOf) {
+	    return Object.getPrototypeOf(value)
+	  } else if (value.__proto__) {
+	    return value.__proto__
+	  } else if (value.constructor) {
+	    return value.constructor.prototype
+	  }
+	}
+
+
+/***/ },
+/* 43 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/dom-index.js ***!
   \***************************************************/
@@ -24207,7 +24381,7 @@
 
 
 /***/ },
-/* 40 */
+/* 44 */
 /*!**************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/patch-op.js ***!
   \**************************************************/
@@ -24215,10 +24389,10 @@
 
 	var applyProperties = __webpack_require__(/*! ./apply-properties */ 45)
 	
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 34)
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 41)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 36)
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 39)
 	
-	var render = __webpack_require__(/*! ./create-element */ 37)
+	var render = __webpack_require__(/*! ./create-element */ 32)
 	var updateWidget = __webpack_require__(/*! ./update-widget */ 51)
 	
 	module.exports = applyPatch
@@ -24368,169 +24542,6 @@
 
 
 /***/ },
-/* 41 */
-/*!*************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
-  \*************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var version = __webpack_require__(/*! ./version */ 32)
-	
-	VirtualPatch.NONE = 0
-	VirtualPatch.VTEXT = 1
-	VirtualPatch.VNODE = 2
-	VirtualPatch.WIDGET = 3
-	VirtualPatch.PROPS = 4
-	VirtualPatch.ORDER = 5
-	VirtualPatch.INSERT = 6
-	VirtualPatch.REMOVE = 7
-	VirtualPatch.THUNK = 8
-	
-	module.exports = VirtualPatch
-	
-	function VirtualPatch(type, vNode, patch) {
-	    this.type = Number(type)
-	    this.vNode = vNode
-	    this.patch = patch
-	}
-	
-	VirtualPatch.prototype.version = version
-	VirtualPatch.prototype.type = "VirtualPatch"
-
-
-/***/ },
-/* 42 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vtext.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var version = __webpack_require__(/*! ./version */ 32)
-	
-	module.exports = isVirtualText
-	
-	function isVirtualText(x) {
-	    return x && x.type === "VirtualText" && x.version === version
-	}
-
-
-/***/ },
-/* 43 */
-/*!*******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/handle-thunk.js ***!
-  \*******************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 33)
-	var isVText = __webpack_require__(/*! ./is-vtext */ 42)
-	var isWidget = __webpack_require__(/*! ./is-widget */ 34)
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 35)
-	
-	module.exports = handleThunk
-	
-	function handleThunk(a, b) {
-	    var renderedA = a
-	    var renderedB = b
-	
-	    if (isThunk(b)) {
-	        renderedB = renderThunk(b, a)
-	    }
-	
-	    if (isThunk(a)) {
-	        renderedA = renderThunk(a, null)
-	    }
-	
-	    return {
-	        a: renderedA,
-	        b: renderedB
-	    }
-	}
-	
-	function renderThunk(thunk, previous) {
-	    var renderedThunk = thunk.vnode
-	
-	    if (!renderedThunk) {
-	        renderedThunk = thunk.vnode = thunk.render(previous)
-	    }
-	
-	    if (!(isVNode(renderedThunk) ||
-	            isVText(renderedThunk) ||
-	            isWidget(renderedThunk))) {
-	        throw new Error("thunk did not return a valid node");
-	    }
-	
-	    return renderedThunk
-	}
-
-
-/***/ },
-/* 44 */
-/*!*****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
-  \*****************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var isObject = __webpack_require__(/*! is-object */ 53)
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 36)
-	
-	module.exports = diffProps
-	
-	function diffProps(a, b) {
-	    var diff
-	
-	    for (var aKey in a) {
-	        if (!(aKey in b)) {
-	            diff = diff || {}
-	            diff[aKey] = undefined
-	        }
-	
-	        var aValue = a[aKey]
-	        var bValue = b[aKey]
-	
-	        if (aValue === bValue) {
-	            continue
-	        } else if (isObject(aValue) && isObject(bValue)) {
-	            if (getPrototype(bValue) !== getPrototype(aValue)) {
-	                diff = diff || {}
-	                diff[aKey] = bValue
-	            } else if (isHook(bValue)) {
-	                 diff = diff || {}
-	                 diff[aKey] = bValue
-	            } else {
-	                var objectDiff = diffProps(aValue, bValue)
-	                if (objectDiff) {
-	                    diff = diff || {}
-	                    diff[aKey] = objectDiff
-	                }
-	            }
-	        } else {
-	            diff = diff || {}
-	            diff[aKey] = bValue
-	        }
-	    }
-	
-	    for (var bKey in b) {
-	        if (!(bKey in a)) {
-	            diff = diff || {}
-	            diff[bKey] = b[bKey]
-	        }
-	    }
-	
-	    return diff
-	}
-	
-	function getPrototype(value) {
-	  if (Object.getPrototypeOf) {
-	    return Object.getPrototypeOf(value)
-	  } else if (value.__proto__) {
-	    return value.__proto__
-	  } else if (value.constructor) {
-	    return value.constructor.prototype
-	  }
-	}
-
-
-/***/ },
 /* 45 */
 /*!**********************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/apply-properties.js ***!
@@ -24538,7 +24549,7 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	var isObject = __webpack_require__(/*! is-object */ 53)
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook.js */ 36)
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook.js */ 38)
 	
 	module.exports = applyProperties
 	
@@ -24810,7 +24821,7 @@
   \*******************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 34)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 36)
 	
 	module.exports = updateWidget
 	
