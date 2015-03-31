@@ -31,7 +31,7 @@ function save(model, forceSave) {
 
 var sink, serverUpdated$ = Cycle.Rx.Observable.create(_sink => sink = _sink);
 
-var Model = Cycle.createModel((Intent, Initial) => {
+var Model = Cycle.createModel((Intent, Initial, WebSocket) => {
 
   var sortByMod$ = Intent.get('sortBy$')
     .map(sortBy => model => {
@@ -46,12 +46,18 @@ var Model = Cycle.createModel((Intent, Initial) => {
       return model;
     });
 
-  var eaterAdd$ = Intent.get('eaterAdd$')
-    .map(data => model => {
-      model.gathering.eaters.push({name: data.name, servings: Math.max(data.servings, 0)});
+  function addEater(data, model) {
+    model.gathering.eaters.push({name: data.name, servings: Math.max(data.servings, 0)});
+    return model;
+  }
+
+  var eaterAdd$ = Cycle.Rx.Observable.merge(
+    Intent.get('eaterAdd$').map(data => model => {
+      addEater(data, model);
       save(model);
       return model;
-    });
+    }),
+    WebSocket.get('eaterAdd$').map(data => model => addEater(data, model)));
 
   var eaterStartEdit$ = Intent.get('eaterStartEdit$')
     .map(index => model => {
@@ -59,14 +65,20 @@ var Model = Cycle.createModel((Intent, Initial) => {
       return model;
     });
 
-  var eaterFinishEdit$ = Intent.get('eaterFinishEdit$')
-    .map(data => model => {
-      model.gathering.eaters[data.index].name = data.name;
-      model.gathering.eaters[data.index].servings = Math.max(data.servings, 0);
+  function eaterFinishEdit(data, model) {
+    model.gathering.eaters[data.index].name = data.name;
+    model.gathering.eaters[data.index].servings = Math.max(data.servings, 0);
+    return model;
+  }
+
+  var eaterFinishEdit$ = Cycle.Rx.Observable.merge(
+    Intent.get('eaterFinishEdit$').map(data => model => {
+      eaterFinishEdit(data, model);
       model.gathering.eaters[data.index].editing = false;
       save(model);
       return model;
-    });
+    }),
+    WebSocket.get('eaterFinishEdit$').map(data => model => eaterFinishEdit(data, model)));
 
   var eaterCancelEdit$ = Intent.get('eaterCancelEdit$')
     .map(index => model => {
@@ -91,13 +103,14 @@ var Model = Cycle.createModel((Intent, Initial) => {
   );
 
   return {
-    model$: modifications$
-              .merge(Initial.get('model$'))
-              .scan(function (model, modFn) { return modFn(model); })
-              .tap(model => model.numServings = _(model.gathering.eaters).map('servings').reduce((sum, num) => sum + num) || 0)
-              .tap(model => model.purchaseOptions = mvp(model.gathering.eaters, _.find(model.menus, {_id: model.gathering.menu}).pizzas, model.gathering.servingSize, model.sortBy))
-              //.combineLatest(route$, determineFilter)
-              .share()
+    model$:         modifications$
+                      .merge(Initial.get('model$'))
+                      .scan(function (model, modFn) { return modFn(model); })
+                      .tap(model => model.numServings = _(model.gathering.eaters).map('servings').reduce((sum, num) => sum + num) || 0)
+                      .tap(model => model.purchaseOptions = mvp(model.gathering.eaters, _.find(model.menus, {_id: model.gathering.menu}).pizzas, model.gathering.servingSize, model.sortBy))
+                      //.combineLatest(route$, determineFilter)
+                      .share(),
+    serverUpdated$: serverUpdate$
   }
 });
 

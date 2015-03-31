@@ -97,5 +97,19 @@ var server = app.listen(process.env.PORT || 3000, function () {
   var host = server.address().address;
   var port = server.address().port;
 
-  console.log('Example app listening at http://%s:%s', host, port);
+  console.log('App listening at http://%s:%s', host, port);
+});
+
+var io = require('socket.io')(server);
+io.on('connection', function (socket) {
+  console.log('connected');
+  socket.on('setRoom', function (room) {
+    console.log('setRoom: '+room);
+    socket.join(room);
+    socket.on('intent', function(intent) {
+      console.log('intent: ');
+      console.log(intent);
+      socket.to(room).emit('intent', intent);
+    })
+  });
 });

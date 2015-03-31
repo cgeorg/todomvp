@@ -10,4 +10,5 @@ html(lang="en")
             != 'window.menus = ' + JSON.stringify(menus) + ';'
             != 'window.gathering = ' + JSON.stringify(gathering) + ';'
 
+        script(src='/socket.io/socket.io.js')
         script(src='script.js')
