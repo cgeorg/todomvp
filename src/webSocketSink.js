@@ -4,7 +4,7 @@ var socket = io.connect(window.location.origin);
 var idSub = null;
 
 function joinRoom(model) {
-  if (model.gathering._id) {
+  if (model.gathering && model.gathering._id) {
     socket.emit('setRoom', model.gathering._id);
     socket.on('intent', function (event) {
       observers[event.event].onNext(event.data);
