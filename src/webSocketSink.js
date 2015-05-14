@@ -16,7 +16,6 @@ function joinRoom(model) {
 
 function replicate(Intent, event) {
   Intent.get(event).subscribe(data => {
-    console.log('hey');
     return !idSub && socket.emit('intent', {event, data});
   })
 }
