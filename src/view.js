@@ -46,14 +46,31 @@ function renderOption(servingSize, servings, option) {
   </tr>
 }
 
+function menuDetail(menu, sliceSize) {
+    return [
+        <h3>{menu.name}'s Menu</h3>,
+        <dl>
+            {menu.pizzas.map(pizza =>
+                    [
+                        <dt>{pizza.name}</dt>,
+                        <dd>{''+pizza.diameter}", {''+pizza.cuts} cuts</dd>,
+                        <dd>{(Math.pow(pizza.diameter / 2, 2) * Math.PI / pizza.cuts / sliceSize).toFixed(2)} 'slices' per slice</dd>
+                    ]
+            )}
+        </dl>
+    ]
+}
+
 function renderMenuSelection(menus, gathering, numServings) {
   return [
     <h2>Where are we ordering {'' + numServings} slices from?</h2>,
     <select className='menu'>
-      {_.map(menus, (menu) =>
+      {menus.map(menu =>
         <option selected={gathering.menu === menu._id}>{menu.name}</option>
       )}
-    </select>
+    </select>,
+    _.filter(menus, {_id: gathering.menu}).map(menu => menuDetail(menu, gathering.servingSize))
+
   ];
 }
 

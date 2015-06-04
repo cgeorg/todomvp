@@ -31,7 +31,7 @@ var gathering = (window && window.gathering) || {
   };
 
 function getDefaultServing() {
-  return Math.floor(Math.pow(menus[0].pizzas[0].diameter / 2, 2) * Math.PI * 1000 / menus[0].pizzas[0].cuts) / 1000;
+  return Math.floor(Math.pow(menus[0].pizzas[1].diameter / 2, 2) * Math.PI * 1000 / menus[0].pizzas[1].cuts) / 1000;
 }
 
 var ModelSource = Cycle.createDataFlowSource({
