@@ -1,15 +1,15 @@
 var MongoClient = require('mongodb').MongoClient,
-    config      = require('./conf');
+    config = require('./conf');
 
 function executeWithDb(callback) {
-  MongoClient.connect(config.dbUrl, function (err, db) {
-    //TODO handle err
-    callback(db).finally(function() {
-      db.close();
+    MongoClient.connect(config.dbUrl, function (err, db) {
+        //TODO handle err
+        callback(db).finally(function () {
+            db.close();
+        });
     });
-  });
 }
 
 module.exports = {
-  executeWithDb: executeWithDb
+    executeWithDb: executeWithDb
 };

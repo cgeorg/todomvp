@@ -1,4 +1,4 @@
-import Cycle from 'cyclejs';
+import {Rx} from 'cyclejs';
 
 /* Monte Cellos scrape function - doesn't grab cost
 
@@ -13,29 +13,29 @@ import Cycle from 'cyclejs';
  */
 
 var menus = (window && window.menus) || [
-    {
-      _id:    '54fca86fe976eead6c54544c',
-      name:   'Monte Cellos Pittsburgh',
-      pizzas: [
-        {name: 'Large', diameter: 16, cuts: 10, cost: 12.95},
-        {name: 'Medium', diameter: 14, cost: 9.95},
-        {name: 'Small', diameter: 12, cost: 8.95}
-      ]
-    }
-  ];
+        {
+            _id: '54fca86fe976eead6c54544c',
+            name: 'Monte Cellos Pittsburgh',
+            pizzas: [
+                {name: 'Large', diameter: 16, cuts: 10, cost: 12.95},
+                {name: 'Medium', diameter: 14, cost: 9.95},
+                {name: 'Small', diameter: 12, cost: 8.95}
+            ]
+        }
+    ];
 
 var gathering = (window && window.gathering) || {
-    eaters:      [],
-    servingSize: getDefaultServing(),
-    menu:        menus[0]._id
-  };
+        eaters: [],
+        servingSize: getDefaultServing(),
+        menu: menus[0]._id
+    };
 
 function getDefaultServing() {
-  return Math.floor(Math.pow(menus[0].pizzas[1].diameter / 2, 2) * Math.PI * 1000 / menus[0].pizzas[1].cuts) / 1000;
+    return Math.floor(Math.pow(menus[0].pizzas[1].diameter / 2, 2) * Math.PI * 1000 / menus[0].pizzas[1].cuts) / 1000;
 }
 
-var ModelSource = Cycle.createDataFlowSource({
-  model$: Rx.Observable.just({menus, gathering, sortBy: 'rank'})
-});
-
-export default ModelSource;
+export default function ModelSource() {
+    return {
+        model$: Rx.Observable.just({menus, gathering, sortBy: 'rank'})
+    }
+};

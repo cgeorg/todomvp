@@ -4,12 +4,13 @@ import Model from './model';
 import View from './view';
 import Intent from './intent';
 import InitialModel from './initial';
-import WebSocketNode from './webSocketSink';
+import {WebSocketSinks, WebSocketIntents} from './webSockets';
 
-var User = Cycle.createDOMUser(document.body);
+var computer = function (interactions) {
+    const intent = Intent(interactions);
+    const model = Model(intent, InitialModel(), WebSocketIntents());
+    WebSocketSinks(intent, model);
+    return View(model);
+};
 
-User.inject(View);
-View.inject(Model);
-Model.inject(Intent, InitialModel, WebSocketNode);
-Intent.inject(User);
-WebSocketNode.inject(Intent, Model);
+Cycle.applyToDOM(document.body, computer);

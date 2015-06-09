@@ -1,6 +1,6 @@
 /** @jsx */
-import Cycle from 'cyclejs';
 import _ from 'lodash';
+import propHook from './propHook';
 
 function renderOptions(model) {
     return [
@@ -109,24 +109,27 @@ function renderEater(eater, index) {
             <span className='eater-name'
                   attributes={{'data-index': index}}>{`${eater.name}: ${eater.servings} slice${eater.servings === 1 ? '' : 's'}`}</span>
             <span className='init-edit' attributes={{'data-index': index}}> edit</span>
-            <input className='edit-eater' value={`${eater.name}: ${eater.servings}`} attributes={{'data-index': index}}
-                   vdomPropHook={Cycle.vdomPropHook(propHook)}/>
+            <input className='edit-eater' attributes={{'data-index': index}} value={propHook(element => {
+              element.value = `${eater.name}: ${eater.servings}`;
+              if (eater.editing) {
+                element.focus();
+                element.selectionStart = element.value.length;
+              }
+            })}/>
         </li>
     );
 }
 
-var View = Cycle.createView(Model =>
-        ({
-            vtree$: Model.get('model$').map(model =>
-                    <div>
-                        <h1>TODO: Order Minimum Viable Pizza</h1>
-                        {renderSave(model.gathering)}
-                        {renderEaters(model.gathering)}
-                        {renderMenuSelection(model.menus, model.gathering, model.numServings)}
-                        {renderOptions(model)}
-                    </div>
-            )
-        })
-);
-
-export default View;
+export default function View(model) {
+    return {
+        vtree$: model.model$.map(model =>
+                <div>
+                    <h1>TODO: Order Minimum Viable Pizza</h1>
+                    {renderSave(model.gathering)}
+                    {renderEaters(model.gathering)}
+                    {renderMenuSelection(model.menus, model.gathering, model.numServings)}
+                    {renderOptions(model)}
+                </div>
+        )
+    }
+};

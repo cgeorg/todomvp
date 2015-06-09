@@ -1,46 +1,45 @@
-import Cycle from 'cyclejs';
+import {Rx} from 'cyclejs';
 
-var Intent = Cycle.createIntent(User => ({
+export default function Intent(interactions) {
+    return {
+        sortBy$: interactions.get('th', 'click')
+            .map(ev => ev.target.getAttribute('data-order'))
+            .filter(order => !!order),
 
-    sortBy$: User.event$('th', 'click')
-        .map(ev => ev.target.getAttribute('data-order'))
-        .filter(order => !!order),
+        selectMenu$: interactions.get('.menu', 'change')
+            .map(ev => ev.target.options[ev.target.selectedIndex].value),
 
-    selectMenu$: User.event$('.menu', 'change')
-        .map(ev => ev.target.options[ev.target.selectedIndex].value),
+        eaterAdd$: interactions.get('.new-eater', 'keypress')
+            .filter(ev => ev.keyCode === 13)
+            .map(ev => ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/))
+            .filter(match => match)
+            .map(match => ({name: match[1], servings: parseInt(match[2], 10)})),
 
-    eaterAdd$: User.event$('.new-eater', 'keypress')
-        .filter(ev => ev.keyCode === 13)
-        .map(ev => ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/))
-        .filter(match => match)
-        .map(match => ({name: match[1], servings: parseInt(match[2], 10)})),
+        eaterStartEdit$: Rx.Observable.merge(
+            interactions.get('.init-edit', 'click'),
+            interactions.get('.eater-name', 'dblclick'))
+            .map(ev => ev.target.getAttribute('data-index')),
 
-    eaterStartEdit$: Cycle.Rx.Observable.merge(
-        User.event$('.init-edit', 'click'),
-        User.event$('.eater-name', 'dblclick'))
-        .map(ev => ev.target.getAttribute('data-index')),
+        eaterFinishEdit$: interactions.get('.edit-eater', 'keypress')
+            .filter(ev => ev.keyCode === 13)
+            .merge(interactions.get('.edit-eater', 'blur'))
+            .map(ev => ({
+                index: ev.target.getAttribute('data-index'),
+                match: ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/)
+            }))
+            .filter(match => match.match)
+            .map(match => ({
+                index: match.index,
+                name: match.match[1],
+                servings: parseInt(match.match[2], 10)
+            })),
 
-    eaterFinishEdit$: User.event$('.edit-eater', 'keypress')
-        .filter(ev => ev.keyCode === 13)
-        .merge(User.event$('.edit-eater', 'blur'))
-        .map(ev => ({
-            index: ev.target.getAttribute('data-index'),
-            match: ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/)
-        }))
-        .filter(match => match.match)
-        .map(match => ({
-            index: match.index,
-            name: match.match[1],
-            servings: parseInt(match.match[2], 10)
-        })),
+        eaterCancelEdit$: interactions.get('.edit-eater', 'keypress')
+            .filter(ev => ev.keyCode === 27)
+            .map(ev => ev.target.getAttribute('data-index')),
 
-    eaterCancelEdit$: User.event$('.edit-eater', 'keypress')
-        .filter(ev => ev.keyCode === 27)
-        .map(ev => ev.target.getAttribute('data-index')),
+        saveGathering$: interactions.get('button.save', 'click')
+            .map(ev => true)
 
-    saveGathering$: User.event$('button.save', 'click')
-        .map(ev => true)
-
-}));
-
-export default Intent;
+    };
+};

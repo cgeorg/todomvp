@@ -61,15 +61,19 @@
 	
 	var InitialModel = _interopRequire(__webpack_require__(/*! ./initial */ 4));
 	
-	var WebSocketNode = _interopRequire(__webpack_require__(/*! ./webSocketSink */ 5));
+	var _webSockets = __webpack_require__(/*! ./webSockets */ 5);
 	
-	var User = Cycle.createDOMUser(document.body);
+	var WebSocketSinks = _webSockets.WebSocketSinks;
+	var WebSocketIntents = _webSockets.WebSocketIntents;
 	
-	User.inject(View);
-	View.inject(Model);
-	Model.inject(Intent, InitialModel, WebSocketNode);
-	Intent.inject(User);
-	WebSocketNode.inject(Intent, Model);
+	var computer = function computer(interactions) {
+	    var intent = Intent(interactions);
+	    var model = Model(intent, InitialModel(), WebSocketIntents());
+	    WebSocketSinks(intent, model);
+	    return View(model);
+	};
+	
+	Cycle.applyToDOM(document.body, computer);
 
 /***/ },
 /* 1 */
@@ -82,144 +86,144 @@
 	
 	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 	
-	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 6));
+	module.exports = Model;
 	
-	var _ = _interopRequire(__webpack_require__(/*! lodash */ 7));
+	var Rx = __webpack_require__(/*! cyclejs */ 6).Rx;
 	
-	var mvp = _interopRequire(__webpack_require__(/*! mvp */ 16));
+	var _ = _interopRequire(__webpack_require__(/*! lodash */ 8));
+	
+	var mvp = _interopRequire(__webpack_require__(/*! mvp */ 12));
 	
 	function save(model, forceSave) {
 	
-	  if (!model.gathering._id && !forceSave) {
-	    return;
-	  }
-	
-	  var request = new XMLHttpRequest();
-	  if (model.gathering._id) {
-	    request.open("PUT", "/" + model.gathering._id, true);
-	  } else {
-	    request.open("POST", "/", true);
-	  }
-	  request.setRequestHeader("Content-type", "application/json; charset=utf-8");
-	  request.setRequestHeader("Accept", "application/json");
-	
-	  request.onreadystatechange = function () {
-	    if (request.readyState === 4) {
-	      if (request.status >= 200 && request.status < 300) {
-	        var response = JSON.parse(request.responseText);
-	        window.history.pushState(null, document.title, "/" + response._id);
-	        sink.onNext(response);
-	      }
+	    if (!model.gathering._id && !forceSave) {
+	        return;
 	    }
-	  };
-	  request.send(JSON.stringify(model.gathering));
+	
+	    var request = new XMLHttpRequest();
+	    if (model.gathering._id) {
+	        request.open("PUT", "/" + model.gathering._id, true);
+	    } else {
+	        request.open("POST", "/", true);
+	    }
+	    request.setRequestHeader("Content-type", "application/json; charset=utf-8");
+	    request.setRequestHeader("Accept", "application/json");
+	
+	    request.onreadystatechange = function () {
+	        if (request.readyState === 4) {
+	            if (request.status >= 200 && request.status < 300) {
+	                var response = JSON.parse(request.responseText);
+	                window.history.pushState(null, document.title, "/" + response._id);
+	                sink.onNext(response);
+	            }
+	        }
+	    };
+	    request.send(JSON.stringify(model.gathering));
 	}
 	
 	var sink,
-	    serverUpdated$ = Cycle.Rx.Observable.create(function (_sink) {
-	  return sink = _sink;
+	    serverUpdated$ = Rx.Observable.create(function (_sink) {
+	    return sink = _sink;
 	});
 	
-	var Model = Cycle.createModel(function (Intent, Initial, WebSocket) {
+	function Model(intent, initial, webSocket) {
 	
-	  var sortByMod$ = Intent.get("sortBy$").map(function (sortBy) {
-	    return function (model) {
-	      model.sortBy = sortBy;
-	      return model;
+	    var sortByMod$ = intent.sortBy$.map(function (sortBy) {
+	        return function (model) {
+	            model.sortBy = sortBy;
+	            return model;
+	        };
+	    });
+	
+	    var menuMod$ = intent.selectMenu$.map(function (name) {
+	        return function (model) {
+	            model.gathering.menu = (_.find(model.menus, { name: name }) || model.menus[0])._id;
+	            save(model);
+	            return model;
+	        };
+	    });
+	
+	    function addEater(data, model) {
+	        model.gathering.eaters.push({ name: data.name, servings: Math.max(data.servings, 0) });
+	        return model;
+	    }
+	
+	    var eaterAdd$ = Rx.Observable.merge(intent.eaterAdd$.map(function (data) {
+	        return function (model) {
+	            addEater(data, model);
+	            save(model);
+	            return model;
+	        };
+	    }), webSocket.eaterAdd$.map(function (data) {
+	        return function (model) {
+	            return addEater(data, model);
+	        };
+	    }));
+	
+	    var eaterStartEdit$ = intent.eaterStartEdit$.map(function (index) {
+	        return function (model) {
+	            model.gathering.eaters[index].editing = true;
+	            return model;
+	        };
+	    });
+	
+	    function eaterFinishEdit(data, model) {
+	        model.gathering.eaters[data.index].name = data.name;
+	        model.gathering.eaters[data.index].servings = Math.max(data.servings, 0);
+	        return model;
+	    }
+	
+	    var eaterFinishEdit$ = Rx.Observable.merge(intent.eaterFinishEdit$.map(function (data) {
+	        return function (model) {
+	            eaterFinishEdit(data, model);
+	            model.gathering.eaters[data.index].editing = false;
+	            save(model);
+	            return model;
+	        };
+	    }), webSocket.eaterFinishEdit$.map(function (data) {
+	        return function (model) {
+	            return eaterFinishEdit(data, model);
+	        };
+	    }));
+	
+	    var eaterCancelEdit$ = intent.eaterCancelEdit$.map(function (index) {
+	        return function (model) {
+	            model.gathering.eaters[index].editing = false;
+	            return model;
+	        };
+	    });
+	
+	    var saveGathering$ = intent.saveGathering$.map(function (data) {
+	        return function (model) {
+	            save(model, true);
+	            return model;
+	        };
+	    });
+	
+	    var serverUpdate$ = serverUpdated$.map(function (data) {
+	        return function (model) {
+	            model.gathering._id = data._id;
+	            return model;
+	        };
+	    });
+	
+	    var modifications$ = Rx.Observable.merge(sortByMod$, menuMod$, eaterAdd$, saveGathering$, serverUpdate$, eaterCancelEdit$, eaterFinishEdit$, eaterStartEdit$);
+	
+	    return {
+	        model$: modifications$.merge(initial.model$).scan(function (model, modFn) {
+	            return modFn(model);
+	        }).tap(function (model) {
+	            return model.numServings = _(model.gathering.eaters).map("servings").reduce(function (sum, num) {
+	                return sum + num;
+	            }) || 0;
+	        }).tap(function (model) {
+	            return model.purchaseOptions = mvp(model.gathering.eaters, _.find(model.menus, { _id: model.gathering.menu }).pizzas, model.gathering.servingSize, model.sortBy);
+	        })
+	        //.combineLatest(route$, determineFilter)
+	        .share(),
+	        serverUpdated$: serverUpdate$
 	    };
-	  });
-	
-	  var menuMod$ = Intent.get("selectMenu$").map(function (name) {
-	    return function (model) {
-	      model.gathering.menu = (_.find(model.menus, { name: name }) || model.menus[0])._id;
-	      save(model);
-	      return model;
-	    };
-	  });
-	
-	  function addEater(data, model) {
-	    model.gathering.eaters.push({ name: data.name, servings: Math.max(data.servings, 0) });
-	    return model;
-	  }
-	
-	  var eaterAdd$ = Cycle.Rx.Observable.merge(Intent.get("eaterAdd$").map(function (data) {
-	    return function (model) {
-	      addEater(data, model);
-	      save(model);
-	      return model;
-	    };
-	  }), WebSocket.get("eaterAdd$").map(function (data) {
-	    return function (model) {
-	      return addEater(data, model);
-	    };
-	  }));
-	
-	  var eaterStartEdit$ = Intent.get("eaterStartEdit$").map(function (index) {
-	    return function (model) {
-	      model.gathering.eaters[index].editing = true;
-	      return model;
-	    };
-	  });
-	
-	  function eaterFinishEdit(data, model) {
-	    model.gathering.eaters[data.index].name = data.name;
-	    model.gathering.eaters[data.index].servings = Math.max(data.servings, 0);
-	    return model;
-	  }
-	
-	  var eaterFinishEdit$ = Cycle.Rx.Observable.merge(Intent.get("eaterFinishEdit$").map(function (data) {
-	    return function (model) {
-	      eaterFinishEdit(data, model);
-	      model.gathering.eaters[data.index].editing = false;
-	      save(model);
-	      return model;
-	    };
-	  }), WebSocket.get("eaterFinishEdit$").map(function (data) {
-	    return function (model) {
-	      return eaterFinishEdit(data, model);
-	    };
-	  }));
-	
-	  var eaterCancelEdit$ = Intent.get("eaterCancelEdit$").map(function (index) {
-	    return function (model) {
-	      model.gathering.eaters[index].editing = false;
-	      return model;
-	    };
-	  });
-	
-	  var saveGathering$ = Intent.get("saveGathering$").map(function (data) {
-	    return function (model) {
-	      save(model, true);
-	      return model;
-	    };
-	  });
-	
-	  var serverUpdate$ = serverUpdated$.map(function (data) {
-	    return function (model) {
-	      model.gathering._id = data._id;
-	      return model;
-	    };
-	  });
-	
-	  var modifications$ = Rx.Observable.merge(sortByMod$, menuMod$, eaterAdd$, saveGathering$, serverUpdate$, eaterCancelEdit$, eaterFinishEdit$, eaterStartEdit$);
-	
-	  return {
-	    model$: modifications$.merge(Initial.get("model$")).scan(function (model, modFn) {
-	      return modFn(model);
-	    }).tap(function (model) {
-	      return model.numServings = _(model.gathering.eaters).map("servings").reduce(function (sum, num) {
-	        return sum + num;
-	      }) || 0;
-	    }).tap(function (model) {
-	      return model.purchaseOptions = mvp(model.gathering.eaters, _.find(model.menus, { _id: model.gathering.menu }).pizzas, model.gathering.servingSize, model.sortBy);
-	    })
-	    //.combineLatest(route$, determineFilter)
-	    .share(),
-	    serverUpdated$: serverUpdate$
-	  };
-	});
-	
-	module.exports = Model;
+	}
 
 /***/ },
 /* 2 */
@@ -232,109 +236,118 @@
 	
 	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 	
+	module.exports = View;
 	/** @jsx */
 	
-	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 6));
+	var _ = _interopRequire(__webpack_require__(/*! lodash */ 8));
 	
-	var _ = _interopRequire(__webpack_require__(/*! lodash */ 7));
+	var propHook = _interopRequire(__webpack_require__(/*! ./propHook */ 7));
 	
 	function renderOptions(model) {
-	  return [Cycle.h('h2', null, ["Let's get one of these:"]), Cycle.h('table', null, [
-	          Cycle.h('thead', null, [
-	              Cycle.h('tr', null, [
-	                  Cycle.h('th', null, ["Pizzas"]),
-	                  Cycle.h('th', {attributes: { "data-order": "total"}, className: model.sortBy === "total" ? "active" : ""}, ["Leftovers"]),
-	                  Cycle.h('th', {attributes: { "data-order": "cost"}, className: model.sortBy === "cost" ? "active" : ""}, ["Cost"]),
-	                  Cycle.h('th', {attributes: { "data-order": "rank"}, className: model.sortBy === "rank" ? "active" : ""}, ["PizzaRank™"])
-	                ])
-	            ]),
-	          Cycle.h('tbody', null, [
-	            model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize, model.numServings))
-	            ])
-	        ])];
+	    return [Cycle.h('h2', null, ["Let's get one of these:"]), Cycle.h('table', null, [
+	                    Cycle.h('thead', null, [
+	                        Cycle.h('tr', null, [
+	                                Cycle.h('th', null, ["Pizzas"]),
+	                                Cycle.h('th', {attributes: { "data-order": "total"}, className: model.sortBy === "total" ? "active" : ""}, ["Leftovers"
+	                                    ]),
+	                                Cycle.h('th', {attributes: { "data-order": "cost"}, className: model.sortBy === "cost" ? "active" : ""}, ["Cost"
+	                                    ]),
+	                                Cycle.h('th', {attributes: { "data-order": "rank"}, className: model.sortBy === "rank" ? "active" : ""}, ["PizzaRank™"
+	                                    ])
+	                            ])
+	                        ]),
+	                    Cycle.h('tbody', null, [
+	                        model.purchaseOptions.map(renderOption.bind(this, model.gathering.servingSize, model.numServings))
+	                        ])
+	                ])];
 	}
 	
 	function renderOption(servingSize, servings, option) {
-	  return Cycle.h('tr', null, [
-	        Cycle.h('td', null, [_(option.pizzas).groupBy("name").map(function (arr, name) {
-	        return "" + arr.length + " " + name;
-	      }).value().join(", ")]),
-	        Cycle.h('td', null, [
-	            option.mostPizza ? Cycle.h('span', {className: "most-pizza", title: "Most Pizza!"}) : null,
-	            (option.total / servingSize - servings).toFixed(1) + " slices"
-	          ]),
-	        Cycle.h('td', null, [
-	            option.cheapest ? Cycle.h('span', {className: "low-price", title: "Lowest Price!"}) : null,
-	            "$", "" + option.cost.toFixed(2)
-	          ]),
-	        Cycle.h('td', null, [
-	            option.bestDeal ? Cycle.h('span', {className: "best-deal", title: "Best Deal!"}) : null,
-	            "" + option.rank
-	          ])
-	      ]);
+	    return Cycle.h('tr', null, [
+	                Cycle.h('td', null, [_(option.pizzas).groupBy("name").map(function (arr, name) {
+	                return "" + arr.length + " " + name;
+	            }).value().join(", ")]),
+	                Cycle.h('td', null, [
+	                        option.mostPizza ? Cycle.h('span', {className: "most-pizza", title: "Most Pizza!"}) : null,
+	                        (option.total / servingSize - servings).toFixed(1) + " slices"
+	                    ]),
+	                Cycle.h('td', null, [
+	                        option.cheapest ? Cycle.h('span', {className: "low-price", title: "Lowest Price!"}) : null,
+	                        "$", "" + option.cost.toFixed(2)
+	                    ]),
+	                Cycle.h('td', null, [
+	                        option.bestDeal ? Cycle.h('span', {className: "best-deal", title: "Best Deal!"}) : null,
+	                        "" + option.rank
+	                    ])
+	            ]);
 	}
 	
-	function menuDetail(menu, sliceSize) {
-	  return [Cycle.h('h3', null, [menu.name]), Cycle.h('dl', null, [
-	                menu.pizzas.map(function (pizza) {
-	      return [Cycle.h('dt', null, [pizza.name]), Cycle.h('dd', null, ["" + pizza.diameter, "\", ", "" + pizza.cuts, " cuts"]), Cycle.h('dd', null, [(Math.pow(pizza.diameter / 2, 2) * Math.PI / pizza.cuts / sliceSize).toFixed(2), " 'slices' per slice"])];
-	    })
-	            ])];
+	function renderMenuDetail(menu, sliceSize) {
+	    return [Cycle.h('h3', null, [menu.name, "'s Menu"]), Cycle.h('dl', null, [
+	                    menu.pizzas.map(function (pizza) {
+	            return [Cycle.h('dt', null, [pizza.name]), Cycle.h('dd', null, ["" + pizza.diameter, "\", ", "" + pizza.cuts, " cuts"]), Cycle.h('dd', null, [(Math.pow(pizza.diameter / 2, 2) * Math.PI / pizza.cuts / sliceSize).toFixed(2), " 'slices'" + ' ' +
+	                                            "per slice"])];
+	        })
+	                ])];
 	}
 	
 	function renderMenuSelection(menus, gathering, numServings) {
-	  return [Cycle.h('h2', null, ["Where are we ordering ", "" + numServings, " slices from?"]), Cycle.h('select', {className: "menu"}, [
-	          menus.map(function (menu) {
-	      return Cycle.h('option', {selected: gathering.menu === menu._id}, [menu.name]);
-	    })
-	        ]), _.filter(menus, { _id: gathering.menu }).map(function (menu) {
-	    return menuDetail(menu, gathering.servingSize);
-	  })];
+	    return [Cycle.h('h2', null, ["Where are we ordering ", "" + numServings, " slices from?"]), Cycle.h('select', {className: "menu"}, [
+	                    menus.map(function (menu) {
+	            return Cycle.h('option', {selected: gathering.menu === menu._id}, [menu.name]);
+	        })
+	                ]), _.filter(menus, { _id: gathering.menu }).map(function (menu) {
+	        return renderMenuDetail(menu, gathering.servingSize);
+	    })];
 	}
 	
 	function renderSave(gathering) {
-	  return gathering._id ? [] : [Cycle.h('button', {className: "save"}, ["Save this gathering"])];
+	    return gathering._id ? [] : [Cycle.h('button', {className: "save"}, ["Save this gathering"])];
 	}
 	
 	function renderEaters(gathering) {
-	  return [Cycle.h('h2', null, ["Who's eating?"]), Cycle.h('ul', null, [
-	          gathering.eaters.map(renderEater),
-	          Cycle.h('li', null, [
-	              Cycle.h('input', {className: "new-eater"})
-	            ])
-	        ])];
+	    return [Cycle.h('h2', null, ["Who's eating?"]), Cycle.h('ul', null, [
+	                    gathering.eaters.map(renderEater),
+	                    Cycle.h('li', null, [
+	                            Cycle.h('input', {className: "new-eater"})
+	                        ])
+	                ])];
 	}
 	
 	function renderEater(eater, index) {
-	  function propHook(element) {
-	    if (eater.editing) {
-	      element.focus();
-	      element.selectionStart = element.value.length;
+	    function propHook(element) {
+	        if (eater.editing) {
+	            element.focus();
+	            element.selectionStart = element.value.length;
+	        }
 	    }
-	  }
 	
-	  return Cycle.h('li', {className: eater.editing ? "editing" : ""}, [
-	          Cycle.h('span', {className: "eater-name", attributes: { "data-index": index}}, ["" + eater.name + ": " + eater.servings + " slice" + (eater.servings === 1 ? "" : "s")]),
-	          Cycle.h('span', {className: "init-edit", attributes: { "data-index": index}}, [" edit"]),
-	          Cycle.h('input', {className: "edit-eater", value: "" + eater.name + ": " + eater.servings, attributes: { "data-index": index}, vdomPropHook: Cycle.vdomPropHook(propHook)})
-	        ]);
+	    return Cycle.h('li', {className: eater.editing ? "editing" : ""}, [
+	                    Cycle.h('span', {className: "eater-name", attributes: { "data-index": index}}, ["" + eater.name + ": " + eater.servings + " slice" + (eater.servings === 1 ? "" : "s")]),
+	                    Cycle.h('span', {className: "init-edit", attributes: { "data-index": index}}, [" edit"]),
+	                    Cycle.h('input', {className: "edit-eater", attributes: { "data-index": index}, value: propHook(function (element) {
+	            element.value = "" + eater.name + ": " + eater.servings;
+	            if (eater.editing) {
+	                element.focus();
+	                element.selectionStart = element.value.length;
+	            }
+	        })})
+	                ]);
 	}
 	
-	var View = Cycle.createView(function (Model) {
-	  return {
-	    vtree$: Model.get("model$").map(function (model) {
-	      return Cycle.h('div', null, [
-	                    Cycle.h('h1', null, ["TODO: Order Minimum Viable Pizza"]),
-	                    renderSave(model.gathering),
-	                    renderEaters(model.gathering),
-	                    renderMenuSelection(model.menus, model.gathering, model.numServings),
-	                    renderOptions(model)
-	                  ]);
-	    })
-	  };
-	});
-	
-	module.exports = View;
+	function View(model) {
+	    return {
+	        vtree$: model.model$.map(function (model) {
+	            return Cycle.h('div', null, [
+	                                    Cycle.h('h1', null, ["TODO: Order Minimum Viable Pizza"]),
+	                                    renderSave(model.gathering),
+	                                    renderEaters(model.gathering),
+	                                    renderMenuSelection(model.menus, model.gathering, model.numServings),
+	                                    renderOptions(model)
+	                                ]);
+	        })
+	    };
+	}
 
 /***/ },
 /* 3 */
@@ -345,24 +358,23 @@
 
 	"use strict";
 	
-	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
+	module.exports = Intent;
 	
-	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 6));
+	var Rx = __webpack_require__(/*! cyclejs */ 6).Rx;
 	
-	var Intent = Cycle.createIntent(function (User) {
+	function Intent(interactions) {
 	    return {
-	
-	        sortBy$: User.event$("th", "click").map(function (ev) {
+	        sortBy$: interactions.get("th", "click").map(function (ev) {
 	            return ev.target.getAttribute("data-order");
 	        }).filter(function (order) {
 	            return !!order;
 	        }),
 	
-	        selectMenu$: User.event$(".menu", "change").map(function (ev) {
+	        selectMenu$: interactions.get(".menu", "change").map(function (ev) {
 	            return ev.target.options[ev.target.selectedIndex].value;
 	        }),
 	
-	        eaterAdd$: User.event$(".new-eater", "keypress").filter(function (ev) {
+	        eaterAdd$: interactions.get(".new-eater", "keypress").filter(function (ev) {
 	            return ev.keyCode === 13;
 	        }).map(function (ev) {
 	            return ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/);
@@ -372,13 +384,13 @@
 	            return { name: match[1], servings: parseInt(match[2], 10) };
 	        }),
 	
-	        eaterStartEdit$: Cycle.Rx.Observable.merge(User.event$(".init-edit", "click"), User.event$(".eater-name", "dblclick")).map(function (ev) {
+	        eaterStartEdit$: Rx.Observable.merge(interactions.get(".init-edit", "click"), interactions.get(".eater-name", "dblclick")).map(function (ev) {
 	            return ev.target.getAttribute("data-index");
 	        }),
 	
-	        eaterFinishEdit$: User.event$(".edit-eater", "keypress").filter(function (ev) {
+	        eaterFinishEdit$: interactions.get(".edit-eater", "keypress").filter(function (ev) {
 	            return ev.keyCode === 13;
-	        }).merge(User.event$(".edit-eater", "blur")).map(function (ev) {
+	        }).merge(interactions.get(".edit-eater", "blur")).map(function (ev) {
 	            return {
 	                index: ev.target.getAttribute("data-index"),
 	                match: ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/)
@@ -393,20 +405,18 @@
 	            };
 	        }),
 	
-	        eaterCancelEdit$: User.event$(".edit-eater", "keypress").filter(function (ev) {
+	        eaterCancelEdit$: interactions.get(".edit-eater", "keypress").filter(function (ev) {
 	            return ev.keyCode === 27;
 	        }).map(function (ev) {
 	            return ev.target.getAttribute("data-index");
 	        }),
 	
-	        saveGathering$: User.event$("button.save", "click").map(function (ev) {
+	        saveGathering$: interactions.get("button.save", "click").map(function (ev) {
 	            return true;
 	        })
 	
 	    };
-	});
-	
-	module.exports = Intent;
+	}
 
 /***/ },
 /* 4 */
@@ -417,9 +427,9 @@
 
 	"use strict";
 	
-	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
+	module.exports = ModelSource;
 	
-	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 6));
+	var Rx = __webpack_require__(/*! cyclejs */ 6).Rx;
 	
 	/* Monte Cellos scrape function - doesn't grab cost
 	
@@ -434,65 +444,63 @@
 	 */
 	
 	var menus = window && window.menus || [{
-	  _id: "54fca86fe976eead6c54544c",
-	  name: "Monte Cellos Pittsburgh",
-	  pizzas: [{ name: "Large", diameter: 16, cuts: 10, cost: 12.95 }, { name: "Medium", diameter: 14, cost: 9.95 }, { name: "Small", diameter: 12, cost: 8.95 }]
+	    _id: "54fca86fe976eead6c54544c",
+	    name: "Monte Cellos Pittsburgh",
+	    pizzas: [{ name: "Large", diameter: 16, cuts: 10, cost: 12.95 }, { name: "Medium", diameter: 14, cost: 9.95 }, { name: "Small", diameter: 12, cost: 8.95 }]
 	}];
 	
 	var gathering = window && window.gathering || {
-	  eaters: [],
-	  servingSize: getDefaultServing(),
-	  menu: menus[0]._id
+	    eaters: [],
+	    servingSize: getDefaultServing(),
+	    menu: menus[0]._id
 	};
 	
 	function getDefaultServing() {
-	  return Math.floor(Math.pow(menus[0].pizzas[1].diameter / 2, 2) * Math.PI * 1000 / menus[0].pizzas[1].cuts) / 1000;
+	    return Math.floor(Math.pow(menus[0].pizzas[1].diameter / 2, 2) * Math.PI * 1000 / menus[0].pizzas[1].cuts) / 1000;
 	}
 	
-	var ModelSource = Cycle.createDataFlowSource({
-	  model$: Rx.Observable.just({ menus: menus, gathering: gathering, sortBy: "rank" })
-	});
-	
-	module.exports = ModelSource;
+	function ModelSource() {
+	    return {
+	        model$: Rx.Observable.just({ menus: menus, gathering: gathering, sortBy: "rank" })
+	    };
+	}
 
 /***/ },
 /* 5 */
-/*!******************************!*\
-  !*** ./src/webSocketSink.js ***!
-  \******************************/
+/*!***************************!*\
+  !*** ./src/webSockets.js ***!
+  \***************************/
 /***/ function(module, exports, __webpack_require__) {
 
 	"use strict";
 	
-	var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
-	
-	var Cycle = _interopRequire(__webpack_require__(/*! cyclejs */ 6));
+	var Rx = __webpack_require__(/*! cyclejs */ 6).Rx;
 	
 	var socket = io.connect(window.location.origin);
 	var idSub = null;
 	
 	function joinRoom(model) {
-	  if (model.gathering && model.gathering._id) {
-	    socket.emit("setRoom", model.gathering._id);
-	    socket.on("intent", function (event) {
-	      observers[event.event].onNext(event.data);
-	    });
-	    idSub.dispose();
-	    idSub = null;
-	  }
+	    if (model.gathering && model.gathering._id) {
+	        socket.emit("setRoom", model.gathering._id);
+	        socket.on("intent", function (event) {
+	            observers[event.event].onNext(event.data);
+	        });
+	        idSub.dispose();
+	        idSub = null;
+	    }
 	}
 	
-	function replicate(Intent, event) {
-	  Intent.get(event).subscribe(function (data) {
-	    return !idSub && socket.emit("intent", { event: event, data: data });
-	  });
+	function replicate(intent, event) {
+	    intent[event].subscribe(function (data) {
+	        return !idSub && socket.emit("intent", { event: event, data: data });
+	    });
 	}
 	
 	function createObservable(name) {
-	  var source = Rx.Observable.create(function (observer) {
-	    observers[name] = observer;
-	  });
-	  return source;
+	    var source = Rx.Observable.create(function (observer) {
+	        observers[name] = observer;
+	    });
+	    return source;
 	}
 	
 	var observers = {},
@@ -500,19 +508,25 @@
 	    eaterFinishEdit$ = createObservable("eaterFinishEdit$"),
 	    intents = { eaterAdd$: eaterAdd$, eaterFinishEdit$: eaterFinishEdit$ };
 	
-	var WebSocketNode = Cycle.createDataFlowNode(function (Intent, Model) {
-	  idSub = Model.get("model$").subscribe(function (model) {
-	    return joinRoom(model);
-	  });
-	  joinRoom({ gathering: window && window.gathering });
+	function WebSocketIntents() {
+	    return intents;
+	}
 	
-	  replicate(Intent, "eaterAdd$");
-	  replicate(Intent, "eaterFinishEdit$");
+	function WebSocketSinks(intent, model) {
+	    idSub = model.model$.subscribe(function (model) {
+	        return joinRoom(model);
+	    });
+	    joinRoom({ gathering: window && window.gathering });
 	
-	  return intents;
+	    replicate(intent, "eaterAdd$");
+	    replicate(intent, "eaterFinishEdit$");
+	}
+	
+	exports.WebSocketSinks = WebSocketSinks;
+	exports.WebSocketIntents = WebSocketIntents;
+	Object.defineProperty(exports, "__esModule", {
+	    value: true
 	});
-	
-	module.exports = WebSocketNode;
 
 /***/ },
 /* 6 */
@@ -521,158 +535,76 @@
   \********************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	"use strict";
-	var VirtualDOM = __webpack_require__(/*! virtual-dom */ 17);
-	var Rx = __webpack_require__(/*! rx */ 24);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
-	var DataFlowSource = __webpack_require__(/*! ./data-flow-source */ 9);
-	var DataFlowSink = __webpack_require__(/*! ./data-flow-sink */ 10);
-	var Model = __webpack_require__(/*! ./model */ 11);
-	var View = __webpack_require__(/*! ./view */ 12);
-	var DOMUser = __webpack_require__(/*! ./dom-user */ 13);
-	var Intent = __webpack_require__(/*! ./intent */ 14);
-	var PropertyHook = __webpack_require__(/*! ./property-hook */ 15);
+	'use strict';
+	var VirtualDOM = __webpack_require__(/*! virtual-dom */ 13);
+	var svg = __webpack_require__(/*! virtual-dom/virtual-hyperscript/svg */ 14);
+	var Rx = __webpack_require__(/*! rx */ 15);
+	var CustomElements = __webpack_require__(/*! ./custom-elements */ 9);
+	var RenderingDOM = __webpack_require__(/*! ./render-dom */ 10);
+	var RenderingHTML = __webpack_require__(/*! ./render-html */ 11);
 	
 	var Cycle = {
 	  /**
-	   * Creates a DataFlowNode based on the given `definitionFn`. The `definitionFn`
-	   * function will be executed immediately on create, and the resulting DataFlowNode
-	   * outputs will be synchronously available. The inputs are asynchronously injected
-	   * later with the `inject()` function on the DataFlowNode.
+	   * Takes a `computer` function which outputs an Observable of virtual DOM
+	   * elements, and renders that into the DOM element indicated by `container`,
+	   * which can be either a CSS selector or an actual element. At the same time,
+	   * provides the `interactions` input to the `computer` function, which is a
+	   * collection of all possible events happening on all elements which were
+	   * rendered. You must query this collection with
+	   * `interactions.get(selector, eventName)` in order to get an Observable of
+	   * interactions of type `eventName` happening on the element identified by
+	   * `selector`.
+	   * Example: `interactions.get('.mybutton', 'click').map(ev => ...)`
 	   *
-	   * @param {Function} definitionFn a function expecting DataFlowNodes as parameters.
-	   * This function should return an object containing RxJS Observables as properties.
-	   * The input parameters can also be plain objects with Observables as properties.
-	   * @return {DataFlowNode} a DataFlowNode, containing a `inject(inputs...)` function.
+	   * @param {(String|HTMLElement)} container the DOM selector for the element
+	   * (or the element itself) to contain the rendering of the VTrees.
+	   * @param {Function} computer a function that takes `interactions` as input
+	   * and outputs an Observable of virtual DOM elements.
+	   * @return {Object} an object containing properties `rootElem$`,
+	   * `interactions`, `dispose()` that can be used for debugging or testing.
+	   * @function applyToDOM
 	   */
-	  createDataFlowNode: function createDataFlowNode(definitionFn) {
-	    return new DataFlowNode(definitionFn);
-	  },
+	  applyToDOM: RenderingDOM.applyToDOM,
 	
 	  /**
-	   * Creates a DataFlowSource. It receives an object as argument, and outputs that same
-	   * object, annotated as a DataFlowSource. For all practical purposes, a DataFlowSource
-	   * is just a regular object with RxJS Observables, but for consistency with other
-	   * components in the framework such as DataFlowNode, the returned object is an instance
-	   * of DataFlowSource.
+	   * Converts a given Observable of virtual DOM elements (`vtree$`) into an
+	   * Observable of corresponding HTML strings (`html$`). The provided `vtree$`
+	   * must complete (must call onCompleted on its observers) in finite time,
+	   * otherwise the output `html$` will never emit an HTML string.
 	   *
-	   * @param {Object} outputObject an object containing RxJS Observables.
-	   * @return {DataFlowSource} a DataFlowSource equivalent to the given outputObject
+	   * @param {Rx.Observable} vtree$ Observable of virtual DOM elements.
+	   * @return {Rx.Observable} an Observable emitting a string as the HTML
+	   * renderization of the virtual DOM element.
+	   * @function renderAsHTML
 	   */
-	  createDataFlowSource: function createDataFlowSource(outputObject) {
-	    return new DataFlowSource(outputObject);
-	  },
+	  renderAsHTML: RenderingHTML.renderAsHTML,
 	
 	  /**
-	   * Creates a DataFlowSink, given a definition function that receives injected inputs.
+	   * Informs Cycle to recognize the given `tagName` as a custom element
+	   * implemented as the given function whenever `tagName` is used in VTrees
+	   * rendered in the context of some parent (in `applyToDOM` or in other custom
+	   * elements).
+	   * The given `definitionFn` function takes two parameters as input, in this
+	   * order: `interactions` and `properties`. The former works just like it does
+	   * in the `computer` function given to `applyToDOM`, and the later contains
+	   * Observables representing properties of the custom element, given from the
+	   * parent context. `properties.get('foo')` will return the Observable `foo$`.
 	   *
-	   * @param {Function} definitionFn a function expecting some DataFlowNode(s) as
-	   * arguments. The function should subscribe to Observables of the input DataFlowNodes
-	   * and should return a `Rx.Disposable` subscription.
-	   * @return {DataFlowSink} a DataFlowSink, containing a `inject(inputs...)` function.
-	   */
-	  createDataFlowSink: function createDataFlowSink(definitionFn) {
-	    return new DataFlowSink(definitionFn);
-	  },
-	
-	  /**
-	   * Returns a DataFlowNode representing a Model, having some Intent as input.
-	   *
-	   * Is a specialized case of `createDataFlowNode()`, with the same API.
-	   *
-	   * @param {Function} definitionFn a function expecting an Intent DataFlowNode as
-	   * parameter. Should return an object containing RxJS Observables as properties.
-	   * @return {DataFlowNode} a DataFlowNode representing a Model, containing a
-	   * `inject(intent)` function.
-	   * @function createModel
-	   */
-	  createModel: function createModel(definitionFn) {
-	    return new Model(definitionFn);
-	  },
-	
-	  /**
-	   * Returns a DataFlowNode representing a View, having some Model as input.
-	   *
-	   * Is a specialized case of `createDataFlowNode()`.
-	   *
-	   * @param {Function} definitionFn a function expecting a Model object as parameter.
-	   * Should return an object containing RxJS Observables as properties. The object **must
-	   * contain** property `vtree$`, an Observable emitting instances of VTree
-	   * (Virtual DOM elements).
-	   * @return {DataFlowNode} a DataFlowNode representing a View, containing a
-	   * `inject(model)` function.
-	   * @function createView
-	   */
-	  createView: function createView(definitionFn) {
-	    return new View(definitionFn);
-	  },
-	
-	  /**
-	   * Returns a DataFlowNode representing an Intent, having some View as input.
-	   *
-	   * Is a specialized case of `createDataFlowNode()`.
-	   *
-	   * @param {Function} definitionFn a function expecting a View object as parameter.
-	   * Should return an object containing RxJS Observables as properties.
-	   * @return {DataFlowNode} a DataFlowNode representing an Intent, containing a
-	   * `inject(view)` function.
-	   * @function createIntent
-	   */
-	  createIntent: function createIntent(definitionFn) {
-	    return new Intent(definitionFn);
-	  },
-	
-	  /**
-	   * Returns a DOMUser (a DataFlowNode) bound to a DOM container element. Contains an
-	   * `inject` function that should be called with a View as argument. Events coming from
-	   * this user can be listened using `domUser.event$(selector, eventName)`. Example:
-	   * `domUser.event$('.mybutton', 'click').subscribe( ... )`
-	   *
-	   * @param {(String|HTMLElement)} container the DOM selector for the element (or the
-	   * element itself) to contain the rendering of the VTrees.
-	   * @return {DOMUser} a DOMUser object containing functions `inject(view)` and
-	   * `event$(selector, eventName)`.
-	   * @function createDOMUser
-	   */
-	  createDOMUser: function createDOMUser(container) {
-	    return new DOMUser(container);
-	  },
-	
-	  /**
-	   * Informs Cycle to recognize the given `tagName` as a custom element implemented
-	   * as `dataFlowNode` whenever `tagName` is used in VTrees in a View rendered to a
-	   * DOMUser.
-	   * The given `dataFlowNode` must export a `vtree$` Observable. If the `dataFlowNode`
-	   * expects Observable `foo$` as input, then the custom element's attribute named `foo`
-	   * will be injected automatically into `foo$`.
+	   * The `definitionFn` must output an object containing the property `vtree$`
+	   * as an Observable. If the output object contains other Observables, then
+	   * they are treated as custom events of the custom element.
 	   *
 	   * @param {String} tagName a name for identifying the custom element.
-	   * @param {Function} definitionFn the implementation for the custom element. This
-	   * function takes two arguments: `User`, and `Properties`. Use `User` to inject into an
-	   * Intent and to be injected a View. `Properties` is a DataFlowNode containing
-	   * observables matching the custom element properties.
+	   * @param {Function} definitionFn the implementation for the custom element.
+	   * This function takes two arguments: `interactions`, and `properties`, and
+	   * should output an object of Observables.
 	   * @function registerCustomElement
 	   */
-	  registerCustomElement: function registerCustomElement(tagName, definitionFn) {
-	    DOMUser.registerCustomElement(tagName, definitionFn);
-	  },
+	  registerCustomElement: CustomElements.registerCustomElement,
 	
 	  /**
-	   * Returns a hook for manipulating an element from the real DOM. This is a helper for
-	   * creating VTrees in Views. Useful for calling `focus()` on the DOM element, or doing
-	   * similar mutations.
-	   *
-	   * See https://github.com/Raynos/mercury/blob/master/docs/faq.md for more details.
-	   *
-	   * @param {Function} fn a function with two arguments: `element`, `property`.
-	   * @return {PropertyHook} a hook
-	   */
-	  vdomPropHook: function vdomPropHook(fn) {
-	    return new PropertyHook(fn);
-	  },
-	
-	  /**
-	   * A shortcut to the root object of [RxJS](https://github.com/Reactive-Extensions/RxJS).
+	   * A shortcut to the root object of
+	   * [RxJS](https://github.com/Reactive-Extensions/RxJS).
 	   * @name Rx
 	   */
 	  Rx: Rx,
@@ -683,13 +615,61 @@
 	   * This is a helper for creating VTrees in Views.
 	   * @name h
 	   */
-	  h: VirtualDOM.h
+	  h: VirtualDOM.h,
+	
+	  /**
+	   * A shortcut to the svg hyperscript function.
+	   * @name svg
+	   */
+	  svg: svg
 	};
 	
 	module.exports = Cycle;
 
 /***/ },
 /* 7 */
+/*!*************************!*\
+  !*** ./src/propHook.js ***!
+  \*************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
+	
+	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+	
+	module.exports = propHook;
+	/**
+	 * Created by cmg on 6/8/2015.
+	 */
+	
+	var PropertyHook = (function () {
+	    function PropertyHook(fn) {
+	        _classCallCheck(this, PropertyHook);
+	
+	        this.fn = fn;
+	    }
+	
+	    _prototypeProperties(PropertyHook, null, {
+	        hook: {
+	            value: function hook() {
+	                this.fn.apply(this, arguments);
+	            },
+	            writable: true,
+	            configurable: true
+	        }
+	    });
+	
+	    return PropertyHook;
+	})();
+	
+	function propHook(fn) {
+	    return new PropertyHook(fn);
+	}
+
+/***/ },
+/* 8 */
 /*!***************************!*\
   !*** ./~/lodash/index.js ***!
   \***************************/
@@ -12123,680 +12103,404 @@
 	  }
 	}.call(this));
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 25)(module), (function() { return this; }())))
-
-/***/ },
-/* 8 */
-/*!*****************************************!*\
-  !*** ./~/cyclejs/lib/data-flow-node.js ***!
-  \*****************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	
-	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
-	
-	var Rx = __webpack_require__(/*! rx */ 24);
-	var errors = __webpack_require__(/*! ./errors */ 18);
-	var InputProxy = __webpack_require__(/*! ./input-proxy */ 19);
-	var CycleInterfaceError = errors.CycleInterfaceError;
-	
-	var DataFlowNode = (function () {
-	  function DataFlowNode(definitionFn) {
-	    _classCallCheck(this, DataFlowNode);
-	
-	    if (arguments.length !== 1 || typeof definitionFn !== "function") {
-	      throw new Error("DataFlowNode expects the definitionFn as the only argument.");
-	    }
-	
-	    this.type = "DataFlowNode";
-	    this._definitionFn = definitionFn;
-	    this._proxies = [];
-	    for (var i = 0; i < definitionFn.length; i++) {
-	      this._proxies[i] = new InputProxy();
-	    }
-	    this._wasInjected = false;
-	    this._output = definitionFn.apply(this, this._proxies);
-	    DataFlowNode._checkOutputObject(this._output);
-	  }
-	
-	  _createClass(DataFlowNode, {
-	    get: {
-	      value: function get(streamName) {
-	        return this._output[streamName] || null;
-	      }
-	    },
-	    inject: {
-	      value: function inject() {
-	        if (this._wasInjected) {
-	          console.warn("DataFlowNode has already been injected an input.");
-	        }
-	        if (this._definitionFn.length !== arguments.length) {
-	          console.warn("The call to inject() should provide the inputs that this " + "DataFlowNode expects according to its definition function.");
-	        }
-	        for (var i = 0; i < this._definitionFn.length; i++) {
-	          DataFlowNode._replicateAll(arguments[i], this._proxies[i]);
-	        }
-	        this._wasInjected = true;
-	        if (arguments.length === 1) {
-	          return arguments[0];
-	        } else if (arguments.length > 1) {
-	          return Array.prototype.slice.call(arguments);
-	        } else {
-	          return null;
-	        }
-	      }
-	    }
-	  }, {
-	    _checkOutputObject: {
-	      value: function _checkOutputObject(output) {
-	        if (typeof output !== "object") {
-	          throw new Error("A DataFlowNode should always return an object.");
-	        }
-	      }
-	    },
-	    _replicateAll: {
-	      value: function _replicateAll(input, proxy) {
-	        if (!input || !proxy) {
-	          return;
-	        }
-	
-	        for (var key in proxy.proxiedProps) {
-	          if (proxy.proxiedProps.hasOwnProperty(key)) {
-	            var proxiedProperty = proxy.proxiedProps[key];
-	            if (typeof input.event$ === "function" && proxiedProperty._hasEvent$) {
-	              DataFlowNode._replicateAllEvent$(input, key, proxiedProperty);
-	            } else if (!input.hasOwnProperty(key) && input instanceof InputProxy) {
-	              DataFlowNode._replicate(input.get(key), proxiedProperty);
-	            } else if (typeof input.get === "function" && input.get(key) !== null) {
-	              DataFlowNode._replicate(input.get(key), proxiedProperty);
-	            } else if (typeof input === "object" && input.hasOwnProperty(key)) {
-	              if (!input[key]) {
-	                input[key] = new Rx.Subject();
-	              }
-	              DataFlowNode._replicate(input[key], proxiedProperty);
-	            } else {
-	              throw new CycleInterfaceError("Input should have the required property " + key, String(key));
-	            }
-	          }
-	        }
-	      }
-	    },
-	    _replicateAllEvent$: {
-	      value: function _replicateAllEvent$(input, selector, proxyObj) {
-	        for (var eventName in proxyObj) {
-	          if (proxyObj.hasOwnProperty(eventName)) {
-	            if (eventName !== "_hasEvent$") {
-	              var event$ = input.event$(selector, eventName);
-	              if (event$ !== null) {
-	                DataFlowNode._replicate(event$, proxyObj[eventName]);
-	              }
-	            }
-	          }
-	        }
-	      }
-	    },
-	    _replicate: {
-	      value: function _replicate(source, subject) {
-	        if (typeof source === "undefined") {
-	          throw new Error("Cannot replicate() if source is undefined.");
-	        }
-	        return source.subscribe(function replicationOnNext(x) {
-	          subject.onNext(x);
-	        }, function replicationOnError(err) {
-	          subject.onError(err);
-	          console.error(err);
-	        });
-	      }
-	    }
-	  });
-	
-	  return DataFlowNode;
-	})();
-	
-	module.exports = DataFlowNode;
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 28)(module), (function() { return this; }())))
 
 /***/ },
 /* 9 */
-/*!*******************************************!*\
-  !*** ./~/cyclejs/lib/data-flow-source.js ***!
-  \*******************************************/
+/*!******************************************!*\
+  !*** ./~/cyclejs/lib/custom-elements.js ***!
+  \******************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	"use strict";
+	'use strict';
+	var CustomElementWidget = __webpack_require__(/*! ./custom-element-widget */ 16);
+	var Map = Map || __webpack_require__(/*! es6-map */ 19); // eslint-disable-line no-native-reassign
+	var CustomElementsRegistry = new Map();
 	
-	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
-	
-	var DataFlowSource = (function () {
-	  function DataFlowSource(outputObject) {
-	    _classCallCheck(this, DataFlowSource);
-	
-	    if (arguments.length !== 1) {
-	      throw new Error("DataFlowSource expects only one argument: the output object.");
-	    }
-	    if (typeof outputObject !== "object") {
-	      throw new Error("DataFlowSource expects the constructor argument to be the " + "output object.");
-	    }
-	
-	    this.type = "DataFlowSource";
-	    for (var key in outputObject) {
-	      if (outputObject.hasOwnProperty(key)) {
-	        this[key] = outputObject[key];
-	      }
+	function replaceCustomElementsWithSomething(vtree, toSomethingFn) {
+	  // Silently ignore corner cases
+	  if (!vtree || vtree.type === 'VirtualText') {
+	    return vtree;
+	  }
+	  var tagName = (vtree.tagName || '').toUpperCase();
+	  // Replace vtree itself
+	  if (tagName && CustomElementsRegistry.has(tagName)) {
+	    var WidgetClass = CustomElementsRegistry.get(tagName);
+	    return toSomethingFn(vtree, WidgetClass);
+	  }
+	  // Or replace children recursively
+	  if (Array.isArray(vtree.children)) {
+	    for (var i = vtree.children.length - 1; i >= 0; i--) {
+	      vtree.children[i] = replaceCustomElementsWithSomething(vtree.children[i], toSomethingFn);
 	    }
 	  }
+	  return vtree;
+	}
 	
-	  _createClass(DataFlowSource, {
-	    inject: {
-	      value: function inject() {
-	        throw new Error("A DataFlowSource cannot be injected. Use a DataFlowNode instead.");
-	      }
-	    }
-	  });
+	function registerCustomElement(givenTagName, definitionFn) {
+	  if (typeof givenTagName !== 'string' || typeof definitionFn !== 'function') {
+	    throw new Error('registerCustomElement requires parameters `tagName` and ' + '`definitionFn`.');
+	  }
+	  var tagName = givenTagName.toUpperCase();
+	  if (CustomElementsRegistry.has(tagName)) {
+	    throw new Error('Cannot register custom element `' + tagName + '` ' + 'for the DOMUser because that tagName is already registered.');
+	  }
 	
-	  return DataFlowSource;
-	})();
+	  var WidgetClass = CustomElementWidget.makeConstructor();
+	  WidgetClass.definitionFn = definitionFn;
+	  WidgetClass.prototype.init = CustomElementWidget.makeInit(tagName, definitionFn);
+	  WidgetClass.prototype.update = CustomElementWidget.makeUpdate();
+	  WidgetClass.prototype.destroy = CustomElementWidget.makeDestroy();
+	  CustomElementsRegistry.set(tagName, WidgetClass);
+	}
 	
-	module.exports = DataFlowSource;
+	function unregisterAllCustomElements() {
+	  CustomElementsRegistry.clear();
+	}
+	
+	module.exports = {
+	  replaceCustomElementsWithSomething: replaceCustomElementsWithSomething,
+	  registerCustomElement: registerCustomElement,
+	  unregisterAllCustomElements: unregisterAllCustomElements
+	};
 
 /***/ },
 /* 10 */
-/*!*****************************************!*\
-  !*** ./~/cyclejs/lib/data-flow-sink.js ***!
-  \*****************************************/
+/*!*************************************!*\
+  !*** ./~/cyclejs/lib/render-dom.js ***!
+  \*************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	"use strict";
+	/* jshint maxparams: 4 */
+	'use strict';
 	
-	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+	function _slicedToArray(arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i['return']) _i['return'](); } finally { if (_d) throw _e; } } return _arr; } else { throw new TypeError('Invalid attempt to destructure non-iterable instance'); } }
 	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+	var Rx = __webpack_require__(/*! rx */ 15);
+	var VDOM = {
+	  h: __webpack_require__(/*! virtual-dom */ 13).h,
+	  diff: __webpack_require__(/*! virtual-dom/diff */ 17),
+	  patch: __webpack_require__(/*! virtual-dom/patch */ 18)
+	};
 	
-	var DataFlowSink = (function () {
-	  function DataFlowSink(definitionFn) {
-	    _classCallCheck(this, DataFlowSink);
+	var _require = __webpack_require__(/*! ./custom-elements */ 9);
 	
-	    if (arguments.length !== 1) {
-	      throw new Error("DataFlowSink expects only one argument: the definition function.");
-	    }
-	    if (typeof definitionFn !== "function") {
-	      throw new Error("DataFlowSink expects the argument to be the definition function.");
-	    }
+	var replaceCustomElementsWithSomething = _require.replaceCustomElementsWithSomething;
 	
-	    definitionFn.displayName += "(DataFlowSink defFn)";
-	    this.type = "DataFlowSink";
-	    this._definitionFn = definitionFn;
-	  }
+	function isElement(obj) {
+	  return typeof HTMLElement === 'object' ? obj instanceof HTMLElement || obj instanceof DocumentFragment : //DOM2
+	  obj && typeof obj === 'object' && obj !== null && (obj.nodeType === 1 || obj.nodeType === 11) && typeof obj.nodeName === 'string';
+	}
 	
-	  _createClass(DataFlowSink, {
-	    inject: {
-	      value: function inject() {
-	        var proxies = DataFlowSink.makeLightweightInputProxies(arguments);
-	        return this._definitionFn.apply({}, proxies);
-	      }
-	    }
-	  }, {
-	    makeLightweightInputProxies: {
-	      value: function makeLightweightInputProxies(args) {
-	        return Array.prototype.slice.call(args).map(function (arg) {
-	          return {
-	            get: function get(streamName) {
-	              if (typeof arg.get === "function") {
-	                return arg.get(streamName);
-	              } else {
-	                return arg[streamName] || null;
-	              }
-	            }
-	          };
-	        });
-	      }
-	    }
+	function fixRootElem$(rawRootElem$, domContainer) {
+	  // Create rootElem stream and automatic className correction
+	  var originalClasses = (domContainer.className || '').trim().split(/\s+/);
+	  //console.log('%coriginalClasses: ' + originalClasses, 'color: lightgray');
+	  return rawRootElem$.map(function fixRootElemClassName(rootElem) {
+	    var previousClasses = rootElem.className.trim().split(/\s+/);
+	    var missingClasses = originalClasses.filter(function (clss) {
+	      return previousClasses.indexOf(clss) < 0;
+	    });
+	    //console.log('%cfixRootElemClassName(), missingClasses: ' +
+	    //  missingClasses, 'color: lightgray');
+	    rootElem.className = previousClasses.concat(missingClasses).join(' ');
+	    //console.log('%c  result: ' + rootElem.className, 'color: lightgray');
+	    //console.log('%cEmit rootElem$ ' + rootElem.tagName + '.' +
+	    //  rootElem.className, 'color: #009988');
+	    return rootElem;
+	  }).replay(null, 1);
+	}
+	
+	function isVTreeCustomElement(vtree) {
+	  return vtree.type === 'Widget' && vtree.isCustomElementWidget;
+	}
+	
+	function replaceCustomElementsWithWidgets(vtree) {
+	  return replaceCustomElementsWithSomething(vtree, function (_vtree, WidgetClass) {
+	    return new WidgetClass(_vtree);
 	  });
+	}
 	
-	  return DataFlowSink;
-	})();
+	function getArrayOfAllWidgetRootElemStreams(vtree) {
+	  if (vtree.type === 'Widget' && vtree.rootElem$) {
+	    return [vtree.rootElem$];
+	  }
+	  // Or replace children recursively
+	  var array = [];
+	  if (Array.isArray(vtree.children)) {
+	    for (var i = vtree.children.length - 1; i >= 0; i--) {
+	      array = array.concat(getArrayOfAllWidgetRootElemStreams(vtree.children[i]));
+	    }
+	  }
+	  return array;
+	}
 	
-	module.exports = DataFlowSink;
+	function checkRootVTreeNotCustomElement(vtree) {
+	  if (isVTreeCustomElement(vtree)) {
+	    throw new Error('Illegal to use a Cycle custom element as the root of ' + 'a View.');
+	  }
+	}
+	
+	function makeDiffAndPatchToElement$(rootElem) {
+	  return function diffAndPatchToElement$(_ref) {
+	    var _ref2 = _slicedToArray(_ref, 2);
+	
+	    var oldVTree = _ref2[0];
+	    var newVTree = _ref2[1];
+	
+	    if (typeof newVTree === 'undefined') {
+	      return Rx.Observable.empty();
+	    }
+	
+	    var arrayOfAll = getArrayOfAllWidgetRootElemStreams(newVTree);
+	    var rootElemAfterChildren$ = Rx.Observable.combineLatest(arrayOfAll, function () {
+	      //console.log('%cEmit rawRootElem$ (1) ', 'color: #008800');
+	      return rootElem;
+	    });
+	    var cycleCustomElementMetadata = rootElem.cycleCustomElementMetadata;
+	    //let isCustomElement = !!rootElem.cycleCustomElementMetadata;
+	    //let k = isCustomElement ? ' is custom element ' : ' is top level';
+	    //console.log('%cVDOM diff and patch START' + k, 'color: #636300');
+	    /* eslint-disable */
+	    rootElem = VDOM.patch(rootElem, VDOM.diff(oldVTree, newVTree));
+	    /* eslint-enable */
+	    //console.log('%cVDOM diff and patch END' + k, 'color: #636300');
+	    if (cycleCustomElementMetadata) {
+	      rootElem.cycleCustomElementMetadata = cycleCustomElementMetadata;
+	    }
+	    if (arrayOfAll.length === 0) {
+	      //console.log('%cEmit rawRootElem$ (2)', 'color: #008800');
+	      return Rx.Observable.just(rootElem);
+	    } else {
+	      return rootElemAfterChildren$;
+	    }
+	  };
+	}
+	
+	function getRenderRootElem(domContainer) {
+	  var rootElem = undefined;
+	  if (/cycleCustomElement-[^\b]+/.exec(domContainer.className) !== null) {
+	    rootElem = domContainer;
+	  } else {
+	    rootElem = document.createElement('div');
+	    domContainer.innerHTML = '';
+	    domContainer.appendChild(rootElem);
+	  }
+	  return rootElem;
+	}
+	
+	function renderRawRootElem$(vtree$, domContainer) {
+	  var rootElem = getRenderRootElem(domContainer);
+	  var diffAndPatchToElement$ = makeDiffAndPatchToElement$(rootElem);
+	  return vtree$.startWith(VDOM.h()).map(replaceCustomElementsWithWidgets).doOnNext(checkRootVTreeNotCustomElement).pairwise().flatMap(diffAndPatchToElement$).startWith(rootElem);
+	}
+	
+	function makeInteractions(rootElem$) {
+	  return {
+	    get: function get(selector, eventName) {
+	      if (typeof selector !== 'string') {
+	        throw new Error('interactions.get() expects first argument to be a ' + 'string as a CSS selector');
+	      }
+	      if (typeof eventName !== 'string') {
+	        throw new Error('interactions.get() expects second argument to be a ' + 'string representing the event type to listen for.');
+	      }
+	
+	      //console.log(`%cget("${selector}", "${eventName}")`, 'color: #0000BB');
+	      return rootElem$.flatMapLatest(function rootElemToEvent$(rootElem) {
+	        if (!rootElem) {
+	          return Rx.Observable.empty();
+	        }
+	        //let isCustomElement = !!rootElem.cycleCustomElementMetadata;
+	        //console.log(`%cget('${selector}', '${eventName}') flatMapper` +
+	        //  (isCustomElement ? ' for a custom element' : ' for top-level View'),
+	        //  'color: #0000BB');
+	        var klass = selector.replace('.', '');
+	        if (rootElem.className.search(new RegExp('\\b' + klass + '\\b')) >= 0) {
+	          //console.log('%c  Good return. (A)', 'color:#0000BB');
+	          return Rx.Observable.fromEvent(rootElem, eventName);
+	        }
+	        var targetElements = rootElem.querySelectorAll(selector);
+	        if (targetElements && targetElements.length > 0) {
+	          //console.log('%c  Good return. (B)', 'color:#0000BB');
+	          return Rx.Observable.fromEvent(targetElements, eventName);
+	        } else {
+	          //console.log('%c  returning empty!', 'color: #0000BB');
+	          return Rx.Observable.empty();
+	        }
+	      });
+	    }
+	  };
+	}
+	
+	function digestDefinitionFnOutput(output) {
+	  var vtree$ = undefined;
+	  var customEvents = {};
+	  if (typeof output.subscribe === 'function') {
+	    vtree$ = output;
+	  } else if (output.hasOwnProperty('vtree$') && typeof output.vtree$.subscribe === 'function') {
+	    vtree$ = output.vtree$;
+	    customEvents = output;
+	  } else {
+	    throw new Error('definitionFn given to applyToDOM must return an ' + 'Observable of virtual DOM elements, or an object containing such ' + 'Observable named as `vtree$`');
+	  }
+	  return { vtree$: vtree$, customEvents: customEvents };
+	}
+	
+	function applyToDOM(container, definitionFn) {
+	  var _ref3 = arguments[2] === undefined ? {} : arguments[2];
+	
+	  var _ref3$observer = _ref3.observer;
+	  var observer = _ref3$observer === undefined ? null : _ref3$observer;
+	  var _ref3$props = _ref3.props;
+	  var props = _ref3$props === undefined ? null : _ref3$props;
+	
+	  // Find and prepare the container
+	  var domContainer = typeof container === 'string' ? document.querySelector(container) : container;
+	  // Check pre-conditions
+	  if (typeof container === 'string' && domContainer === null) {
+	    throw new Error('Cannot render into unknown element \'' + container + '\'');
+	  } else if (!isElement(domContainer)) {
+	    throw new Error('Given container is not a DOM element neither a selector ' + 'string.');
+	  }
+	  var proxyVTree$$ = new Rx.AsyncSubject();
+	  var rawRootElem$ = renderRawRootElem$(proxyVTree$$.mergeAll(), domContainer);
+	  var rootElem$ = fixRootElem$(rawRootElem$, domContainer);
+	  var interactions = makeInteractions(rootElem$);
+	  var output = definitionFn(interactions, props);
+	
+	  var _digestDefinitionFnOutput = digestDefinitionFnOutput(output);
+	
+	  var vtree$ = _digestDefinitionFnOutput.vtree$;
+	  var customEvents = _digestDefinitionFnOutput.customEvents;
+	
+	  var connection = rootElem$.connect();
+	  var subscription = observer ? rootElem$.subscribe(observer) : rootElem$.subscribe();
+	  proxyVTree$$.onNext(vtree$.shareReplay(1));
+	  proxyVTree$$.onCompleted();
+	
+	  return {
+	    dispose: function dispose() {
+	      subscription.dispose();
+	      connection.dispose();
+	      proxyVTree$$.dispose();
+	    },
+	    rootElem$: rootElem$,
+	    interactions: interactions,
+	    customEvents: customEvents
+	  };
+	}
+	
+	module.exports = {
+	  isElement: isElement,
+	  fixRootElem$: fixRootElem$,
+	  isVTreeCustomElement: isVTreeCustomElement,
+	  replaceCustomElementsWithWidgets: replaceCustomElementsWithWidgets,
+	  getArrayOfAllWidgetRootElemStreams: getArrayOfAllWidgetRootElemStreams,
+	  checkRootVTreeNotCustomElement: checkRootVTreeNotCustomElement,
+	  makeDiffAndPatchToElement$: makeDiffAndPatchToElement$,
+	  getRenderRootElem: getRenderRootElem,
+	  renderRawRootElem$: renderRawRootElem$,
+	  makeInteractions: makeInteractions,
+	  digestDefinitionFnOutput: digestDefinitionFnOutput,
+	
+	  applyToDOM: applyToDOM
+	};
 
 /***/ },
 /* 11 */
-/*!********************************!*\
-  !*** ./~/cyclejs/lib/model.js ***!
-  \********************************/
+/*!**************************************!*\
+  !*** ./~/cyclejs/lib/render-html.js ***!
+  \**************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	"use strict";
+	'use strict';
+	var Rx = __webpack_require__(/*! rx */ 15);
+	var toHTML = __webpack_require__(/*! vdom-to-html */ 20);
 	
-	var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc && desc.writable) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
+	var _require = __webpack_require__(/*! ./custom-elements */ 9);
 	
-	var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
+	var replaceCustomElementsWithSomething = _require.replaceCustomElementsWithSomething;
 	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+	function makePropertiesProxyFromVTree(vtree) {
+	  return {
+	    get: function get(propertyName) {
+	      return Rx.Observable.just(vtree.properties[propertyName]);
+	    }
+	  };
+	}
 	
-	var DataFlowNodeWithCustomWarning = __webpack_require__(/*! ./data-flow-node-custom-warning */ 20);
+	/**
+	 * Converts a tree of VirtualNode|Observable<VirtualNode> into
+	 * Observable<VirtualNode>.
+	 */
+	function transposeVTree(vtree) {
+	  if (typeof vtree.subscribe === 'function') {
+	    return vtree;
+	  } else if (vtree.type === 'VirtualText') {
+	    return Rx.Observable.just(vtree);
+	  } else if (vtree.type === 'VirtualNode' && Array.isArray(vtree.children) && vtree.children.length > 0) {
+	    return Rx.Observable.combineLatest(vtree.children.map(transposeVTree), function () {
+	      for (var _len = arguments.length, arr = Array(_len), _key = 0; _key < _len; _key++) {
+	        arr[_key] = arguments[_key];
+	      }
 	
-	var Model = (function (_DataFlowNodeWithCustomWarning) {
-	  function Model(definitionFn) {
-	    _classCallCheck(this, Model);
-	
-	    this.type = "Model";
-	    _get(Object.getPrototypeOf(Model.prototype), "constructor", this).call(this, definitionFn, "Model expects an input to have the required property ");
+	      vtree.children = arr;
+	      return vtree;
+	    });
+	  } else if (vtree.type === 'VirtualNode') {
+	    return Rx.Observable.just(vtree);
+	  } else {
+	    throw new Error('Unhandled case in transposeVTree()');
 	  }
+	}
 	
-	  _inherits(Model, _DataFlowNodeWithCustomWarning);
+	function makeEmptyInteractions() {
+	  return {
+	    get: function get() {
+	      return Rx.Observable.empty();
+	    }
+	  };
+	}
 	
-	  return Model;
-	})(DataFlowNodeWithCustomWarning);
+	function replaceCustomElementsWithVTree$(vtree) {
+	  return replaceCustomElementsWithSomething(vtree, function toVTree$(_vtree, WidgetClass) {
+	    var interactions = makeEmptyInteractions();
+	    var props = makePropertiesProxyFromVTree(_vtree);
+	    var output = WidgetClass.definitionFn(interactions, props);
+	    /*eslint-disable no-use-before-define */
+	    return convertCustomElementsToVTree(output.vtree$.last());
+	    /*eslint-enable no-use-before-define */
+	  });
+	}
 	
-	module.exports = Model;
+	function convertCustomElementsToVTree(vtree$) {
+	  return vtree$.map(replaceCustomElementsWithVTree$).flatMap(transposeVTree);
+	}
+	
+	function renderAsHTML(input) {
+	  var vtree$ = undefined;
+	  var computerFn = undefined;
+	  if (typeof input === 'function') {
+	    computerFn = input;
+	    vtree$ = computerFn(makeEmptyInteractions());
+	  } else if (typeof input.subscribe === 'function') {
+	    vtree$ = input;
+	  }
+	  return convertCustomElementsToVTree(vtree$.last()).map(function (vtree) {
+	    return toHTML(vtree);
+	  });
+	}
+	
+	module.exports = {
+	  makePropertiesProxyFromVTree: makePropertiesProxyFromVTree,
+	  replaceCustomElementsWithVTree$: replaceCustomElementsWithVTree$,
+	  convertCustomElementsToVTree: convertCustomElementsToVTree,
+	
+	  renderAsHTML: renderAsHTML
+	};
 
 /***/ },
 /* 12 */
-/*!*******************************!*\
-  !*** ./~/cyclejs/lib/view.js ***!
-  \*******************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	
-	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-	
-	var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc && desc.writable) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-	
-	var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
-	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
-	
-	var Rx = __webpack_require__(/*! rx */ 24);
-	var DataFlowNodeWithCustomWarning = __webpack_require__(/*! ./data-flow-node-custom-warning */ 20);
-	
-	var View = (function (_DataFlowNodeWithCustomWarning) {
-	  function View(definitionFn) {
-	    _classCallCheck(this, View);
-	
-	    this.type = "View";
-	    _get(Object.getPrototypeOf(View.prototype), "constructor", this).call(this, definitionFn, "View expects an input to have the required property ");
-	    View.checkVTree$(this._output);
-	    this._correctedVtree$ = View.getCorrectedVtree$(this._output);
-	  }
-	
-	  _inherits(View, _DataFlowNodeWithCustomWarning);
-	
-	  _createClass(View, {
-	    get: {
-	      value: function get(streamName) {
-	        if (streamName === "vtree$") {
-	          return this._correctedVtree$;
-	        } else if (this._output[streamName]) {
-	          return this._output[streamName];
-	        } else {
-	          var result = _get(Object.getPrototypeOf(View.prototype), "get", this).call(this, streamName);
-	          if (!result) {
-	            this._output[streamName] = new Rx.Subject();
-	            return this._output[streamName];
-	          } else {
-	            return result;
-	          }
-	        }
-	      }
-	    }
-	  }, {
-	    checkVTree$: {
-	      value: function checkVTree$(view) {
-	        if (!view.vtree$ || typeof view.vtree$.subscribe !== "function") {
-	          throw new Error("View must define `vtree$` Observable emitting virtual " + "DOM elements");
-	        }
-	      }
-	    },
-	    throwErrorIfNotVTree: {
-	      value: function throwErrorIfNotVTree(vtree) {
-	        if (vtree.type !== "VirtualNode" || vtree.tagName === "undefined") {
-	          throw new Error("View `vtree$` must emit only VirtualNode instances. " + "Hint: create them with Cycle.h()");
-	        }
-	      }
-	    },
-	    getCorrectedVtree$: {
-	      value: function getCorrectedVtree$(view) {
-	        var newVtree$ = view.vtree$.map(function (vtree) {
-	          if (vtree.type === "Widget") {
-	            return vtree;
-	          }
-	          View.throwErrorIfNotVTree(vtree);
-	          return vtree;
-	        }).replay(null, 1);
-	        newVtree$.connect();
-	        return newVtree$;
-	      }
-	    }
-	  });
-	
-	  return View;
-	})(DataFlowNodeWithCustomWarning);
-	
-	module.exports = View;
-
-/***/ },
-/* 13 */
-/*!***********************************!*\
-  !*** ./~/cyclejs/lib/dom-user.js ***!
-  \***********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	
-	var _slicedToArray = function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { var _arr = []; for (var _iterator = arr[Symbol.iterator](), _step; !(_step = _iterator.next()).done;) { _arr.push(_step.value); if (i && _arr.length === i) break; } return _arr; } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } };
-	
-	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-	
-	var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc && desc.writable) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-	
-	var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
-	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
-	
-	var VDOM = {
-	  h: __webpack_require__(/*! virtual-dom */ 17).h,
-	  diff: __webpack_require__(/*! virtual-dom/diff */ 21),
-	  patch: __webpack_require__(/*! virtual-dom/patch */ 22)
-	};
-	var Rx = __webpack_require__(/*! rx */ 24);
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
-	var CustomElements = __webpack_require__(/*! ./custom-elements */ 23);
-	
-	var DOMUser = (function (_DataFlowNode) {
-	  function DOMUser(container) {
-	    var _this = this;
-	
-	    _classCallCheck(this, DOMUser);
-	
-	    this.type = "DOMUser";
-	    // Find and prepare the container
-	    this._domContainer = typeof container === "string" ? document.querySelector(container) : container;
-	    // Check pre-conditions
-	    if (typeof container === "string" && this._domContainer === null) {
-	      throw new Error("Cannot render into unknown element '" + container + "'");
-	    } else if (!DOMUser._isElement(this._domContainer)) {
-	      throw new Error("Given container is not a DOM element neither a selector string.");
-	    }
-	    this._defineRootElemStream();
-	    this._error$ = new Rx.Subject();
-	    // Create DataFlowNode with rendering logic
-	    _get(Object.getPrototypeOf(DOMUser.prototype), "constructor", this).call(this, function (view) {
-	      _this._renderEvery(view.get("vtree$"));
-	      return { error$: _this._error$ };
-	    });
-	  }
-	
-	  _inherits(DOMUser, _DataFlowNode);
-	
-	  _createClass(DOMUser, {
-	    _renderEvery: {
-	      value: function _renderEvery(vtree$) {
-	        var self = this;
-	        // Select the correct rootElem
-	        var rootElem = undefined;
-	        if (/cycleCustomElement-[^\b]+/.exec(self._domContainer.className) !== null) {
-	          rootElem = self._domContainer;
-	        } else {
-	          rootElem = document.createElement("div");
-	          self._domContainer.innerHTML = "";
-	          self._domContainer.appendChild(rootElem);
-	        }
-	        // TODO Refactor/rework. Unclear why, but this setTimeout is necessary.
-	        setTimeout(function () {
-	          return self._rawRootElem$.onNext(rootElem);
-	        }, 0);
-	        // Reactively render the vtree$ into the rootElem
-	        return vtree$.startWith(VDOM.h()).map(function renderingPreprocessing(vtree) {
-	          return self._replaceCustomElements(vtree);
-	        }).map(function checkDOMUserVtreeNotCustomElement(vtree) {
-	          if (DOMUser._isVtreeCustomElement(vtree)) {
-	            throw new Error("Illegal to use a Cycle custom element as the root of a View.");
-	          }
-	          return vtree;
-	        }).pairwise().subscribe(function renderDiffAndPatch(_ref) {
-	          var _ref2 = _slicedToArray(_ref, 2);
-	
-	          var oldVTree = _ref2[0];
-	          var newVTree = _ref2[1];
-	
-	          if (typeof newVTree === "undefined") {
-	            return;
-	          }
-	
-	          //let forWhat = (self._domContainer.className === 'cycletest') ?
-	          //  'for top-level View' : 'for custom element';
-	          var arrayOfAll = DOMUser._getArrayOfAllWidgetRootElemStreams(newVTree);
-	          if (arrayOfAll.length > 0) {
-	            Rx.Observable.combineLatest(arrayOfAll, function () {
-	              return 0;
-	            }).first().subscribe(function () {
-	              //console.log('%cEmit rawRootElem$ (1) ' + forWhat, 'color: #008800');
-	              self._rawRootElem$.onNext(rootElem);
-	            });
-	          }
-	          var cycleCustomElementDOMUser = rootElem.cycleCustomElementDOMUser;
-	          var cycleCustomElementProperties = rootElem.cycleCustomElementProperties;
-	          try {
-	            //console.log('%cVDOM diff and patch ' + forWhat + ' START', 'color: #636300');
-	            rootElem = VDOM.patch(rootElem, VDOM.diff(oldVTree, newVTree));
-	            //console.log('%cVDOM diff and patch ' + forWhat + ' END', 'color: #636300');
-	          } catch (err) {
-	            console.error(err);
-	          }
-	          if (!!cycleCustomElementDOMUser) {
-	            rootElem.cycleCustomElementDOMUser = cycleCustomElementDOMUser;
-	          }
-	          if (!!cycleCustomElementProperties) {
-	            rootElem.cycleCustomElementProperties = cycleCustomElementProperties;
-	          }
-	          if (arrayOfAll.length === 0) {
-	            //console.log('%cEmit rawRootElem$ (2) ' + forWhat, 'color: #008800');
-	            self._rawRootElem$.onNext(rootElem);
-	          }
-	        }, function handleRenderError(err) {
-	          console.error(err);
-	          self._error$.onNext(err);
-	        });
-	      }
-	    },
-	    _defineRootElemStream: {
-	      value: function _defineRootElemStream() {
-	        // Create rootElem stream and automatic className correction
-	        var originalClasses = (this._domContainer.className || "").trim().split(/\s+/);
-	        //console.log('%coriginalClasses: ' + originalClasses, 'color: lightgray');
-	        this._rawRootElem$ = new Rx.Subject();
-	        this._rootElem$ = this._rawRootElem$.map(function fixRootElemClassName(rootElem) {
-	          var previousClasses = rootElem.className.trim().split(/\s+/);
-	          var missingClasses = originalClasses.filter(function (clss) {
-	            return previousClasses.indexOf(clss) < 0;
-	          });
-	          //console.log('%cfixRootElemClassName(), missingClasses: ' + missingClasses,
-	          //  'color: lightgray');
-	          rootElem.className = previousClasses.concat(missingClasses).join(" ");
-	          //console.log('%c  result: ' + rootElem.className, 'color: lightgray');
-	          //console.log('%cEmit rootElem$ ' + rootElem.tagName + '.' + rootElem.className,
-	          //  'color: #009988');
-	          return rootElem;
-	        }).shareReplay(1);
-	      }
-	    },
-	    _replaceCustomElements: {
-	      value: function _replaceCustomElements(vtree) {
-	        // Silently ignore corner cases
-	        if (!vtree || !DOMUser._customElements || vtree.type === "VirtualText") {
-	          return vtree;
-	        }
-	        var tagName = (vtree.tagName || "").toUpperCase();
-	        // Replace vtree itself
-	        if (tagName && DOMUser._customElements.hasOwnProperty(tagName)) {
-	          return new DOMUser._customElements[tagName](vtree);
-	        }
-	        // Or replace children recursively
-	        if (Array.isArray(vtree.children)) {
-	          for (var i = vtree.children.length - 1; i >= 0; i--) {
-	            vtree.children[i] = this._replaceCustomElements(vtree.children[i]);
-	          }
-	        }
-	        return vtree;
-	      }
-	    },
-	    event$: {
-	      value: function event$(selector, eventName) {
-	        if (typeof selector !== "string") {
-	          throw new Error("DOMUser.event$ expects first argument to be a string as a " + "CSS selector");
-	        }
-	        if (typeof eventName !== "string") {
-	          throw new Error("DOMUser.event$ expects second argument to be a string " + "representing the event type to listen for.");
-	        }
-	
-	        //console.log(`%cevent$("${selector}", "${eventName}")`, 'color: #0000BB');
-	        return this._rootElem$.flatMapLatest(function flatMapDOMUserEventStream(rootElem) {
-	          if (!rootElem) {
-	            return Rx.Observable.empty();
-	          }
-	          //let isCustomElement = !!rootElem.cycleCustomElementDOMUser;
-	          //console.log('%cevent$("' + selector + '", "' + eventName + '") flatMapper' +
-	          //  (isCustomElement ? ' for a custom element' : ' for top-level View'),
-	          //  'color: #0000BB');
-	          var klass = selector.replace(".", "");
-	          if (rootElem.className.search(new RegExp("\\b" + klass + "\\b")) >= 0) {
-	            //console.log('%c  Good return. (A)', 'color:#0000BB');
-	            return Rx.Observable.fromEvent(rootElem, eventName);
-	          }
-	          var targetElements = rootElem.querySelectorAll(selector);
-	          if (targetElements && targetElements.length > 0) {
-	            //console.log('%c  Good return. (B)', 'color:#0000BB');
-	            return Rx.Observable.fromEvent(targetElements, eventName);
-	          } else {
-	            //console.log('%c  returning empty!', 'color: #0000BB');
-	            return Rx.Observable.empty();
-	          }
-	        });
-	      }
-	    }
-	  }, {
-	    _isElement: {
-	      value: function _isElement(o) {
-	        return typeof HTMLElement === "object" ? o instanceof HTMLElement || o instanceof DocumentFragment : //DOM2
-	        o && typeof o === "object" && o !== null && (o.nodeType === 1 || o.nodeType === 11) && typeof o.nodeName === "string";
-	      }
-	    },
-	    _getArrayOfAllWidgetRootElemStreams: {
-	      value: function _getArrayOfAllWidgetRootElemStreams(vtree) {
-	        if (vtree.type === "Widget" && vtree._rootElem$) {
-	          return [vtree._rootElem$];
-	        }
-	        // Or replace children recursively
-	        var array = [];
-	        if (Array.isArray(vtree.children)) {
-	          for (var i = vtree.children.length - 1; i >= 0; i--) {
-	            array = array.concat(DOMUser._getArrayOfAllWidgetRootElemStreams(vtree.children[i]));
-	          }
-	        }
-	        return array;
-	      }
-	    },
-	    _isVtreeCustomElement: {
-	      value: function _isVtreeCustomElement(vtree) {
-	        return vtree.type === "Widget" && !!vtree._rootElem$;
-	      }
-	    },
-	    registerCustomElement: {
-	      value: function registerCustomElement(tagName, definitionFn) {
-	        if (typeof tagName !== "string" || typeof definitionFn !== "function") {
-	          throw new Error("registerCustomElement requires parameters `tagName` and " + "`definitionFn`.");
-	        }
-	        tagName = tagName.toUpperCase();
-	        if (DOMUser._customElements && DOMUser._customElements.hasOwnProperty(tagName)) {
-	          throw new Error("Cannot register custom element `" + tagName + "` " + "for the DOMUser because that tagName is already registered.");
-	        }
-	
-	        var WidgetClass = CustomElements.makeConstructor();
-	        WidgetClass.prototype.init = CustomElements.makeInit(tagName, definitionFn);
-	        WidgetClass.prototype.update = CustomElements.makeUpdate();
-	        DOMUser._customElements = DOMUser._customElements || {};
-	        DOMUser._customElements[tagName] = WidgetClass;
-	      }
-	    }
-	  });
-	
-	  return DOMUser;
-	})(DataFlowNode);
-	
-	module.exports = DOMUser;
-
-/***/ },
-/* 14 */
-/*!*********************************!*\
-  !*** ./~/cyclejs/lib/intent.js ***!
-  \*********************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	
-	var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc && desc.writable) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-	
-	var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
-	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
-	
-	var DataFlowNodeWithCustomWarning = __webpack_require__(/*! ./data-flow-node-custom-warning */ 20);
-	
-	var Intent = (function (_DataFlowNodeWithCustomWarning) {
-	  function Intent(definitionFn) {
-	    _classCallCheck(this, Intent);
-	
-	    this.type = "Intent";
-	    _get(Object.getPrototypeOf(Intent.prototype), "constructor", this).call(this, definitionFn, "Intent expects an input to have the required property ");
-	  }
-	
-	  _inherits(Intent, _DataFlowNodeWithCustomWarning);
-	
-	  return Intent;
-	})(DataFlowNodeWithCustomWarning);
-	
-	module.exports = Intent;
-
-/***/ },
-/* 15 */
-/*!****************************************!*\
-  !*** ./~/cyclejs/lib/property-hook.js ***!
-  \****************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	
-	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
-	
-	var PropertyHook = (function () {
-	  function PropertyHook(fn) {
-	    _classCallCheck(this, PropertyHook);
-	
-	    this.fn = fn;
-	  }
-	
-	  _createClass(PropertyHook, {
-	    hook: {
-	      value: function hook() {
-	        this.fn.apply(this, arguments);
-	      }
-	    }
-	  });
-	
-	  return PropertyHook;
-	})();
-	
-	module.exports = PropertyHook;
-
-/***/ },
-/* 16 */
 /*!**********************!*\
   !*** ./~/mvp/es5.js ***!
   \**********************/
@@ -12861,18 +12565,18 @@
 
 
 /***/ },
-/* 17 */
+/* 13 */
 /*!******************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/index.js ***!
   \******************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var diff = __webpack_require__(/*! ./diff.js */ 21)
-	var patch = __webpack_require__(/*! ./patch.js */ 22)
-	var h = __webpack_require__(/*! ./h.js */ 26)
-	var create = __webpack_require__(/*! ./create-element.js */ 27)
-	var VNode = __webpack_require__(/*! ./vnode/vnode.js */ 28)
-	var VText = __webpack_require__(/*! ./vnode/vtext.js */ 29)
+	var diff = __webpack_require__(/*! ./diff.js */ 17)
+	var patch = __webpack_require__(/*! ./patch.js */ 18)
+	var h = __webpack_require__(/*! ./h.js */ 21)
+	var create = __webpack_require__(/*! ./create-element.js */ 22)
+	var VNode = __webpack_require__(/*! ./vnode/vnode.js */ 23)
+	var VText = __webpack_require__(/*! ./vnode/vtext.js */ 24)
 	
 	module.exports = {
 	    diff: diff,
@@ -12885,326 +12589,78 @@
 
 
 /***/ },
-/* 18 */
-/*!*********************************!*\
-  !*** ./~/cyclejs/lib/errors.js ***!
-  \*********************************/
+/* 14 */
+/*!************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/svg.js ***!
+  \************************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	"use strict";
+	'use strict';
 	
-	var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
+	var isArray = __webpack_require__(/*! x-is-array */ 31);
 	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+	var h = __webpack_require__(/*! ./index.js */ 25);
 	
-	var CycleInterfaceError = (function (_Error) {
-	  function CycleInterfaceError(message, missingMember) {
-	    _classCallCheck(this, CycleInterfaceError);
 	
-	    this.name = "CycleInterfaceError";
-	    this.message = message || "";
-	    this.missingMember = missingMember || "";
-	  }
+	var SVGAttributeNamespace = __webpack_require__(/*! ./svg-attribute-namespace */ 26);
+	var attributeHook = __webpack_require__(/*! ./hooks/attribute-hook */ 27);
 	
-	  _inherits(CycleInterfaceError, _Error);
+	var SVG_NAMESPACE = 'http://www.w3.org/2000/svg';
 	
-	  return CycleInterfaceError;
-	})(Error);
+	module.exports = svg;
 	
-	module.exports = {
-	  CycleInterfaceError: CycleInterfaceError
-	};
-
-/***/ },
-/* 19 */
-/*!**************************************!*\
-  !*** ./~/cyclejs/lib/input-proxy.js ***!
-  \**************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
+	function svg(tagName, properties, children) {
+	    if (!children && isChildren(properties)) {
+	        children = properties;
+	        properties = {};
+	    }
 	
-	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+	    properties = properties || {};
 	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+	    // set namespace for svg
+	    properties.namespace = SVG_NAMESPACE;
 	
-	var Rx = __webpack_require__(/*! rx */ 24);
+	    var attributes = properties.attributes || (properties.attributes = {});
 	
-	var InputProxy = (function () {
-	  function InputProxy() {
-	    _classCallCheck(this, InputProxy);
-	
-	    this.type = "InputProxy";
-	    this.proxiedProps = {};
-	  }
-	
-	  _createClass(InputProxy, {
-	    get: {
-	
-	      // For any DataFlowNode
-	
-	      value: function get(streamKey) {
-	        if (typeof this.proxiedProps[streamKey] === "undefined") {
-	          this.proxiedProps[streamKey] = new Rx.Subject();
+	    for (var key in properties) {
+	        if (!properties.hasOwnProperty(key)) {
+	            continue;
 	        }
-	        return this.proxiedProps[streamKey];
-	      }
-	    },
-	    event$: {
 	
-	      // For the DOMUser
+	        var namespace = SVGAttributeNamespace(key);
 	
-	      value: function event$(selector, eventName) {
-	        if (typeof this.proxiedProps[selector] === "undefined") {
-	          this.proxiedProps[selector] = {
-	            _hasEvent$: true
-	          };
+	        if (namespace === undefined) { // not a svg attribute
+	            continue;
 	        }
-	        if (typeof this.proxiedProps[selector][eventName] === "undefined") {
-	          this.proxiedProps[selector][eventName] = new Rx.Subject();
+	
+	        var value = properties[key];
+	
+	        if (typeof value !== 'string' &&
+	            typeof value !== 'number' &&
+	            typeof value !== 'boolean'
+	        ) {
+	            continue;
 	        }
-	        return this.proxiedProps[selector][eventName];
-	      }
-	    }
-	  });
 	
-	  return InputProxy;
-	})();
-	
-	module.exports = InputProxy;
-
-/***/ },
-/* 20 */
-/*!********************************************************!*\
-  !*** ./~/cyclejs/lib/data-flow-node-custom-warning.js ***!
-  \********************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	
-	var _createClass = (function () { function defineProperties(target, props) { for (var key in props) { var prop = props[key]; prop.configurable = true; if (prop.value) prop.writable = true; } Object.defineProperties(target, props); } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-	
-	var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc && desc.writable) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-	
-	var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
-	
-	var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
-	
-	var DataFlowNode = __webpack_require__(/*! ./data-flow-node */ 8);
-	var errors = __webpack_require__(/*! ./errors */ 18);
-	var CycleInterfaceError = errors.CycleInterfaceError;
-	
-	var DataFlowNodeWithCustomWarning = (function (_DataFlowNode) {
-	  function DataFlowNodeWithCustomWarning(definitionFn, cycleInterfaceErrorMessage) {
-	    _classCallCheck(this, DataFlowNodeWithCustomWarning);
-	
-	    this._cycleInterfaceErrorMessage = cycleInterfaceErrorMessage;
-	    _get(Object.getPrototypeOf(DataFlowNodeWithCustomWarning.prototype), "constructor", this).call(this, definitionFn);
-	  }
-	
-	  _inherits(DataFlowNodeWithCustomWarning, _DataFlowNode);
-	
-	  _createClass(DataFlowNodeWithCustomWarning, {
-	    inject: {
-	      value: function inject() {
-	        try {
-	          return _get(Object.getPrototypeOf(DataFlowNodeWithCustomWarning.prototype), "inject", this).apply(this, arguments);
-	        } catch (err) {
-	          if (err.name === "CycleInterfaceError") {
-	            throw new CycleInterfaceError(this._cycleInterfaceErrorMessage + err.missingMember, err.missingMember);
-	          } else {
-	            throw err;
-	          }
+	        if (namespace !== null) { // namespaced attribute
+	            properties[key] = attributeHook(namespace, value);
+	            continue;
 	        }
-	      }
+	
+	        attributes[key] = value
+	        properties[key] = undefined
 	    }
-	  });
 	
-	  return DataFlowNodeWithCustomWarning;
-	})(DataFlowNode);
+	    return h(tagName, properties, children);
+	}
 	
-	module.exports = DataFlowNodeWithCustomWarning;
-
-/***/ },
-/* 21 */
-/*!*****************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/diff.js ***!
-  \*****************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var diff = __webpack_require__(/*! ./vtree/diff.js */ 30)
-	
-	module.exports = diff
+	function isChildren(x) {
+	    return typeof x === 'string' || isArray(x);
+	}
 
 
 /***/ },
-/* 22 */
-/*!******************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/patch.js ***!
-  \******************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var patch = __webpack_require__(/*! ./vdom/patch.js */ 31)
-	
-	module.exports = patch
-
-
-/***/ },
-/* 23 */
-/*!******************************************!*\
-  !*** ./~/cyclejs/lib/custom-elements.js ***!
-  \******************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	var InputProxy = __webpack_require__(/*! ./input-proxy */ 19);
-	var Rx = __webpack_require__(/*! rx */ 24);
-	
-	function endsWithDollarSign(str) {
-	  if (typeof str !== "string") {
-	    return false;
-	  }
-	  return str.indexOf("$", str.length - 1) !== -1;
-	}
-	
-	function makeDispatchFunction(element, eventName) {
-	  return function dispatchCustomEvent(evData) {
-	    //console.log('%cdispatchCustomEvent ' + eventName,
-	    //  'background-color: #CCCCFF; color: black');
-	    var event;
-	    try {
-	      event = new Event(eventName);
-	    } catch (err) {
-	      event = document.createEvent("Event");
-	      event.initEvent(eventName, true, true);
-	    }
-	    event.data = evData;
-	    element.dispatchEvent(event);
-	  };
-	}
-	
-	function subscribeDispatchers(element, eventStreams) {
-	  if (!eventStreams || typeof eventStreams !== "object") {
-	    return;
-	  }
-	
-	  var disposables = new Rx.CompositeDisposable();
-	  for (var streamName in eventStreams) {
-	    if (eventStreams.hasOwnProperty(streamName)) {
-	      if (endsWithDollarSign(streamName) && typeof eventStreams[streamName].subscribe === "function") {
-	        var eventName = streamName.slice(0, -1);
-	        var disposable = eventStreams[streamName].subscribe(makeDispatchFunction(element, eventName));
-	        disposables.add(disposable);
-	      }
-	    }
-	  }
-	  return disposables;
-	}
-	
-	function subscribeDispatchersWhenRootChanges(widget, eventStreams) {
-	  widget._rootElem$.distinctUntilChanged(Rx.helpers.identity, function (x, y) {
-	    return x && y && x.isEqualNode && x.isEqualNode(y);
-	  }).subscribe(function (rootElem) {
-	    if (widget.eventStreamsSubscriptions) {
-	      widget.eventStreamsSubscriptions.dispose();
-	    }
-	    widget.eventStreamsSubscriptions = subscribeDispatchers(rootElem, eventStreams);
-	  });
-	}
-	
-	function makeInputPropertiesProxy() {
-	  var inputProxy = new InputProxy();
-	  var oldGet = inputProxy.get;
-	  inputProxy.get = function get(streamName) {
-	    var result = oldGet.call(this, streamName);
-	    if (result && result.distinctUntilChanged) {
-	      return result.distinctUntilChanged();
-	    } else {
-	      return result;
-	    }
-	  };
-	  return inputProxy;
-	}
-	
-	function createContainerElement(tagName, vtreeProperties) {
-	  var element = document.createElement("div");
-	  element.className = vtreeProperties.className || "";
-	  element.id = vtreeProperties.id || "";
-	  element.className += " cycleCustomElement-" + tagName.toUpperCase();
-	  return element;
-	}
-	
-	function replicateUserRootElem$(origin, destination) {
-	  origin._rootElem$.subscribe(function (elem) {
-	    return destination._rootElem$.onNext(elem);
-	  });
-	}
-	
-	function makeConstructor() {
-	  return function customElementConstructor(vtree) {
-	    //console.log('%cnew (constructor) custom element ' + vtree.tagName,
-	    //  'color: #880088');
-	    this.type = "Widget";
-	    this.properties = vtree.properties;
-	    this.key = vtree.key;
-	    this._rootElem$ = new Rx.ReplaySubject(1);
-	  };
-	}
-	
-	function makeInit(tagName, definitionFn) {
-	  var DOMUser = __webpack_require__(/*! ./dom-user */ 13);
-	  return function initCustomElement() {
-	    //console.log('%cInit() custom element ' + tagName, 'color: #880088');
-	    var widget = this;
-	    var element = createContainerElement(tagName, widget.properties);
-	    element.cycleCustomElementDOMUser = new DOMUser(element);
-	    element.cycleCustomElementProperties = makeInputPropertiesProxy();
-	    var eventStreams = definitionFn(element.cycleCustomElementDOMUser, element.cycleCustomElementProperties);
-	    widget.eventStreamsSubscriptions = subscribeDispatchers(element, eventStreams);
-	    subscribeDispatchersWhenRootChanges(widget, eventStreams);
-	    widget.update(null, element);
-	    return element;
-	  };
-	}
-	
-	function makeUpdate() {
-	  return function updateCustomElement(previous, element) {
-	    if (!element) {
-	      return;
-	    }
-	    if (!element.cycleCustomElementProperties) {
-	      return;
-	    }
-	    if (!(element.cycleCustomElementProperties instanceof InputProxy)) {
-	      return;
-	    }
-	    if (!element.cycleCustomElementProperties.proxiedProps) {
-	      return;
-	    }
-	
-	    //console.log('%cupdate() custom element ' + element.className, 'color: #880088');
-	    replicateUserRootElem$(element.cycleCustomElementDOMUser, this);
-	    var proxiedProps = element.cycleCustomElementProperties.proxiedProps;
-	    for (var prop in proxiedProps) {
-	      if (proxiedProps.hasOwnProperty(prop)) {
-	        var propStreamName = prop;
-	        var propName = prop.slice(0, -1);
-	        if (this.properties.hasOwnProperty(propName)) {
-	          proxiedProps[propStreamName].onNext(this.properties[propName]);
-	        }
-	      }
-	    }
-	  };
-	}
-	
-	module.exports = {
-	  makeConstructor: makeConstructor,
-	  makeInit: makeInit,
-	  makeUpdate: makeUpdate
-	};
-
-/***/ },
-/* 24 */
+/* 15 */
 /*!***************************************!*\
   !*** ./~/cyclejs/~/rx/dist/rx.all.js ***!
   \***************************************/
@@ -13244,7 +12700,6 @@
 	  // Defaults
 	  var noop = Rx.helpers.noop = function () { },
 	    notDefined = Rx.helpers.notDefined = function (x) { return typeof x === 'undefined'; },
-	    isScheduler = Rx.helpers.isScheduler = function (x) { return x instanceof Rx.Scheduler; },
 	    identity = Rx.helpers.identity = function (x) { return x; },
 	    pluck = Rx.helpers.pluck = function (property) { return function (x) { return x[property]; }; },
 	    just = Rx.helpers.just = function (value) { return function () { return value; }; },
@@ -13993,51 +13448,54 @@
 	    if (disposable.isDisposed) { throw new ObjectDisposedError(); }
 	  };
 	
-	  var SingleAssignmentDisposable = Rx.SingleAssignmentDisposable = (function () {
-	    function BooleanDisposable () {
-	      this.isDisposed = false;
+	  // Single assignment
+	  var SingleAssignmentDisposable = Rx.SingleAssignmentDisposable = function () {
+	    this.isDisposed = false;
+	    this.current = null;
+	  };
+	  SingleAssignmentDisposable.prototype.getDisposable = function () {
+	    return this.current;
+	  };
+	  SingleAssignmentDisposable.prototype.setDisposable = function (value) {
+	    if (this.current) { throw new Error('Disposable has already been assigned'); }
+	    var shouldDispose = this.isDisposed;
+	    !shouldDispose && (this.current = value);
+	    shouldDispose && value && value.dispose();
+	  };
+	  SingleAssignmentDisposable.prototype.dispose = function () {
+	    if (!this.isDisposed) {
+	      this.isDisposed = true;
+	      var old = this.current;
 	      this.current = null;
 	    }
+	    old && old.dispose();
+	  };
 	
-	    var booleanDisposablePrototype = BooleanDisposable.prototype;
-	
-	    /**
-	     * Gets the underlying disposable.
-	     * @return The underlying disposable.
-	     */
-	    booleanDisposablePrototype.getDisposable = function () {
-	      return this.current;
-	    };
-	
-	    /**
-	     * Sets the underlying disposable.
-	     * @param {Disposable} value The new underlying disposable.
-	     */
-	    booleanDisposablePrototype.setDisposable = function (value) {
-	      var shouldDispose = this.isDisposed;
-	      if (!shouldDispose) {
-	        var old = this.current;
-	        this.current = value;
-	      }
-	      old && old.dispose();
-	      shouldDispose && value && value.dispose();
-	    };
-	
-	    /**
-	     * Disposes the underlying disposable as well as all future replacements.
-	     */
-	    booleanDisposablePrototype.dispose = function () {
-	      if (!this.isDisposed) {
-	        this.isDisposed = true;
-	        var old = this.current;
-	        this.current = null;
-	      }
-	      old && old.dispose();
-	    };
-	
-	    return BooleanDisposable;
-	  }());
-	  var SerialDisposable = Rx.SerialDisposable = SingleAssignmentDisposable;
+	  // Multiple assignment disposable
+	  var SerialDisposable = Rx.SerialDisposable = function () {
+	    this.isDisposed = false;
+	    this.current = null;
+	  };
+	  SerialDisposable.prototype.getDisposable = function () {
+	    return this.current;
+	  };
+	  SerialDisposable.prototype.setDisposable = function (value) {
+	    var shouldDispose = this.isDisposed;
+	    if (!shouldDispose) {
+	      var old = this.current;
+	      this.current = value;
+	    }
+	    old && old.dispose();
+	    shouldDispose && value && value.dispose();
+	  };
+	  SerialDisposable.prototype.dispose = function () {
+	    if (!this.isDisposed) {
+	      this.isDisposed = true;
+	      var old = this.current;
+	      this.current = null;
+	    }
+	    old && old.dispose();
+	  };
 	
 	  /**
 	   * Represents a disposable resource that only disposes its underlying disposable resource when all dependent disposable objects have been disposed.
@@ -14149,6 +13607,11 @@
 	      this._scheduleAbsolute = scheduleAbsolute;
 	    }
 	
+	    /** Determines whether the given object is a scheduler */
+	    Scheduler.isScheduler = function (s) {
+	      return s instanceof Scheduler;
+	    }
+	
 	    function invokeAction(scheduler, action) {
 	      action();
 	      return disposableEmpty;
@@ -14233,7 +13696,7 @@
 	    return Scheduler;
 	  }());
 	
-	  var normalizeTime = Scheduler.normalize;
+	  var normalizeTime = Scheduler.normalize, isScheduler = Scheduler.isScheduler;
 	
 	  (function (schedulerProto) {
 	
@@ -14467,18 +13930,18 @@
 	    return currentScheduler;
 	  }());
 	
-	  var scheduleMethod;
+	  var scheduleMethod, clearMethod;
 	
 	  var localTimer = (function () {
 	    var localSetTimeout, localClearTimeout = noop;
-	    if ('WScript' in this) {
-	      localSetTimeout = function (fn, time) {
-	        WScript.Sleep(time);
-	        fn();
-	      };
-	    } else if (!!root.setTimeout) {
+	    if (!!root.setTimeout) {
 	      localSetTimeout = root.setTimeout;
 	      localClearTimeout = root.clearTimeout;
+	    } else if (!!root.WScript) {
+	      localSetTimeout = function (fn, time) {
+	        root.WScript.Sleep(time);
+	        fn();
+	      };
 	    } else {
 	      throw new NotSupportedError();
 	    }
@@ -14495,9 +13958,9 @@
 	
 	    var nextHandle = 1, tasksByHandle = {}, currentlyRunning = false;
 	
-	    function clearMethod(handle) {
+	    clearMethod = function (handle) {
 	      delete tasksByHandle[handle];
-	    }
+	    };
 	
 	    function runTask(handle) {
 	      if (currentlyRunning) {
@@ -14564,8 +14027,10 @@
 	
 	      if (root.addEventListener) {
 	        root.addEventListener('message', onGlobalPostMessage, false);
+	      } else if (root.attachEvent) {
+	        root.attachEvent('onmessage', onGlobalPostMessage);
 	      } else {
-	        root.attachEvent('onmessage', onGlobalPostMessage, false);
+	        root.onmessage = onGlobalPostMessage;
 	      }
 	
 	      scheduleMethod = function (action) {
@@ -14618,15 +14083,12 @@
 	  /**
 	   * Gets a scheduler that schedules work via a timed callback based upon platform.
 	   */
-	  var timeoutScheduler = Scheduler.timeout = Scheduler.default = (function () {
+	  var timeoutScheduler = Scheduler.timeout = Scheduler['default'] = (function () {
 	
 	    function scheduleNow(state, action) {
-	      var scheduler = this,
-	        disposable = new SingleAssignmentDisposable();
+	      var scheduler = this, disposable = new SingleAssignmentDisposable();
 	      var id = scheduleMethod(function () {
-	        if (!disposable.isDisposed) {
-	          disposable.setDisposable(action(scheduler, state));
-	        }
+	        !disposable.isDisposed && disposable.setDisposable(action(scheduler, state));
 	      });
 	      return new CompositeDisposable(disposable, disposableCreate(function () {
 	        clearMethod(id);
@@ -14634,13 +14096,10 @@
 	    }
 	
 	    function scheduleRelative(state, dueTime, action) {
-	      var scheduler = this, dt = Scheduler.normalize(dueTime);
+	      var scheduler = this, dt = Scheduler.normalize(dueTime), disposable = new SingleAssignmentDisposable();
 	      if (dt === 0) { return scheduler.scheduleWithState(state, action); }
-	      var disposable = new SingleAssignmentDisposable();
 	      var id = localSetTimeout(function () {
-	        if (!disposable.isDisposed) {
-	          disposable.setDisposable(action(scheduler, state));
-	        }
+	        !disposable.isDisposed && disposable.setDisposable(action(scheduler, state));
 	      }, dt);
 	      return new CompositeDisposable(disposable, disposableCreate(function () {
 	        localClearTimeout(id);
@@ -15613,6 +15072,34 @@
 	    });
 	  };
 	
+	  var EmptyObservable = (function(__super__) {
+	    inherits(EmptyObservable, __super__);
+	    function EmptyObservable(scheduler) {
+	      this.scheduler = scheduler;
+	      __super__.call(this);
+	    }
+	
+	    EmptyObservable.prototype.subscribeCore = function (observer) {
+	      var sink = new EmptySink(observer, this);
+	      return sink.run();
+	    };
+	
+	    function EmptySink(observer, parent) {
+	      this.observer = observer;
+	      this.parent = parent;
+	    }
+	
+	    function scheduleItem(s, state) {
+	      state.onCompleted();
+	    }
+	
+	    EmptySink.prototype.run = function () {
+	      return this.parent.scheduler.scheduleWithState(this.observer, scheduleItem);
+	    };
+	
+	    return EmptyObservable;
+	  }(ObservableBase));
+	
 	  /**
 	   *  Returns an empty observable sequence, using the specified scheduler to send out the single OnCompleted message.
 	   *
@@ -15624,11 +15111,7 @@
 	   */
 	  var observableEmpty = Observable.empty = function (scheduler) {
 	    isScheduler(scheduler) || (scheduler = immediateScheduler);
-	    return new AnonymousObservable(function (observer) {
-	      return scheduler.schedule(function () {
-	        observer.onCompleted();
-	      });
-	    });
+	    return new EmptyObservable(scheduler);
 	  };
 	
 	  var FromObservable = (function(__super__) {
@@ -15857,9 +15340,9 @@
 	   */
 	  Observable.generate = function (initialState, condition, iterate, resultSelector, scheduler) {
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
-	    return new AnonymousObservable(function (observer) {
-	      var first = true, state = initialState;
-	      return scheduler.scheduleRecursive(function (self) {
+	    return new AnonymousObservable(function (o) {
+	      var first = true;
+	      return scheduler.scheduleRecursiveWithState(initialState, function (state, self) {
 	        var hasResult, result;
 	        try {
 	          if (first) {
@@ -15868,18 +15351,15 @@
 	            state = iterate(state);
 	          }
 	          hasResult = condition(state);
-	          if (hasResult) {
-	            result = resultSelector(state);
-	          }
-	        } catch (exception) {
-	          observer.onError(exception);
-	          return;
+	          hasResult && (result = resultSelector(state));
+	        } catch (e) {
+	          return o.onError(e);
 	        }
 	        if (hasResult) {
-	          observer.onNext(result);
-	          self();
+	          o.onNext(result);
+	          self(state);
 	        } else {
-	          observer.onCompleted();
+	          o.onCompleted();
 	        }
 	      });
 	    });
@@ -15957,14 +15437,62 @@
 	    });
 	  };
 	
+	  var NeverObservable = (function(__super__) {
+	    inherits(NeverObservable, __super__);
+	    function NeverObservable() {
+	      __super__.call(this);
+	    }
+	
+	    NeverObservable.prototype.subscribeCore = function (observer) {
+	      return disposableEmpty;
+	    };
+	
+	    return NeverObservable;
+	  }(ObservableBase));
+	
 	  /**
-	   *  Returns a non-terminating observable sequence, which can be used to denote an infinite duration (e.g. when using reactive joins).
+	   * Returns a non-terminating observable sequence, which can be used to denote an infinite duration (e.g. when using reactive joins).
 	   * @returns {Observable} An observable sequence whose observers will never get called.
 	   */
 	  var observableNever = Observable.never = function () {
-	    return new AnonymousObservable(function () {
-	      return disposableEmpty;
-	    });
+	    return new NeverObservable();
+	  };
+	
+	  var PairsObservable = (function(__super__) {
+	    inherits(PairsObservable, __super__);
+	    function PairsObservable(obj, scheduler) {
+	      this.obj = obj;
+	      this.keys = Object.keys(obj);
+	      this.scheduler = scheduler;
+	      __super__.call(this);
+	    }
+	
+	    PairsObservable.prototype.subscribeCore = function (observer) {
+	      var sink = new PairsSink(observer, this);
+	      return sink.run();
+	    };
+	
+	    return PairsObservable;
+	  }(ObservableBase));
+	
+	  function PairsSink(observer, parent) {
+	    this.observer = observer;
+	    this.parent = parent;
+	  }
+	
+	  PairsSink.prototype.run = function () {
+	    var observer = this.observer, obj = this.parent.obj, keys = this.parent.keys, len = keys.length;
+	    function loopRecursive(i, recurse) {
+	      if (i < len) {
+	        var key = keys[i];
+	        observer.onNext([key, obj[key]]);
+	        recurse(i + 1);
+	      } else {
+	        observer.onCompleted();
+	      }
+	    }
+	
+	    return this.parent.scheduler.scheduleRecursiveWithState(0, loopRecursive);
 	  };
 	
 	  /**
@@ -15974,19 +15502,8 @@
 	   * @returns {Observable} An observable sequence of [key, value] pairs from the object.
 	   */
 	  Observable.pairs = function (obj, scheduler) {
-	    scheduler || (scheduler = Rx.Scheduler.currentThread);
-	    return new AnonymousObservable(function (observer) {
-	      var keys = Object.keys(obj), len = keys.length;
-	      return scheduler.scheduleRecursiveWithState(0, function (idx, self) {
-	        if (idx < len) {
-	          var key = keys[idx];
-	          observer.onNext([key, obj[key]]);
-	          self(idx + 1);
-	        } else {
-	          observer.onCompleted();
-	        }
-	      });
-	    });
+	    scheduler || (scheduler = currentThreadScheduler);
+	    return new PairsObservable(obj, scheduler);
 	  };
 	
 	    var RangeObservable = (function(__super__) {
@@ -16041,14 +15558,44 @@
 	    return new RangeObservable(start, count, scheduler);
 	  };
 	
+	  var RepeatObservable = (function(__super__) {
+	    inherits(RepeatObservable, __super__);
+	    function RepeatObservable(value, repeatCount, scheduler) {
+	      this.value = value;
+	      this.repeatCount = repeatCount == null ? -1 : repeatCount;
+	      this.scheduler = scheduler;
+	      __super__.call(this);
+	    }
+	
+	    RepeatObservable.prototype.subscribeCore = function (observer) {
+	      var sink = new RepeatSink(observer, this);
+	      return sink.run();
+	    };
+	
+	    return RepeatObservable;
+	  }(ObservableBase));
+	
+	  function RepeatSink(observer, parent) {
+	    this.observer = observer;
+	    this.parent = parent;
+	  }
+	
+	  RepeatSink.prototype.run = function () {
+	    var observer = this.observer, value = this.parent.value;
+	    function loopRecursive(i, recurse) {
+	      if (i === -1 || i > 0) {
+	        observer.onNext(value);
+	        i > 0 && i--;
+	      }
+	      if (i === 0) { return observer.onCompleted(); }
+	      recurse(i);
+	    }
+	
+	    return this.parent.scheduler.scheduleRecursiveWithState(this.parent.repeatCount, loopRecursive);
+	  };
+	
 	  /**
 	   *  Generates an observable sequence that repeats the given element the specified number of times, using the specified scheduler to send out observer messages.
-	   *
-	   * @example
-	   *  var res = Rx.Observable.repeat(42);
-	   *  var res = Rx.Observable.repeat(42, 4);
-	   *  3 - res = Rx.Observable.repeat(42, 4, Rx.Scheduler.timeout);
-	   *  4 - res = Rx.Observable.repeat(42, null, Rx.Scheduler.timeout);
 	   * @param {Mixed} value Element to repeat.
 	   * @param {Number} repeatCount [Optiona] Number of times to repeat the element. If not specified, repeats indefinitely.
 	   * @param {Scheduler} scheduler Scheduler to run the producer loop on. If not specified, defaults to Scheduler.immediate.
@@ -16056,31 +15603,81 @@
 	   */
 	  Observable.repeat = function (value, repeatCount, scheduler) {
 	    isScheduler(scheduler) || (scheduler = currentThreadScheduler);
-	    return observableReturn(value, scheduler).repeat(repeatCount == null ? -1 : repeatCount);
+	    return new RepeatObservable(value, repeatCount, scheduler);
 	  };
+	
+	  var JustObservable = (function(__super__) {
+	    inherits(JustObservable, __super__);
+	    function JustObservable(value, scheduler) {
+	      this.value = value;
+	      this.scheduler = scheduler;
+	      __super__.call(this);
+	    }
+	
+	    JustObservable.prototype.subscribeCore = function (observer) {
+	      var sink = new JustSink(observer, this);
+	      return sink.run();
+	    };
+	
+	    function JustSink(observer, parent) {
+	      this.observer = observer;
+	      this.parent = parent;
+	    }
+	
+	    function scheduleItem(s, state) {
+	      var value = state[0], observer = state[1];
+	      observer.onNext(value);
+	      observer.onCompleted();
+	    }
+	
+	    JustSink.prototype.run = function () {
+	      return this.parent.scheduler.scheduleWithState([this.parent.value, this.observer], scheduleItem);
+	    };
+	
+	    return JustObservable;
+	  }(ObservableBase));
 	
 	  /**
 	   *  Returns an observable sequence that contains a single element, using the specified scheduler to send out observer messages.
-	   *  There is an alias called 'just', and 'returnValue' for browsers <IE9.
+	   *  There is an alias called 'just' or browsers <IE9.
 	   * @param {Mixed} value Single element in the resulting observable sequence.
 	   * @param {Scheduler} scheduler Scheduler to send the single element on. If not specified, defaults to Scheduler.immediate.
 	   * @returns {Observable} An observable sequence containing the single specified element.
 	   */
-	  var observableReturn = Observable['return'] = Observable.just = function (value, scheduler) {
+	  var observableReturn = Observable['return'] = Observable.just = Observable.returnValue = function (value, scheduler) {
 	    isScheduler(scheduler) || (scheduler = immediateScheduler);
-	    return new AnonymousObservable(function (observer) {
-	      return scheduler.schedule(function () {
-	        observer.onNext(value);
-	        observer.onCompleted();
-	      });
-	    });
+	    return new JustObservable(value, scheduler);
 	  };
 	
-	  /** @deprecated use return or just */
-	  Observable.returnValue = function () {
-	    //deprecate('returnValue', 'return or just');
-	    return observableReturn.apply(null, arguments);
-	  };
+	  var ThrowObservable = (function(__super__) {
+	    inherits(ThrowObservable, __super__);
+	    function ThrowObservable(error, scheduler) {
+	      this.error = error;
+	      this.scheduler = scheduler;
+	      __super__.call(this);
+	    }
+	
+	    ThrowObservable.prototype.subscribeCore = function (observer) {
+	      var sink = new ThrowSink(observer, this);
+	      return sink.run();
+	    };
+	
+	    function ThrowSink(observer, parent) {
+	      this.observer = observer;
+	      this.parent = parent;
+	    }
+	
+	    function scheduleItem(s, state) {
+	      var error = state[0], observer = state[1];
+	      observer.onError(error);
+	    }
+	
+	    ThrowSink.prototype.run = function () {
+	      return this.parent.scheduler.scheduleWithState([this.parent.error, this.observer], scheduleItem);
+	    };
+	
+	    return ThrowObservable;
+	  }(ObservableBase));
 	
 	  /**
 	   *  Returns an observable sequence that terminates with an exception, using the specified scheduler to send out the single onError message.
@@ -16089,19 +15686,9 @@
 	   * @param {Scheduler} scheduler Scheduler to send the exceptional termination call on. If not specified, defaults to Scheduler.immediate.
 	   * @returns {Observable} The observable sequence that terminates exceptionally with the specified exception object.
 	   */
-	  var observableThrow = Observable['throw'] = Observable.throwError = function (error, scheduler) {
+	  var observableThrow = Observable['throw'] = Observable.throwError = Observable.throwException = function (error, scheduler) {
 	    isScheduler(scheduler) || (scheduler = immediateScheduler);
-	    return new AnonymousObservable(function (observer) {
-	      return scheduler.schedule(function () {
-	        observer.onError(error);
-	      });
-	    });
-	  };
-	
-	  /** @deprecated use #some instead */
-	  Observable.throwException = function () {
-	    //deprecate('throwException', 'throwError');
-	    return Observable.throwError.apply(null, arguments);
+	    return new ThrowObservable(error, scheduler);
 	  };
 	
 	  /**
@@ -17153,10 +16740,12 @@
 	   * @returns {Observable} The source sequence with the side-effecting behavior applied.
 	   */
 	  observableProto['do'] = observableProto.tap = observableProto.doAction = function (observerOrOnNext, onError, onCompleted) {
-	    var source = this, tapObserver = typeof observerOrOnNext === 'function' || typeof observerOrOnNext === 'undefined'?
-	      observerCreate(observerOrOnNext || noop, onError || noop, onCompleted || noop) :
-	      observerOrOnNext;
+	    var source = this;
 	    return new AnonymousObservable(function (observer) {
+	      var tapObserver = !observerOrOnNext || isFunction(observerOrOnNext) ?
+	        observerCreate(observerOrOnNext || noop, onError || noop, onCompleted || noop) :
+	        observerOrOnNext;
+	
 	      return source.subscribe(function (x) {
 	        try {
 	          tapObserver.onNext(x);
@@ -17806,7 +17395,7 @@
 	
 	    MapObservable.prototype.internalMap = function (selector, thisArg) {
 	      var self = this;
-	      return new MapObservable(this.source, function (x, i, o) { return selector(self.selector(x, i, o), i, o); }, thisArg)
+	      return new MapObservable(this.source, function (x, i, o) { return selector.call(this, self.selector(x, i, o), i, o); }, thisArg)
 	    };
 	
 	    MapObservable.prototype.subscribeCore = function (observer) {
@@ -17832,12 +17421,6 @@
 	      return this.observer.onError(result.e);
 	    }
 	    this.observer.onNext(result);
-	    /*try {
-	      var result = this.selector(x, this.i++, this.source);
-	    } catch (e) {
-	      return this.observer.onError(e);
-	    }
-	    this.observer.onNext(result);*/
 	  };
 	  MapObserver.prototype.onError = function (e) {
 	    if(!this.isStopped) { this.isStopped = true; this.observer.onError(e); }
@@ -18120,7 +17703,7 @@
 	
 	    FilterObservable.prototype.internalFilter = function(predicate, thisArg) {
 	      var self = this;
-	      return new FilterObservable(this.source, function(x, i, o) { return self.predicate(x, i, o) && predicate(x, i, o); }, thisArg);
+	      return new FilterObservable(this.source, function(x, i, o) { return self.predicate(x, i, o) && predicate.call(this, x, i, o); }, thisArg);
 	    };
 	
 	    return FilterObservable;
@@ -18385,6 +17968,7 @@
 	    //deprecate('contains', 'includes');
 	    observableProto.includes(searchElement, fromIndex);
 	  };
+	
 	  /**
 	   * Returns an observable sequence containing a value that represents how many elements in the specified observable sequence satisfy a condition if provided, else the count of items.
 	   * @example
@@ -19145,15 +18729,17 @@
 	   */
 	  Observable.fromCallback = function (func, context, selector) {
 	    return function () {
-	      for(var args = [], i = 0, len = arguments.length; i < len; i++) { args.push(arguments[i]); }
+	      var len = arguments.length, args = new Array(len)
+	      for(var i = 0; i < len; i++) { args[i] = arguments[i]; }
 	
 	      return new AnonymousObservable(function (observer) {
 	        function handler() {
-	          var results = arguments;
+	          var len = arguments.length, results = new Array(len);
+	          for(var i = 0; i < len; i++) { results[i] = arguments[i]; }
 	
 	          if (selector) {
 	            try {
-	              results = selector(results);
+	              results = selector.apply(context, results);
 	            } catch (e) {
 	              return observer.onError(e);
 	            }
@@ -19200,7 +18786,7 @@
 	
 	          if (selector) {
 	            try {
-	              results = selector(results);
+	              results = selector.apply(context, results);
 	            } catch (e) {
 	              return observer.onError(e);
 	            }
@@ -19563,15 +19149,14 @@
 	      return this.source.subscribe(observer);
 	    }
 	
-	    function ControlledObservable (source, enableQueue) {
+	    function ControlledObservable (source, enableQueue, scheduler) {
 	      __super__.call(this, subscribe, source);
-	      this.subject = new ControlledSubject(enableQueue);
+	      this.subject = new ControlledSubject(enableQueue, scheduler);
 	      this.source = source.multicast(this.subject).refCount();
 	    }
 	
 	    ControlledObservable.prototype.request = function (numberOfItems) {
-	      if (numberOfItems == null) { numberOfItems = -1; }
-	      return this.subject.request(numberOfItems);
+	      return this.subject.request(numberOfItems == null ? -1 : numberOfItems);
 	    };
 	
 	    return ControlledObservable;
@@ -19586,7 +19171,7 @@
 	
 	    inherits(ControlledSubject, __super__);
 	
-	    function ControlledSubject(enableQueue) {
+	    function ControlledSubject(enableQueue, scheduler) {
 	      enableQueue == null && (enableQueue = true);
 	
 	      __super__.call(this, subscribe);
@@ -19598,29 +19183,32 @@
 	      this.error = null;
 	      this.hasFailed = false;
 	      this.hasCompleted = false;
+	      this.scheduler = scheduler || currentThreadScheduler;
 	    }
 	
 	    addProperties(ControlledSubject.prototype, Observer, {
 	      onCompleted: function () {
 	        this.hasCompleted = true;
-	        if (!this.enableQueue || this.queue.length === 0)
+	        if (!this.enableQueue || this.queue.length === 0) {
 	          this.subject.onCompleted();
-	        else
-	          this.queue.push(Rx.Notification.createOnCompleted());
+	        } else {
+	          this.queue.push(Notification.createOnCompleted());
+	        }
 	      },
 	      onError: function (error) {
 	        this.hasFailed = true;
 	        this.error = error;
-	        if (!this.enableQueue || this.queue.length === 0)
+	        if (!this.enableQueue || this.queue.length === 0) {
 	          this.subject.onError(error);
-	        else
-	          this.queue.push(Rx.Notification.createOnError(error));
+	        } else {
+	          this.queue.push(Notification.createOnError(error));
+	        }
 	      },
 	      onNext: function (value) {
 	        var hasRequested = false;
 	
 	        if (this.requestedCount === 0) {
-	          this.enableQueue && this.queue.push(Rx.Notification.createOnNext(value));
+	          this.enableQueue && this.queue.push(Notification.createOnNext(value));
 	        } else {
 	          (this.requestedCount !== -1 && this.requestedCount-- === 0) && this.disposeCurrentRequest();
 	          hasRequested = true;
@@ -19633,37 +19221,35 @@
 	          (this.queue.length > 0 && this.queue[0].kind !== 'N')) {
 	            var first = this.queue.shift();
 	            first.accept(this.subject);
-	            if (first.kind === 'N') numberOfItems--;
-	            else { this.disposeCurrentRequest(); this.queue = []; }
+	            if (first.kind === 'N') {
+	              numberOfItems--;
+	            } else {
+	              this.disposeCurrentRequest();
+	              this.queue = [];
+	            }
 	          }
 	
 	          return { numberOfItems : numberOfItems, returnValue: this.queue.length !== 0};
 	        }
 	
-	        //TODO I don't think this is ever necessary, since termination of a sequence without a queue occurs in the onCompletion or onError function
-	        //if (this.hasFailed) {
-	        //  this.subject.onError(this.error);
-	        //} else if (this.hasCompleted) {
-	        //  this.subject.onCompleted();
-	        //}
-	
 	        return { numberOfItems: numberOfItems, returnValue: false };
 	      },
 	      request: function (number) {
 	        this.disposeCurrentRequest();
-	        var self = this, r = this._processRequest(number);
+	        var self = this;
 	
-	        var number = r.numberOfItems;
-	        if (!r.returnValue) {
-	          this.requestedCount = number;
-	          this.requestedDisposable = disposableCreate(function () {
-	            self.requestedCount = 0;
-	          });
+	        this.requestedDisposable = this.scheduler.scheduleWithState(number,
+	        function(s, i) {
+	          var r = self._processRequest(i), remaining = r.numberOfItems;
+	          if (!r.returnValue) {
+	            self.requestedCount = remaining;
+	            self.requestedDisposable = disposableCreate(function () {
+	              self.requestedCount = 0;
+	            });
+	          }
+	        });
 	
-	          return this.requestedDisposable;
-	        } else {
-	          return disposableEmpty;
-	        }
+	        return this.requestedDisposable;
 	      },
 	      disposeCurrentRequest: function () {
 	        this.requestedDisposable.dispose();
@@ -19679,12 +19265,19 @@
 	   * @example
 	   * var source = Rx.Observable.interval(100).controlled();
 	   * source.request(3); // Reads 3 values
-	   * @param {Observable} pauser The observable sequence used to pause the underlying sequence.
+	   * @param {bool} enableQueue truthy value to determine if values should be queued pending the next request
+	   * @param {Scheduler} scheduler determines how the requests will be scheduled
 	   * @returns {Observable} The observable sequence which is paused based upon the pauser.
 	   */
-	  observableProto.controlled = function (enableQueue) {
+	  observableProto.controlled = function (enableQueue, scheduler) {
+	
+	    if (enableQueue && isScheduler(enableQueue)) {
+	        scheduler = enableQueue;
+	        enableQueue = true;
+	    }
+	
 	    if (enableQueue == null) {  enableQueue = true; }
-	    return new ControlledObservable(this, enableQueue);
+	    return new ControlledObservable(this, enableQueue, scheduler);
 	  };
 	
 	  var StopAndWaitObservable = (function (__super__) {
@@ -19839,6 +19432,38 @@
 	   */
 	  ControlledObservable.prototype.windowed = function (windowSize) {
 	    return new WindowedObservable(this, windowSize);
+	  };
+	
+	  /**
+	   * Pipes the existing Observable sequence into a Node.js Stream.
+	   * @param {Stream} dest The destination Node.js stream.
+	   * @returns {Stream} The destination stream.
+	   */
+	  observableProto.pipe = function (dest) {
+	    var source = this.pausableBuffered();
+	
+	    function onDrain() {
+	      source.resume();
+	    }
+	
+	    dest.addListener('drain', onDrain);
+	
+	    source.subscribe(
+	      function (x) {
+	        !dest.write(String(x)) && source.pause();
+	      },
+	      function (err) {
+	        dest.emit('error', err);
+	      },
+	      function () {
+	        // Hack check because STDIO is not closable
+	        !dest._isStdio && dest.end();
+	        dest.removeListener('drain', onDrain);
+	      });
+	
+	    source.resume();
+	
+	    return dest;
 	  };
 	
 	  /**
@@ -21983,9 +21608,9 @@
 	   *
 	   * @example
 	   *  1 - res = source.timestamp(); // produces { value: x, timestamp: ts }
-	   *  2 - res = source.timestamp(Rx.Scheduler.timeout);
+	   *  2 - res = source.timestamp(Rx.Scheduler.default);
 	   *
-	   * @param {Scheduler} [scheduler]  Scheduler used to compute timestamps. If not specified, the timeout scheduler is used.
+	   * @param {Scheduler} [scheduler]  Scheduler used to compute timestamps. If not specified, the default scheduler is used.
 	   * @returns {Observable} An observable sequence with timestamp information on values.
 	   */
 	  observableProto.timestamp = function (scheduler) {
@@ -22204,18 +21829,29 @@
 	  };
 	
 	  /**
-	   *  Time shifts the observable sequence by delaying the subscription.
+	   *  Time shifts the observable sequence by delaying the subscription with the specified relative time duration, using the specified scheduler to run timers.
 	   *
 	   * @example
 	   *  1 - res = source.delaySubscription(5000); // 5s
-	   *  2 - res = source.delaySubscription(5000, Rx.Scheduler.timeout); // 5 seconds
+	   *  2 - res = source.delaySubscription(5000, Rx.Scheduler.default); // 5 seconds
 	   *
-	   * @param {Number} dueTime Absolute or relative time to perform the subscription at.
+	   * @param {Number} dueTime Relative or absolute time shift of the subscription.
 	   * @param {Scheduler} [scheduler]  Scheduler to run the subscription delay timer on. If not specified, the timeout scheduler is used.
 	   * @returns {Observable} Time-shifted sequence.
 	   */
 	  observableProto.delaySubscription = function (dueTime, scheduler) {
-	    return this.delayWithSelector(observableTimer(dueTime, isScheduler(scheduler) ? scheduler : timeoutScheduler), observableEmpty);
+	    var scheduleMethod = dueTime instanceof Date ? 'scheduleWithAbsolute' : 'scheduleWithRelative';
+	    var source = this;
+	    isScheduler(scheduler) || (scheduler = timeoutScheduler);
+	    return new AnonymousObservable(function (o) {
+	      var d = new SerialDisposable();
+	
+	      d.setDisposable(scheduler[scheduleMethod](dueTime, function() {
+	        d.setDisposable(source.subscribe(o));
+	      }));
+	
+	      return d;
+	    }, this);
 	  };
 	
 	  /**
@@ -22230,47 +21866,54 @@
 	   * @returns {Observable} Time-shifted sequence.
 	   */
 	  observableProto.delayWithSelector = function (subscriptionDelay, delayDurationSelector) {
-	      var source = this, subDelay, selector;
-	      if (typeof subscriptionDelay === 'function') {
-	        selector = subscriptionDelay;
-	      } else {
-	        subDelay = subscriptionDelay;
-	        selector = delayDurationSelector;
-	      }
-	      return new AnonymousObservable(function (observer) {
-	        var delays = new CompositeDisposable(), atEnd = false, done = function () {
-	            if (atEnd && delays.length === 0) { observer.onCompleted(); }
-	        }, subscription = new SerialDisposable(), start = function () {
-	          subscription.setDisposable(source.subscribe(function (x) {
-	              var delay;
-	              try {
-	                delay = selector(x);
-	              } catch (error) {
-	                observer.onError(error);
-	                return;
+	    var source = this, subDelay, selector;
+	    if (isFunction(subscriptionDelay)) {
+	      selector = subscriptionDelay;
+	    } else {
+	      subDelay = subscriptionDelay;
+	      selector = delayDurationSelector;
+	    }
+	    return new AnonymousObservable(function (observer) {
+	      var delays = new CompositeDisposable(), atEnd = false, subscription = new SerialDisposable();
+	
+	      function start() {
+	        subscription.setDisposable(source.subscribe(
+	          function (x) {
+	            var delay = tryCatch(selector)(x);
+	            if (delay === errorObj) { return observer.onError(delay.e); }
+	            var d = new SingleAssignmentDisposable();
+	            delays.add(d);
+	            d.setDisposable(delay.subscribe(
+	              function () {
+	                observer.onNext(x);
+	                delays.remove(d);
+	                done();
+	              },
+	              function (e) { observer.onError(e); },
+	              function () {
+	                observer.onNext(x);
+	                delays.remove(d);
+	                done();
 	              }
-	              var d = new SingleAssignmentDisposable();
-	              delays.add(d);
-	              d.setDisposable(delay.subscribe(function () {
-	                observer.onNext(x);
-	                delays.remove(d);
-	                done();
-	              }, observer.onError.bind(observer), function () {
-	                observer.onNext(x);
-	                delays.remove(d);
-	                done();
-	              }));
-	          }, observer.onError.bind(observer), function () {
+	            ))
+	          },
+	          function (e) { observer.onError(e); },
+	          function () {
 	            atEnd = true;
 	            subscription.dispose();
 	            done();
-	          }));
-	      };
+	          }
+	        ))
+	      }
+	
+	      function done () {
+	        atEnd && delays.length === 0 && observer.onCompleted();
+	      }
 	
 	      if (!subDelay) {
 	        start();
 	      } else {
-	        subscription.setDisposable(subDelay.subscribe(start, observer.onError.bind(observer), start));
+	        subscription.setDisposable(subDelay.subscribe(start, function (e) { observer.onError(e); }, start));
 	      }
 	
 	      return new CompositeDisposable(subscription, delays);
@@ -22396,9 +22039,12 @@
 	    }, source);
 	  };
 	
-	  observableProto.throttleWithSelector = function () {
+	  /**
+	   * @deprecated use #debounceWithSelector instead.
+	   */
+	  observableProto.throttleWithSelector = function (durationSelector) {
 	    //deprecate('throttleWithSelector', 'debounceWithSelector');
-	    return this.debounceWithSelector.apply(this, arguments);
+	    return this.debounceWithSelector(durationSelector);
 	  };
 	
 	  /**
@@ -22627,32 +22273,32 @@
 	  observableProto.transduce = function(transducer) {
 	    var source = this;
 	
-	    function transformForObserver(observer) {
+	    function transformForObserver(o) {
 	      return {
-	        init: function() {
-	          return observer;
+	        '@@transducer/init': function() {
+	          return o;
 	        },
-	        step: function(obs, input) {
+	        '@@transducer/step': function(obs, input) {
 	          return obs.onNext(input);
 	        },
-	        result: function(obs) {
+	        '@@transducer/result': function(obs) {
 	          return obs.onCompleted();
 	        }
 	      };
 	    }
 	
-	    return new AnonymousObservable(function(observer) {
-	      var xform = transducer(transformForObserver(observer));
+	    return new AnonymousObservable(function(o) {
+	      var xform = transducer(transformForObserver(o));
 	      return source.subscribe(
 	        function(v) {
 	          try {
-	            xform.step(observer, v);
+	            xform['@@transducer/step'](o, v);
 	          } catch (e) {
-	            observer.onError(e);
+	            o.onError(e);
 	          }
 	        },
-	        observer.onError.bind(observer),
-	        function() { xform.result(observer); }
+	        function (e) { o.onError(e); },
+	        function() { xform['@@transducer/result'](o); }
 	      );
 	    }, source);
 	  };
@@ -23434,62 +23080,391 @@
 	
 	}.call(this));
 	
-	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 25)(module), (function() { return this; }()), __webpack_require__(/*! (webpack)/~/node-libs-browser/~/process/browser.js */ 45)))
+	/* WEBPACK VAR INJECTION */}.call(exports, __webpack_require__(/*! (webpack)/buildin/module.js */ 28)(module), (function() { return this; }()), __webpack_require__(/*! (webpack)/~/node-libs-browser/~/process/browser.js */ 32)))
 
 /***/ },
-/* 25 */
-/*!***********************************!*\
-  !*** (webpack)/buildin/module.js ***!
-  \***********************************/
+/* 16 */
+/*!************************************************!*\
+  !*** ./~/cyclejs/lib/custom-element-widget.js ***!
+  \************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = function(module) {
-		if(!module.webpackPolyfill) {
-			module.deprecate = function() {};
-			module.paths = [];
-			// module.parent = undefined by default
-			module.children = [];
-			module.webpackPolyfill = 1;
-		}
-		return module;
+	'use strict';
+	var Rx = __webpack_require__(/*! rx */ 15);
+	
+	function makeDispatchFunction(element, eventName) {
+	  return function dispatchCustomEvent(evData) {
+	    //console.log('%cdispatchCustomEvent ' + eventName,
+	    //  'background-color: #CCCCFF; color: black');
+	    var event;
+	    try {
+	      event = new Event(eventName);
+	    } catch (err) {
+	      event = document.createEvent('Event');
+	      event.initEvent(eventName, true, true);
+	    }
+	    event.detail = evData;
+	    element.dispatchEvent(event);
+	  };
 	}
+	
+	function subscribeDispatchers(element) {
+	  var customEvents = element.cycleCustomElementMetadata.customEvents;
+	
+	  var disposables = new Rx.CompositeDisposable();
+	  for (var _name in customEvents) {
+	    if (customEvents.hasOwnProperty(_name)) {
+	      if (/\$$/.test(_name) && _name !== 'vtree$' && typeof customEvents[_name].subscribe === 'function') {
+	        var eventName = _name.slice(0, -1);
+	        var disposable = customEvents[_name].subscribe(makeDispatchFunction(element, eventName));
+	        disposables.add(disposable);
+	      }
+	    }
+	  }
+	  return disposables;
+	}
+	
+	function subscribeDispatchersWhenRootChanges(metadata) {
+	  return metadata.rootElem$.distinctUntilChanged(Rx.helpers.identity, function (x, y) {
+	    return x && y && x.isEqualNode && x.isEqualNode(y);
+	  }).subscribe(function resubscribeDispatchers(rootElem) {
+	    if (metadata.eventDispatchingSubscription) {
+	      metadata.eventDispatchingSubscription.dispose();
+	    }
+	    metadata.eventDispatchingSubscription = subscribeDispatchers(rootElem);
+	  });
+	}
+	
+	function makePropertiesProxy() {
+	  var propertiesProxy = {};
+	  Object.defineProperty(propertiesProxy, 'type', {
+	    enumerable: false,
+	    value: 'PropertiesProxy'
+	  });
+	  Object.defineProperty(propertiesProxy, 'get', {
+	    enumerable: false,
+	    value: function get(streamKey) {
+	      var comparer = arguments[1] === undefined ? Rx.helpers.defaultComparer : arguments[1];
+	
+	      if (typeof this[streamKey] === 'undefined') {
+	        this[streamKey] = new Rx.ReplaySubject(1);
+	      }
+	      return this[streamKey].distinctUntilChanged(Rx.helpers.identity, comparer);
+	    }
+	  });
+	  return propertiesProxy;
+	}
+	
+	function createContainerElement(tagName, vtreeProperties) {
+	  var element = document.createElement('div');
+	  element.id = vtreeProperties.id || '';
+	  element.className = vtreeProperties.className || '';
+	  element.className += ' cycleCustomElement-' + tagName.toUpperCase();
+	  return element;
+	}
+	
+	function warnIfVTreeHasNoKey(vtree) {
+	  if (typeof vtree.key === 'undefined') {
+	    console.warn('Missing `key` property for Cycle custom element ' + vtree.tagName);
+	  }
+	}
+	
+	function throwIfVTreeHasPropertyChildren(vtree) {
+	  if (typeof vtree.properties.children !== 'undefined') {
+	    throw new Error('Custom element should not have property `children`. ' + 'It is reserved for children elements nested into this custom element.');
+	  }
+	}
+	
+	function makeConstructor() {
+	  return function customElementConstructor(vtree) {
+	    //console.log('%cnew (constructor) custom element ' + vtree.tagName,
+	    //  'color: #880088');
+	    warnIfVTreeHasNoKey(vtree);
+	    throwIfVTreeHasPropertyChildren(vtree);
+	    this.type = 'Widget';
+	    this.properties = vtree.properties;
+	    this.properties.children = vtree.children;
+	    this.key = vtree.key;
+	    this.isCustomElementWidget = true;
+	    this.rootElem$ = new Rx.ReplaySubject(1);
+	    this.disposables = new Rx.CompositeDisposable();
+	  };
+	}
+	
+	function makeInit(tagName, definitionFn) {
+	  var _require = __webpack_require__(/*! ./render-dom */ 10);
+	
+	  var applyToDOM = _require.applyToDOM;
+	
+	  return function initCustomElement() {
+	    //console.log('%cInit() custom element ' + tagName, 'color: #880088');
+	    var widget = this;
+	    var element = createContainerElement(tagName, widget.properties);
+	    var propertiesProxy = makePropertiesProxy();
+	    var domUI = applyToDOM(element, definitionFn, {
+	      observer: widget.rootElem$.asObserver(),
+	      props: propertiesProxy
+	    });
+	    element.cycleCustomElementMetadata = {
+	      propertiesProxy: propertiesProxy,
+	      rootElem$: domUI.rootElem$,
+	      customEvents: domUI.customEvents,
+	      eventDispatchingSubscription: false
+	    };
+	    element.cycleCustomElementMetadata.eventDispatchingSubscription = subscribeDispatchers(element);
+	    widget.disposables.add(element.cycleCustomElementMetadata.eventDispatchingSubscription);
+	    widget.disposables.add(subscribeDispatchersWhenRootChanges(element.cycleCustomElementMetadata));
+	    widget.disposables.add(domUI);
+	    widget.disposables.add(widget.rootElem$);
+	    widget.update(null, element);
+	    return element;
+	  };
+	}
+	
+	function validatePropertiesProxyInMetadata(element, fnName) {
+	  if (!element) {
+	    throw new Error('Missing DOM element when calling ' + fnName + ' on custom ' + 'element Widget.');
+	  }
+	  if (!element.cycleCustomElementMetadata) {
+	    throw new Error('Missing custom element metadata on DOM element when ' + 'calling ' + fnName + ' on custom element Widget.');
+	  }
+	  var metadata = element.cycleCustomElementMetadata;
+	  if (metadata.propertiesProxy.type !== 'PropertiesProxy') {
+	    throw new Error('Custom element metadata\'s propertiesProxy type is ' + 'invalid: ' + metadata.propertiesProxy.type + '.');
+	  }
+	}
+	
+	function makeUpdate() {
+	  return function updateCustomElement(previous, element) {
+	    if (previous) {
+	      this.disposables = previous.disposables;
+	      // This is a new rootElem$ which is not being used by init(),
+	      // but used by render-dom for creating rootElemAfterChildren$.
+	      this.rootElem$.onNext(null);
+	      this.rootElem$.onCompleted();
+	    }
+	    validatePropertiesProxyInMetadata(element, 'update()');
+	
+	    //console.log(`%cupdate() custom el ${element.className}`,'color: #880088');
+	    var proxiedProps = element.cycleCustomElementMetadata.propertiesProxy;
+	    if (proxiedProps.hasOwnProperty('*')) {
+	      proxiedProps['*'].onNext(this.properties);
+	    }
+	    for (var prop in proxiedProps) {
+	      if (proxiedProps.hasOwnProperty(prop)) {
+	        if (this.properties.hasOwnProperty(prop)) {
+	          proxiedProps[prop].onNext(this.properties[prop]);
+	        }
+	      }
+	    }
+	  };
+	}
+	
+	function makeDestroy() {
+	  return function destroyCustomElement(element) {
+	    //console.log(`%cdestroy() custom el ${element.className}`, 'color: #808');
+	    // Dispose propertiesProxy
+	    var proxiedProps = element.cycleCustomElementMetadata.propertiesProxy;
+	    for (var prop in proxiedProps) {
+	      if (proxiedProps.hasOwnProperty(prop)) {
+	        this.disposables.add(proxiedProps[prop]);
+	      }
+	    }
+	    if (element.cycleCustomElementMetadata.eventDispatchingSubscription) {
+	      // This subscription has to be disposed.
+	      // Because disposing subscribeDispatchersWhenRootChanges only
+	      // is not enough.
+	      this.disposables.add(element.cycleCustomElementMetadata.eventDispatchingSubscription);
+	    }
+	    this.disposables.dispose();
+	  };
+	}
+	
+	module.exports = {
+	  makeDispatchFunction: makeDispatchFunction,
+	  subscribeDispatchers: subscribeDispatchers,
+	  subscribeDispatchersWhenRootChanges: subscribeDispatchersWhenRootChanges,
+	  makePropertiesProxy: makePropertiesProxy,
+	  createContainerElement: createContainerElement,
+	  warnIfVTreeHasNoKey: warnIfVTreeHasNoKey,
+	  throwIfVTreeHasPropertyChildren: throwIfVTreeHasPropertyChildren,
+	
+	  makeConstructor: makeConstructor,
+	  makeInit: makeInit,
+	  makeUpdate: makeUpdate,
+	  makeDestroy: makeDestroy
+	};
+
+/***/ },
+/* 17 */
+/*!*****************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/diff.js ***!
+  \*****************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var diff = __webpack_require__(/*! ./vtree/diff.js */ 29)
+	
+	module.exports = diff
 
 
 /***/ },
-/* 26 */
+/* 18 */
+/*!******************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/patch.js ***!
+  \******************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var patch = __webpack_require__(/*! ./vdom/patch.js */ 30)
+	
+	module.exports = patch
+
+
+/***/ },
+/* 19 */
+/*!**************************************!*\
+  !*** ./~/cyclejs/~/es6-map/index.js ***!
+  \**************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! ./is-implemented */ 33)() ? Map : __webpack_require__(/*! ./polyfill */ 34);
+
+
+/***/ },
+/* 20 */
+/*!*******************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/index.js ***!
+  \*******************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var escape = __webpack_require__(/*! escape-html */ 52);
+	var extend = __webpack_require__(/*! xtend */ 55);
+	var isVNode = __webpack_require__(/*! virtual-dom/vnode/is-vnode */ 35);
+	var isVText = __webpack_require__(/*! virtual-dom/vnode/is-vtext */ 36);
+	var isThunk = __webpack_require__(/*! virtual-dom/vnode/is-thunk */ 37);
+	var isWidget = __webpack_require__(/*! virtual-dom/vnode/is-widget */ 38);
+	var softHook = __webpack_require__(/*! virtual-dom/virtual-hyperscript/hooks/soft-set-hook */ 39);
+	var attrHook = __webpack_require__(/*! virtual-dom/virtual-hyperscript/hooks/attribute-hook */ 27);
+	var paramCase = __webpack_require__(/*! param-case */ 56);
+	var createAttribute = __webpack_require__(/*! ./create-attribute */ 40);
+	var voidElements = __webpack_require__(/*! ./void-elements */ 41);
+	
+	module.exports = toHTML;
+	
+	function toHTML(node, parent) {
+	  if (!node) return '';
+	
+	  if (isThunk(node)) {
+	    node = node.render();
+	  }
+	
+	  if (isWidget(node) && node.render) {
+	    node = node.render();
+	  }
+	
+	  if (isVNode(node)) {
+	    return openTag(node) + tagContent(node) + closeTag(node);
+	  } else if (isVText(node)) {
+	    if (parent && parent.tagName.toLowerCase() === 'script') return String(node.text);
+	    return escape(String(node.text));
+	  }
+	
+	  return '';
+	}
+	
+	function openTag(node) {
+	  var props = node.properties;
+	  var ret = '<' + node.tagName.toLowerCase();
+	
+	  for (var name in props) {
+	    var value = props[name];
+	    if (value == null) continue;
+	
+	    if (name == 'attributes') {
+	      value = extend({}, value);
+	      for (var attrProp in value) {
+	        ret += ' ' + createAttribute(attrProp, value[attrProp], true);
+	      }
+	      continue;
+	    }
+	
+	    if (name == 'style') {
+	      var css = '';
+	      value = extend({}, value);
+	      for (var styleProp in value) {
+	        css += paramCase(styleProp) + ': ' + value[styleProp] + '; ';
+	      }
+	      value = css.trim();
+	    }
+	
+	    if (value instanceof softHook || value instanceof attrHook) {
+	      ret += ' ' + createAttribute(name, value.value, true);
+	      continue;
+	    }
+	
+	    var attr = createAttribute(name, value);
+	    if (attr) ret += ' ' + attr;
+	  }
+	
+	  return ret + '>';
+	}
+	
+	function tagContent(node) {
+	  var innerHTML = node.properties.innerHTML;
+	  if (innerHTML != null) return innerHTML;
+	  else {
+	    var ret = '';
+	    if (node.children && node.children.length) {
+	      for (var i = 0, l = node.children.length; i<l; i++) {
+	        var child = node.children[i];
+	        ret += toHTML(child, node);
+	      }
+	    }
+	    return ret;
+	  }
+	}
+	
+	function closeTag(node) {
+	  var tag = node.tagName.toLowerCase();
+	  return voidElements[tag] ? '' : '</' + tag + '>';
+	}
+
+/***/ },
+/* 21 */
 /*!**************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/h.js ***!
   \**************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 33)
+	var h = __webpack_require__(/*! ./virtual-hyperscript/index.js */ 25)
 	
 	module.exports = h
 
 
 /***/ },
-/* 27 */
+/* 22 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/create-element.js ***!
   \***************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 32)
+	var createElement = __webpack_require__(/*! ./vdom/create-element.js */ 42)
 	
 	module.exports = createElement
 
 
 /***/ },
-/* 28 */
+/* 23 */
 /*!************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/vnode.js ***!
   \************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 34)
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 38)
-	var isWidget = __webpack_require__(/*! ./is-widget */ 40)
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 41)
+	var version = __webpack_require__(/*! ./version */ 43)
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 35)
+	var isWidget = __webpack_require__(/*! ./is-widget */ 38)
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 37)
 	var isVHook = __webpack_require__(/*! ./is-vhook */ 44)
 	
 	module.exports = VirtualNode
@@ -23561,13 +23536,13 @@
 
 
 /***/ },
-/* 29 */
+/* 24 */
 /*!************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/vtext.js ***!
   \************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 34)
+	var version = __webpack_require__(/*! ./version */ 43)
 	
 	module.exports = VirtualText
 	
@@ -23580,22 +23555,551 @@
 
 
 /***/ },
-/* 30 */
+/* 25 */
+/*!**************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/index.js ***!
+  \**************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var isArray = __webpack_require__(/*! x-is-array */ 31);
+	
+	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 23);
+	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 24);
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 35);
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 36);
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 38);
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 44);
+	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 37);
+	
+	var parseTag = __webpack_require__(/*! ./parse-tag.js */ 45);
+	var softSetHook = __webpack_require__(/*! ./hooks/soft-set-hook.js */ 39);
+	var evHook = __webpack_require__(/*! ./hooks/ev-hook.js */ 46);
+	
+	module.exports = h;
+	
+	function h(tagName, properties, children) {
+	    var childNodes = [];
+	    var tag, props, key, namespace;
+	
+	    if (!children && isChildren(properties)) {
+	        children = properties;
+	        props = {};
+	    }
+	
+	    props = props || properties || {};
+	    tag = parseTag(tagName, props);
+	
+	    // support keys
+	    if (props.hasOwnProperty('key')) {
+	        key = props.key;
+	        props.key = undefined;
+	    }
+	
+	    // support namespace
+	    if (props.hasOwnProperty('namespace')) {
+	        namespace = props.namespace;
+	        props.namespace = undefined;
+	    }
+	
+	    // fix cursor bug
+	    if (tag === 'INPUT' &&
+	        !namespace &&
+	        props.hasOwnProperty('value') &&
+	        props.value !== undefined &&
+	        !isHook(props.value)
+	    ) {
+	        props.value = softSetHook(props.value);
+	    }
+	
+	    transformProperties(props);
+	
+	    if (children !== undefined && children !== null) {
+	        addChild(children, childNodes, tag, props);
+	    }
+	
+	
+	    return new VNode(tag, props, childNodes, key, namespace);
+	}
+	
+	function addChild(c, childNodes, tag, props) {
+	    if (typeof c === 'string') {
+	        childNodes.push(new VText(c));
+	    } else if (isChild(c)) {
+	        childNodes.push(c);
+	    } else if (isArray(c)) {
+	        for (var i = 0; i < c.length; i++) {
+	            addChild(c[i], childNodes, tag, props);
+	        }
+	    } else if (c === null || c === undefined) {
+	        return;
+	    } else {
+	        throw UnexpectedVirtualElement({
+	            foreignObject: c,
+	            parentVnode: {
+	                tagName: tag,
+	                properties: props
+	            }
+	        });
+	    }
+	}
+	
+	function transformProperties(props) {
+	    for (var propName in props) {
+	        if (props.hasOwnProperty(propName)) {
+	            var value = props[propName];
+	
+	            if (isHook(value)) {
+	                continue;
+	            }
+	
+	            if (propName.substr(0, 3) === 'ev-') {
+	                // add ev-foo support
+	                props[propName] = evHook(value);
+	            }
+	        }
+	    }
+	}
+	
+	function isChild(x) {
+	    return isVNode(x) || isVText(x) || isWidget(x) || isVThunk(x);
+	}
+	
+	function isChildren(x) {
+	    return typeof x === 'string' || isArray(x) || isChild(x);
+	}
+	
+	function UnexpectedVirtualElement(data) {
+	    var err = new Error();
+	
+	    err.type = 'virtual-hyperscript.unexpected.virtual-element';
+	    err.message = 'Unexpected virtual child passed to h().\n' +
+	        'Expected a VNode / Vthunk / VWidget / string but:\n' +
+	        'got:\n' +
+	        errorString(data.foreignObject) +
+	        '.\n' +
+	        'The parent vnode is:\n' +
+	        errorString(data.parentVnode)
+	        '\n' +
+	        'Suggested fix: change your `h(..., [ ... ])` callsite.';
+	    err.foreignObject = data.foreignObject;
+	    err.parentVnode = data.parentVnode;
+	
+	    return err;
+	}
+	
+	function errorString(obj) {
+	    try {
+	        return JSON.stringify(obj, null, '    ');
+	    } catch (e) {
+	        return String(obj);
+	    }
+	}
+
+
+/***/ },
+/* 26 */
+/*!********************************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/svg-attribute-namespace.js ***!
+  \********************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var DEFAULT_NAMESPACE = null;
+	var EV_NAMESPACE = 'http://www.w3.org/2001/xml-events';
+	var XLINK_NAMESPACE = 'http://www.w3.org/1999/xlink';
+	var XML_NAMESPACE = 'http://www.w3.org/XML/1998/namespace';
+	
+	// http://www.w3.org/TR/SVGTiny12/attributeTable.html
+	// http://www.w3.org/TR/SVG/attindex.html
+	var SVG_PROPERTIES = {
+	    'about': DEFAULT_NAMESPACE,
+	    'accent-height': DEFAULT_NAMESPACE,
+	    'accumulate': DEFAULT_NAMESPACE,
+	    'additive': DEFAULT_NAMESPACE,
+	    'alignment-baseline': DEFAULT_NAMESPACE,
+	    'alphabetic': DEFAULT_NAMESPACE,
+	    'amplitude': DEFAULT_NAMESPACE,
+	    'arabic-form': DEFAULT_NAMESPACE,
+	    'ascent': DEFAULT_NAMESPACE,
+	    'attributeName': DEFAULT_NAMESPACE,
+	    'attributeType': DEFAULT_NAMESPACE,
+	    'azimuth': DEFAULT_NAMESPACE,
+	    'bandwidth': DEFAULT_NAMESPACE,
+	    'baseFrequency': DEFAULT_NAMESPACE,
+	    'baseProfile': DEFAULT_NAMESPACE,
+	    'baseline-shift': DEFAULT_NAMESPACE,
+	    'bbox': DEFAULT_NAMESPACE,
+	    'begin': DEFAULT_NAMESPACE,
+	    'bias': DEFAULT_NAMESPACE,
+	    'by': DEFAULT_NAMESPACE,
+	    'calcMode': DEFAULT_NAMESPACE,
+	    'cap-height': DEFAULT_NAMESPACE,
+	    'class': DEFAULT_NAMESPACE,
+	    'clip': DEFAULT_NAMESPACE,
+	    'clip-path': DEFAULT_NAMESPACE,
+	    'clip-rule': DEFAULT_NAMESPACE,
+	    'clipPathUnits': DEFAULT_NAMESPACE,
+	    'color': DEFAULT_NAMESPACE,
+	    'color-interpolation': DEFAULT_NAMESPACE,
+	    'color-interpolation-filters': DEFAULT_NAMESPACE,
+	    'color-profile': DEFAULT_NAMESPACE,
+	    'color-rendering': DEFAULT_NAMESPACE,
+	    'content': DEFAULT_NAMESPACE,
+	    'contentScriptType': DEFAULT_NAMESPACE,
+	    'contentStyleType': DEFAULT_NAMESPACE,
+	    'cursor': DEFAULT_NAMESPACE,
+	    'cx': DEFAULT_NAMESPACE,
+	    'cy': DEFAULT_NAMESPACE,
+	    'd': DEFAULT_NAMESPACE,
+	    'datatype': DEFAULT_NAMESPACE,
+	    'defaultAction': DEFAULT_NAMESPACE,
+	    'descent': DEFAULT_NAMESPACE,
+	    'diffuseConstant': DEFAULT_NAMESPACE,
+	    'direction': DEFAULT_NAMESPACE,
+	    'display': DEFAULT_NAMESPACE,
+	    'divisor': DEFAULT_NAMESPACE,
+	    'dominant-baseline': DEFAULT_NAMESPACE,
+	    'dur': DEFAULT_NAMESPACE,
+	    'dx': DEFAULT_NAMESPACE,
+	    'dy': DEFAULT_NAMESPACE,
+	    'edgeMode': DEFAULT_NAMESPACE,
+	    'editable': DEFAULT_NAMESPACE,
+	    'elevation': DEFAULT_NAMESPACE,
+	    'enable-background': DEFAULT_NAMESPACE,
+	    'end': DEFAULT_NAMESPACE,
+	    'ev:event': EV_NAMESPACE,
+	    'event': DEFAULT_NAMESPACE,
+	    'exponent': DEFAULT_NAMESPACE,
+	    'externalResourcesRequired': DEFAULT_NAMESPACE,
+	    'fill': DEFAULT_NAMESPACE,
+	    'fill-opacity': DEFAULT_NAMESPACE,
+	    'fill-rule': DEFAULT_NAMESPACE,
+	    'filter': DEFAULT_NAMESPACE,
+	    'filterRes': DEFAULT_NAMESPACE,
+	    'filterUnits': DEFAULT_NAMESPACE,
+	    'flood-color': DEFAULT_NAMESPACE,
+	    'flood-opacity': DEFAULT_NAMESPACE,
+	    'focusHighlight': DEFAULT_NAMESPACE,
+	    'focusable': DEFAULT_NAMESPACE,
+	    'font-family': DEFAULT_NAMESPACE,
+	    'font-size': DEFAULT_NAMESPACE,
+	    'font-size-adjust': DEFAULT_NAMESPACE,
+	    'font-stretch': DEFAULT_NAMESPACE,
+	    'font-style': DEFAULT_NAMESPACE,
+	    'font-variant': DEFAULT_NAMESPACE,
+	    'font-weight': DEFAULT_NAMESPACE,
+	    'format': DEFAULT_NAMESPACE,
+	    'from': DEFAULT_NAMESPACE,
+	    'fx': DEFAULT_NAMESPACE,
+	    'fy': DEFAULT_NAMESPACE,
+	    'g1': DEFAULT_NAMESPACE,
+	    'g2': DEFAULT_NAMESPACE,
+	    'glyph-name': DEFAULT_NAMESPACE,
+	    'glyph-orientation-horizontal': DEFAULT_NAMESPACE,
+	    'glyph-orientation-vertical': DEFAULT_NAMESPACE,
+	    'glyphRef': DEFAULT_NAMESPACE,
+	    'gradientTransform': DEFAULT_NAMESPACE,
+	    'gradientUnits': DEFAULT_NAMESPACE,
+	    'handler': DEFAULT_NAMESPACE,
+	    'hanging': DEFAULT_NAMESPACE,
+	    'height': DEFAULT_NAMESPACE,
+	    'horiz-adv-x': DEFAULT_NAMESPACE,
+	    'horiz-origin-x': DEFAULT_NAMESPACE,
+	    'horiz-origin-y': DEFAULT_NAMESPACE,
+	    'id': DEFAULT_NAMESPACE,
+	    'ideographic': DEFAULT_NAMESPACE,
+	    'image-rendering': DEFAULT_NAMESPACE,
+	    'in': DEFAULT_NAMESPACE,
+	    'in2': DEFAULT_NAMESPACE,
+	    'initialVisibility': DEFAULT_NAMESPACE,
+	    'intercept': DEFAULT_NAMESPACE,
+	    'k': DEFAULT_NAMESPACE,
+	    'k1': DEFAULT_NAMESPACE,
+	    'k2': DEFAULT_NAMESPACE,
+	    'k3': DEFAULT_NAMESPACE,
+	    'k4': DEFAULT_NAMESPACE,
+	    'kernelMatrix': DEFAULT_NAMESPACE,
+	    'kernelUnitLength': DEFAULT_NAMESPACE,
+	    'kerning': DEFAULT_NAMESPACE,
+	    'keyPoints': DEFAULT_NAMESPACE,
+	    'keySplines': DEFAULT_NAMESPACE,
+	    'keyTimes': DEFAULT_NAMESPACE,
+	    'lang': DEFAULT_NAMESPACE,
+	    'lengthAdjust': DEFAULT_NAMESPACE,
+	    'letter-spacing': DEFAULT_NAMESPACE,
+	    'lighting-color': DEFAULT_NAMESPACE,
+	    'limitingConeAngle': DEFAULT_NAMESPACE,
+	    'local': DEFAULT_NAMESPACE,
+	    'marker-end': DEFAULT_NAMESPACE,
+	    'marker-mid': DEFAULT_NAMESPACE,
+	    'marker-start': DEFAULT_NAMESPACE,
+	    'markerHeight': DEFAULT_NAMESPACE,
+	    'markerUnits': DEFAULT_NAMESPACE,
+	    'markerWidth': DEFAULT_NAMESPACE,
+	    'mask': DEFAULT_NAMESPACE,
+	    'maskContentUnits': DEFAULT_NAMESPACE,
+	    'maskUnits': DEFAULT_NAMESPACE,
+	    'mathematical': DEFAULT_NAMESPACE,
+	    'max': DEFAULT_NAMESPACE,
+	    'media': DEFAULT_NAMESPACE,
+	    'mediaCharacterEncoding': DEFAULT_NAMESPACE,
+	    'mediaContentEncodings': DEFAULT_NAMESPACE,
+	    'mediaSize': DEFAULT_NAMESPACE,
+	    'mediaTime': DEFAULT_NAMESPACE,
+	    'method': DEFAULT_NAMESPACE,
+	    'min': DEFAULT_NAMESPACE,
+	    'mode': DEFAULT_NAMESPACE,
+	    'name': DEFAULT_NAMESPACE,
+	    'nav-down': DEFAULT_NAMESPACE,
+	    'nav-down-left': DEFAULT_NAMESPACE,
+	    'nav-down-right': DEFAULT_NAMESPACE,
+	    'nav-left': DEFAULT_NAMESPACE,
+	    'nav-next': DEFAULT_NAMESPACE,
+	    'nav-prev': DEFAULT_NAMESPACE,
+	    'nav-right': DEFAULT_NAMESPACE,
+	    'nav-up': DEFAULT_NAMESPACE,
+	    'nav-up-left': DEFAULT_NAMESPACE,
+	    'nav-up-right': DEFAULT_NAMESPACE,
+	    'numOctaves': DEFAULT_NAMESPACE,
+	    'observer': DEFAULT_NAMESPACE,
+	    'offset': DEFAULT_NAMESPACE,
+	    'opacity': DEFAULT_NAMESPACE,
+	    'operator': DEFAULT_NAMESPACE,
+	    'order': DEFAULT_NAMESPACE,
+	    'orient': DEFAULT_NAMESPACE,
+	    'orientation': DEFAULT_NAMESPACE,
+	    'origin': DEFAULT_NAMESPACE,
+	    'overflow': DEFAULT_NAMESPACE,
+	    'overlay': DEFAULT_NAMESPACE,
+	    'overline-position': DEFAULT_NAMESPACE,
+	    'overline-thickness': DEFAULT_NAMESPACE,
+	    'panose-1': DEFAULT_NAMESPACE,
+	    'path': DEFAULT_NAMESPACE,
+	    'pathLength': DEFAULT_NAMESPACE,
+	    'patternContentUnits': DEFAULT_NAMESPACE,
+	    'patternTransform': DEFAULT_NAMESPACE,
+	    'patternUnits': DEFAULT_NAMESPACE,
+	    'phase': DEFAULT_NAMESPACE,
+	    'playbackOrder': DEFAULT_NAMESPACE,
+	    'pointer-events': DEFAULT_NAMESPACE,
+	    'points': DEFAULT_NAMESPACE,
+	    'pointsAtX': DEFAULT_NAMESPACE,
+	    'pointsAtY': DEFAULT_NAMESPACE,
+	    'pointsAtZ': DEFAULT_NAMESPACE,
+	    'preserveAlpha': DEFAULT_NAMESPACE,
+	    'preserveAspectRatio': DEFAULT_NAMESPACE,
+	    'primitiveUnits': DEFAULT_NAMESPACE,
+	    'propagate': DEFAULT_NAMESPACE,
+	    'property': DEFAULT_NAMESPACE,
+	    'r': DEFAULT_NAMESPACE,
+	    'radius': DEFAULT_NAMESPACE,
+	    'refX': DEFAULT_NAMESPACE,
+	    'refY': DEFAULT_NAMESPACE,
+	    'rel': DEFAULT_NAMESPACE,
+	    'rendering-intent': DEFAULT_NAMESPACE,
+	    'repeatCount': DEFAULT_NAMESPACE,
+	    'repeatDur': DEFAULT_NAMESPACE,
+	    'requiredExtensions': DEFAULT_NAMESPACE,
+	    'requiredFeatures': DEFAULT_NAMESPACE,
+	    'requiredFonts': DEFAULT_NAMESPACE,
+	    'requiredFormats': DEFAULT_NAMESPACE,
+	    'resource': DEFAULT_NAMESPACE,
+	    'restart': DEFAULT_NAMESPACE,
+	    'result': DEFAULT_NAMESPACE,
+	    'rev': DEFAULT_NAMESPACE,
+	    'role': DEFAULT_NAMESPACE,
+	    'rotate': DEFAULT_NAMESPACE,
+	    'rx': DEFAULT_NAMESPACE,
+	    'ry': DEFAULT_NAMESPACE,
+	    'scale': DEFAULT_NAMESPACE,
+	    'seed': DEFAULT_NAMESPACE,
+	    'shape-rendering': DEFAULT_NAMESPACE,
+	    'slope': DEFAULT_NAMESPACE,
+	    'snapshotTime': DEFAULT_NAMESPACE,
+	    'spacing': DEFAULT_NAMESPACE,
+	    'specularConstant': DEFAULT_NAMESPACE,
+	    'specularExponent': DEFAULT_NAMESPACE,
+	    'spreadMethod': DEFAULT_NAMESPACE,
+	    'startOffset': DEFAULT_NAMESPACE,
+	    'stdDeviation': DEFAULT_NAMESPACE,
+	    'stemh': DEFAULT_NAMESPACE,
+	    'stemv': DEFAULT_NAMESPACE,
+	    'stitchTiles': DEFAULT_NAMESPACE,
+	    'stop-color': DEFAULT_NAMESPACE,
+	    'stop-opacity': DEFAULT_NAMESPACE,
+	    'strikethrough-position': DEFAULT_NAMESPACE,
+	    'strikethrough-thickness': DEFAULT_NAMESPACE,
+	    'string': DEFAULT_NAMESPACE,
+	    'stroke': DEFAULT_NAMESPACE,
+	    'stroke-dasharray': DEFAULT_NAMESPACE,
+	    'stroke-dashoffset': DEFAULT_NAMESPACE,
+	    'stroke-linecap': DEFAULT_NAMESPACE,
+	    'stroke-linejoin': DEFAULT_NAMESPACE,
+	    'stroke-miterlimit': DEFAULT_NAMESPACE,
+	    'stroke-opacity': DEFAULT_NAMESPACE,
+	    'stroke-width': DEFAULT_NAMESPACE,
+	    'surfaceScale': DEFAULT_NAMESPACE,
+	    'syncBehavior': DEFAULT_NAMESPACE,
+	    'syncBehaviorDefault': DEFAULT_NAMESPACE,
+	    'syncMaster': DEFAULT_NAMESPACE,
+	    'syncTolerance': DEFAULT_NAMESPACE,
+	    'syncToleranceDefault': DEFAULT_NAMESPACE,
+	    'systemLanguage': DEFAULT_NAMESPACE,
+	    'tableValues': DEFAULT_NAMESPACE,
+	    'target': DEFAULT_NAMESPACE,
+	    'targetX': DEFAULT_NAMESPACE,
+	    'targetY': DEFAULT_NAMESPACE,
+	    'text-anchor': DEFAULT_NAMESPACE,
+	    'text-decoration': DEFAULT_NAMESPACE,
+	    'text-rendering': DEFAULT_NAMESPACE,
+	    'textLength': DEFAULT_NAMESPACE,
+	    'timelineBegin': DEFAULT_NAMESPACE,
+	    'title': DEFAULT_NAMESPACE,
+	    'to': DEFAULT_NAMESPACE,
+	    'transform': DEFAULT_NAMESPACE,
+	    'transformBehavior': DEFAULT_NAMESPACE,
+	    'type': DEFAULT_NAMESPACE,
+	    'typeof': DEFAULT_NAMESPACE,
+	    'u1': DEFAULT_NAMESPACE,
+	    'u2': DEFAULT_NAMESPACE,
+	    'underline-position': DEFAULT_NAMESPACE,
+	    'underline-thickness': DEFAULT_NAMESPACE,
+	    'unicode': DEFAULT_NAMESPACE,
+	    'unicode-bidi': DEFAULT_NAMESPACE,
+	    'unicode-range': DEFAULT_NAMESPACE,
+	    'units-per-em': DEFAULT_NAMESPACE,
+	    'v-alphabetic': DEFAULT_NAMESPACE,
+	    'v-hanging': DEFAULT_NAMESPACE,
+	    'v-ideographic': DEFAULT_NAMESPACE,
+	    'v-mathematical': DEFAULT_NAMESPACE,
+	    'values': DEFAULT_NAMESPACE,
+	    'version': DEFAULT_NAMESPACE,
+	    'vert-adv-y': DEFAULT_NAMESPACE,
+	    'vert-origin-x': DEFAULT_NAMESPACE,
+	    'vert-origin-y': DEFAULT_NAMESPACE,
+	    'viewBox': DEFAULT_NAMESPACE,
+	    'viewTarget': DEFAULT_NAMESPACE,
+	    'visibility': DEFAULT_NAMESPACE,
+	    'width': DEFAULT_NAMESPACE,
+	    'widths': DEFAULT_NAMESPACE,
+	    'word-spacing': DEFAULT_NAMESPACE,
+	    'writing-mode': DEFAULT_NAMESPACE,
+	    'x': DEFAULT_NAMESPACE,
+	    'x-height': DEFAULT_NAMESPACE,
+	    'x1': DEFAULT_NAMESPACE,
+	    'x2': DEFAULT_NAMESPACE,
+	    'xChannelSelector': DEFAULT_NAMESPACE,
+	    'xlink:actuate': XLINK_NAMESPACE,
+	    'xlink:arcrole': XLINK_NAMESPACE,
+	    'xlink:href': XLINK_NAMESPACE,
+	    'xlink:role': XLINK_NAMESPACE,
+	    'xlink:show': XLINK_NAMESPACE,
+	    'xlink:title': XLINK_NAMESPACE,
+	    'xlink:type': XLINK_NAMESPACE,
+	    'xml:base': XML_NAMESPACE,
+	    'xml:id': XML_NAMESPACE,
+	    'xml:lang': XML_NAMESPACE,
+	    'xml:space': XML_NAMESPACE,
+	    'y': DEFAULT_NAMESPACE,
+	    'y1': DEFAULT_NAMESPACE,
+	    'y2': DEFAULT_NAMESPACE,
+	    'yChannelSelector': DEFAULT_NAMESPACE,
+	    'z': DEFAULT_NAMESPACE,
+	    'zoomAndPan': DEFAULT_NAMESPACE
+	};
+	
+	module.exports = SVGAttributeNamespace;
+	
+	function SVGAttributeNamespace(value) {
+	  if (SVG_PROPERTIES.hasOwnProperty(value)) {
+	    return SVG_PROPERTIES[value];
+	  }
+	}
+
+
+/***/ },
+/* 27 */
+/*!*****************************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/attribute-hook.js ***!
+  \*****************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = AttributeHook;
+	
+	function AttributeHook(namespace, value) {
+	    if (!(this instanceof AttributeHook)) {
+	        return new AttributeHook(namespace, value);
+	    }
+	
+	    this.namespace = namespace;
+	    this.value = value;
+	}
+	
+	AttributeHook.prototype.hook = function (node, prop, prev) {
+	    if (prev && prev.type === 'AttributeHook' &&
+	        prev.value === this.value &&
+	        prev.namespace === this.namespace) {
+	        return;
+	    }
+	
+	    node.setAttributeNS(this.namespace, prop, this.value);
+	};
+	
+	AttributeHook.prototype.unhook = function (node, prop, next) {
+	    if (next && next.type === 'AttributeHook' &&
+	        next.namespace === this.namespace) {
+	        return;
+	    }
+	
+	    var colonPosition = prop.indexOf(':');
+	    var localName = colonPosition > -1 ? prop.substr(colonPosition + 1) : prop;
+	    node.removeAttributeNS(this.namespace, localName);
+	};
+	
+	AttributeHook.prototype.type = 'AttributeHook';
+
+
+/***/ },
+/* 28 */
+/*!***********************************!*\
+  !*** (webpack)/buildin/module.js ***!
+  \***********************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = function(module) {
+		if(!module.webpackPolyfill) {
+			module.deprecate = function() {};
+			module.paths = [];
+			// module.parent = undefined by default
+			module.children = [];
+			module.webpackPolyfill = 1;
+		}
+		return module;
+	}
+
+
+/***/ },
+/* 29 */
 /*!***********************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vtree/diff.js ***!
   \***********************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isArray = __webpack_require__(/*! x-is-array */ 51)
+	var isArray = __webpack_require__(/*! x-is-array */ 31)
 	
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 37)
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 38)
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 39)
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 40)
-	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 41)
-	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk */ 42)
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch */ 47)
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 35)
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 36)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 38)
+	var isThunk = __webpack_require__(/*! ../vnode/is-thunk */ 37)
+	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk */ 48)
 	
-	var diffProps = __webpack_require__(/*! ./diff-props */ 43)
+	var diffProps = __webpack_require__(/*! ./diff-props */ 49)
 	
 	module.exports = diff
 	
@@ -24016,17 +24520,17 @@
 
 
 /***/ },
-/* 31 */
+/* 30 */
 /*!***********************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/patch.js ***!
   \***********************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var document = __webpack_require__(/*! global/document */ 52)
-	var isArray = __webpack_require__(/*! x-is-array */ 51)
+	var document = __webpack_require__(/*! global/document */ 59)
+	var isArray = __webpack_require__(/*! x-is-array */ 31)
 	
-	var domIndex = __webpack_require__(/*! ./dom-index */ 35)
-	var patchOp = __webpack_require__(/*! ./patch-op */ 36)
+	var domIndex = __webpack_require__(/*! ./dom-index */ 50)
+	var patchOp = __webpack_require__(/*! ./patch-op */ 51)
 	module.exports = patch
 	
 	function patch(rootNode, patches) {
@@ -24101,20 +24605,447 @@
 
 
 /***/ },
+/* 31 */
+/*!*******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/x-is-array/index.js ***!
+  \*******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var nativeIsArray = Array.isArray
+	var toString = Object.prototype.toString
+	
+	module.exports = nativeIsArray || isArray
+	
+	function isArray(obj) {
+	    return toString.call(obj) === "[object Array]"
+	}
+
+
+/***/ },
 /* 32 */
+/*!**********************************************************!*\
+  !*** (webpack)/~/node-libs-browser/~/process/browser.js ***!
+  \**********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	// shim for using process in browser
+	
+	var process = module.exports = {};
+	var queue = [];
+	var draining = false;
+	
+	function drainQueue() {
+	    if (draining) {
+	        return;
+	    }
+	    draining = true;
+	    var currentQueue;
+	    var len = queue.length;
+	    while(len) {
+	        currentQueue = queue;
+	        queue = [];
+	        var i = -1;
+	        while (++i < len) {
+	            currentQueue[i]();
+	        }
+	        len = queue.length;
+	    }
+	    draining = false;
+	}
+	process.nextTick = function (fun) {
+	    queue.push(fun);
+	    if (!draining) {
+	        setTimeout(drainQueue, 0);
+	    }
+	};
+	
+	process.title = 'browser';
+	process.browser = true;
+	process.env = {};
+	process.argv = [];
+	process.version = ''; // empty string to avoid regexp issues
+	process.versions = {};
+	
+	function noop() {}
+	
+	process.on = noop;
+	process.addListener = noop;
+	process.once = noop;
+	process.off = noop;
+	process.removeListener = noop;
+	process.removeAllListeners = noop;
+	process.emit = noop;
+	
+	process.binding = function (name) {
+	    throw new Error('process.binding is not supported');
+	};
+	
+	// TODO(shtylman)
+	process.cwd = function () { return '/' };
+	process.chdir = function (dir) {
+	    throw new Error('process.chdir is not supported');
+	};
+	process.umask = function() { return 0; };
+
+
+/***/ },
+/* 33 */
+/*!***********************************************!*\
+  !*** ./~/cyclejs/~/es6-map/is-implemented.js ***!
+  \***********************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function () {
+		var map, iterator, result;
+		if (typeof Map !== 'function') return false;
+		try {
+			// WebKit doesn't support arguments and crashes
+			map = new Map([['raz', 'one'], ['dwa', 'two'], ['trzy', 'three']]);
+		} catch (e) {
+			return false;
+		}
+		if (map.size !== 3) return false;
+		if (typeof map.clear !== 'function') return false;
+		if (typeof map.delete !== 'function') return false;
+		if (typeof map.entries !== 'function') return false;
+		if (typeof map.forEach !== 'function') return false;
+		if (typeof map.get !== 'function') return false;
+		if (typeof map.has !== 'function') return false;
+		if (typeof map.keys !== 'function') return false;
+		if (typeof map.set !== 'function') return false;
+		if (typeof map.values !== 'function') return false;
+	
+		iterator = map.entries();
+		result = iterator.next();
+		if (result.done !== false) return false;
+		if (!result.value) return false;
+		if (result.value[0] !== 'raz') return false;
+		if (result.value[1] !== 'one') return false;
+		return true;
+	};
+
+
+/***/ },
+/* 34 */
+/*!*****************************************!*\
+  !*** ./~/cyclejs/~/es6-map/polyfill.js ***!
+  \*****************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var clear          = __webpack_require__(/*! es5-ext/array/#/clear */ 72)
+	  , eIndexOf       = __webpack_require__(/*! es5-ext/array/#/e-index-of */ 73)
+	  , setPrototypeOf = __webpack_require__(/*! es5-ext/object/set-prototype-of */ 71)
+	  , callable       = __webpack_require__(/*! es5-ext/object/valid-callable */ 69)
+	  , validValue     = __webpack_require__(/*! es5-ext/object/valid-value */ 70)
+	  , d              = __webpack_require__(/*! d */ 63)
+	  , ee             = __webpack_require__(/*! event-emitter */ 64)
+	  , Symbol         = __webpack_require__(/*! es6-symbol */ 65)
+	  , iterator       = __webpack_require__(/*! es6-iterator/valid-iterable */ 66)
+	  , forOf          = __webpack_require__(/*! es6-iterator/for-of */ 67)
+	  , Iterator       = __webpack_require__(/*! ./lib/iterator */ 53)
+	  , isNative       = __webpack_require__(/*! ./is-native-implemented */ 54)
+	
+	  , call = Function.prototype.call, defineProperties = Object.defineProperties
+	  , MapPoly;
+	
+	module.exports = MapPoly = function (/*iterable*/) {
+		var iterable = arguments[0], keys, values;
+		if (!(this instanceof MapPoly)) return new MapPoly(iterable);
+		if (this.__mapKeysData__ !== undefined) {
+			throw new TypeError(this + " cannot be reinitialized");
+		}
+		if (iterable != null) iterator(iterable);
+		defineProperties(this, {
+			__mapKeysData__: d('c', keys = []),
+			__mapValuesData__: d('c', values = [])
+		});
+		if (!iterable) return;
+		forOf(iterable, function (value) {
+			var key = validValue(value)[0];
+			value = value[1];
+			if (eIndexOf.call(keys, key) !== -1) return;
+			keys.push(key);
+			values.push(value);
+		}, this);
+	};
+	
+	if (isNative) {
+		if (setPrototypeOf) setPrototypeOf(MapPoly, Map);
+		MapPoly.prototype = Object.create(Map.prototype, {
+			constructor: d(MapPoly)
+		});
+	}
+	
+	ee(defineProperties(MapPoly.prototype, {
+		clear: d(function () {
+			if (!this.__mapKeysData__.length) return;
+			clear.call(this.__mapKeysData__);
+			clear.call(this.__mapValuesData__);
+			this.emit('_clear');
+		}),
+		delete: d(function (key) {
+			var index = eIndexOf.call(this.__mapKeysData__, key);
+			if (index === -1) return false;
+			this.__mapKeysData__.splice(index, 1);
+			this.__mapValuesData__.splice(index, 1);
+			this.emit('_delete', index, key);
+			return true;
+		}),
+		entries: d(function () { return new Iterator(this, 'key+value'); }),
+		forEach: d(function (cb/*, thisArg*/) {
+			var thisArg = arguments[1], iterator, result;
+			callable(cb);
+			iterator = this.entries();
+			result = iterator._next();
+			while (result !== undefined) {
+				call.call(cb, thisArg, this.__mapValuesData__[result],
+					this.__mapKeysData__[result], this);
+				result = iterator._next();
+			}
+		}),
+		get: d(function (key) {
+			var index = eIndexOf.call(this.__mapKeysData__, key);
+			if (index === -1) return;
+			return this.__mapValuesData__[index];
+		}),
+		has: d(function (key) {
+			return (eIndexOf.call(this.__mapKeysData__, key) !== -1);
+		}),
+		keys: d(function () { return new Iterator(this, 'key'); }),
+		set: d(function (key, value) {
+			var index = eIndexOf.call(this.__mapKeysData__, key), emit;
+			if (index === -1) {
+				index = this.__mapKeysData__.push(key) - 1;
+				emit = true;
+			}
+			this.__mapValuesData__[index] = value;
+			if (emit) this.emit('_add', index, key);
+			return this;
+		}),
+		size: d.gs(function () { return this.__mapKeysData__.length; }),
+		values: d(function () { return new Iterator(this, 'value'); }),
+		toString: d(function () { return '[object Map]'; })
+	}));
+	Object.defineProperty(MapPoly.prototype, Symbol.iterator, d(function () {
+		return this.entries();
+	}));
+	Object.defineProperty(MapPoly.prototype, Symbol.toStringTag, d('c', 'Map'));
+
+
+/***/ },
+/* 35 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vnode.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 43)
+	
+	module.exports = isVirtualNode
+	
+	function isVirtualNode(x) {
+	    return x && x.type === "VirtualNode" && x.version === version
+	}
+
+
+/***/ },
+/* 36 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vtext.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 43)
+	
+	module.exports = isVirtualText
+	
+	function isVirtualText(x) {
+	    return x && x.type === "VirtualText" && x.version === version
+	}
+
+
+/***/ },
+/* 37 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = isThunk
+	
+	function isThunk(t) {
+	    return t && t.type === "Thunk"
+	}
+
+
+/***/ },
+/* 38 */
+/*!****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-widget.js ***!
+  \****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = isWidget
+	
+	function isWidget(w) {
+	    return w && w.type === "Widget"
+	}
+
+
+/***/ },
+/* 39 */
+/*!****************************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js ***!
+  \****************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = SoftSetHook;
+	
+	function SoftSetHook(value) {
+	    if (!(this instanceof SoftSetHook)) {
+	        return new SoftSetHook(value);
+	    }
+	
+	    this.value = value;
+	}
+	
+	SoftSetHook.prototype.hook = function (node, propertyName) {
+	    if (node[propertyName] !== this.value) {
+	        node[propertyName] = this.value;
+	    }
+	};
+
+
+/***/ },
+/* 40 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/create-attribute.js ***!
+  \******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var escape = __webpack_require__(/*! escape-html */ 52);
+	var propConfig = __webpack_require__(/*! ./property-config */ 57);
+	var types = propConfig.attributeTypes;
+	var properties = propConfig.properties;
+	var attributeNames = propConfig.attributeNames;
+	
+	var prefixAttribute = memoizeString(function (name) {
+	  return escape(name) + '="';
+	});
+	
+	module.exports = createAttribute;
+	
+	/**
+	 * Create attribute string.
+	 *
+	 * @param {String} name The name of the property or attribute
+	 * @param {*} value The value
+	 * @param {Boolean} [isAttribute] Denotes whether `name` is an attribute.
+	 * @return {?String} Attribute string || null if not a valid property or custom attribute.
+	 */
+	
+	function createAttribute(name, value, isAttribute) {
+	  if (properties.hasOwnProperty(name)) {
+	    if (shouldSkip(name, value)) return '';
+	    name = (attributeNames[name] || name).toLowerCase();
+	    var attrType = properties[name];
+	    // for BOOLEAN `value` only has to be truthy
+	    // for OVERLOADED_BOOLEAN `value` has to be === true
+	    if ((attrType === types.BOOLEAN) ||
+	        (attrType === types.OVERLOADED_BOOLEAN && value === true)) {
+	      return escape(name);
+	    }
+	    return prefixAttribute(name) + escape(value) + '"';
+	  } else if (isAttribute) {
+	    if (value == null) return '';
+	    return prefixAttribute(name) + escape(value) + '"';
+	  }
+	  // return null if `name` is neither a valid property nor an attribute
+	  return null;
+	}
+	
+	/**
+	 * Should skip false boolean attributes.
+	 */
+	
+	function shouldSkip(name, value) {
+	  var attrType = properties[name];
+	  return value == null ||
+	    (attrType === types.BOOLEAN && !value) ||
+	    (attrType === types.OVERLOADED_BOOLEAN && value === false);
+	}
+	
+	/**
+	 * Memoizes the return value of a function that accepts one string argument.
+	 *
+	 * @param {function} callback
+	 * @return {function}
+	 */
+	
+	function memoizeString(callback) {
+	  var cache = {};
+	  return function(string) {
+	    if (cache.hasOwnProperty(string)) {
+	      return cache[string];
+	    } else {
+	      return cache[string] = callback.call(this, string);
+	    }
+	  };
+	}
+
+/***/ },
+/* 41 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/void-elements.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	
+	/**
+	 * Void elements.
+	 *
+	 * https://github.com/facebook/react/blob/v0.12.0/src/browser/ui/ReactDOMComponent.js#L99
+	 */
+	
+	module.exports = {
+	  'area': true,
+	  'base': true,
+	  'br': true,
+	  'col': true,
+	  'embed': true,
+	  'hr': true,
+	  'img': true,
+	  'input': true,
+	  'keygen': true,
+	  'link': true,
+	  'meta': true,
+	  'param': true,
+	  'source': true,
+	  'track': true,
+	  'wbr': true
+	};
+
+/***/ },
+/* 42 */
 /*!********************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/create-element.js ***!
   \********************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var document = __webpack_require__(/*! global/document */ 52)
+	var document = __webpack_require__(/*! global/document */ 59)
 	
-	var applyProperties = __webpack_require__(/*! ./apply-properties */ 46)
+	var applyProperties = __webpack_require__(/*! ./apply-properties */ 58)
 	
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 38)
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 39)
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 40)
-	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 42)
+	var isVNode = __webpack_require__(/*! ../vnode/is-vnode.js */ 35)
+	var isVText = __webpack_require__(/*! ../vnode/is-vtext.js */ 36)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 38)
+	var handleThunk = __webpack_require__(/*! ../vnode/handle-thunk.js */ 48)
 	
 	module.exports = createElement
 	
@@ -24156,151 +25087,7 @@
 
 
 /***/ },
-/* 33 */
-/*!**************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/index.js ***!
-  \**************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var isArray = __webpack_require__(/*! x-is-array */ 51);
-	
-	var VNode = __webpack_require__(/*! ../vnode/vnode.js */ 28);
-	var VText = __webpack_require__(/*! ../vnode/vtext.js */ 29);
-	var isVNode = __webpack_require__(/*! ../vnode/is-vnode */ 38);
-	var isVText = __webpack_require__(/*! ../vnode/is-vtext */ 39);
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget */ 40);
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 44);
-	var isVThunk = __webpack_require__(/*! ../vnode/is-thunk */ 41);
-	
-	var parseTag = __webpack_require__(/*! ./parse-tag.js */ 48);
-	var softSetHook = __webpack_require__(/*! ./hooks/soft-set-hook.js */ 47);
-	var evHook = __webpack_require__(/*! ./hooks/ev-hook.js */ 49);
-	
-	module.exports = h;
-	
-	function h(tagName, properties, children) {
-	    var childNodes = [];
-	    var tag, props, key, namespace;
-	
-	    if (!children && isChildren(properties)) {
-	        children = properties;
-	        props = {};
-	    }
-	
-	    props = props || properties || {};
-	    tag = parseTag(tagName, props);
-	
-	    // support keys
-	    if (props.hasOwnProperty('key')) {
-	        key = props.key;
-	        props.key = undefined;
-	    }
-	
-	    // support namespace
-	    if (props.hasOwnProperty('namespace')) {
-	        namespace = props.namespace;
-	        props.namespace = undefined;
-	    }
-	
-	    // fix cursor bug
-	    if (tag === 'INPUT' &&
-	        !namespace &&
-	        props.hasOwnProperty('value') &&
-	        props.value !== undefined &&
-	        !isHook(props.value)
-	    ) {
-	        props.value = softSetHook(props.value);
-	    }
-	
-	    transformProperties(props);
-	
-	    if (children !== undefined && children !== null) {
-	        addChild(children, childNodes, tag, props);
-	    }
-	
-	
-	    return new VNode(tag, props, childNodes, key, namespace);
-	}
-	
-	function addChild(c, childNodes, tag, props) {
-	    if (typeof c === 'string') {
-	        childNodes.push(new VText(c));
-	    } else if (isChild(c)) {
-	        childNodes.push(c);
-	    } else if (isArray(c)) {
-	        for (var i = 0; i < c.length; i++) {
-	            addChild(c[i], childNodes, tag, props);
-	        }
-	    } else if (c === null || c === undefined) {
-	        return;
-	    } else {
-	        throw UnexpectedVirtualElement({
-	            foreignObject: c,
-	            parentVnode: {
-	                tagName: tag,
-	                properties: props
-	            }
-	        });
-	    }
-	}
-	
-	function transformProperties(props) {
-	    for (var propName in props) {
-	        if (props.hasOwnProperty(propName)) {
-	            var value = props[propName];
-	
-	            if (isHook(value)) {
-	                continue;
-	            }
-	
-	            if (propName.substr(0, 3) === 'ev-') {
-	                // add ev-foo support
-	                props[propName] = evHook(value);
-	            }
-	        }
-	    }
-	}
-	
-	function isChild(x) {
-	    return isVNode(x) || isVText(x) || isWidget(x) || isVThunk(x);
-	}
-	
-	function isChildren(x) {
-	    return typeof x === 'string' || isArray(x) || isChild(x);
-	}
-	
-	function UnexpectedVirtualElement(data) {
-	    var err = new Error();
-	
-	    err.type = 'virtual-hyperscript.unexpected.virtual-element';
-	    err.message = 'Unexpected virtual child passed to h().\n' +
-	        'Expected a VNode / Vthunk / VWidget / string but:\n' +
-	        'got:\n' +
-	        errorString(data.foreignObject) +
-	        '.\n' +
-	        'The parent vnode is:\n' +
-	        errorString(data.parentVnode)
-	        '\n' +
-	        'Suggested fix: change your `h(..., [ ... ])` callsite.';
-	    err.foreignObject = data.foreignObject;
-	    err.parentVnode = data.parentVnode;
-	
-	    return err;
-	}
-	
-	function errorString(obj) {
-	    try {
-	        return JSON.stringify(obj, null, '    ');
-	    } catch (e) {
-	        return String(obj);
-	    }
-	}
-
-
-/***/ },
-/* 34 */
+/* 43 */
 /*!**************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vnode/version.js ***!
   \**************************************************/
@@ -24310,7 +25097,269 @@
 
 
 /***/ },
-/* 35 */
+/* 44 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vhook.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = isHook
+	
+	function isHook(hook) {
+	    return hook &&
+	      (typeof hook.hook === "function" && !hook.hasOwnProperty("hook") ||
+	       typeof hook.unhook === "function" && !hook.hasOwnProperty("unhook"))
+	}
+
+
+/***/ },
+/* 45 */
+/*!******************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/parse-tag.js ***!
+  \******************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var split = __webpack_require__(/*! browser-split */ 60);
+	
+	var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/;
+	var notClassId = /^\.|#/;
+	
+	module.exports = parseTag;
+	
+	function parseTag(tag, props) {
+	    if (!tag) {
+	        return 'DIV';
+	    }
+	
+	    var noId = !(props.hasOwnProperty('id'));
+	
+	    var tagParts = split(tag, classIdSplit);
+	    var tagName = null;
+	
+	    if (notClassId.test(tagParts[1])) {
+	        tagName = 'DIV';
+	    }
+	
+	    var classes, part, type, i;
+	
+	    for (i = 0; i < tagParts.length; i++) {
+	        part = tagParts[i];
+	
+	        if (!part) {
+	            continue;
+	        }
+	
+	        type = part.charAt(0);
+	
+	        if (!tagName) {
+	            tagName = part;
+	        } else if (type === '.') {
+	            classes = classes || [];
+	            classes.push(part.substring(1, part.length));
+	        } else if (type === '#' && noId) {
+	            props.id = part.substring(1, part.length);
+	        }
+	    }
+	
+	    if (classes) {
+	        if (props.className) {
+	            classes.push(props.className);
+	        }
+	
+	        props.className = classes.join(' ');
+	    }
+	
+	    return props.namespace ? tagName : tagName.toUpperCase();
+	}
+
+
+/***/ },
+/* 46 */
+/*!**********************************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/ev-hook.js ***!
+  \**********************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var EvStore = __webpack_require__(/*! ev-store */ 61);
+	
+	module.exports = EvHook;
+	
+	function EvHook(value) {
+	    if (!(this instanceof EvHook)) {
+	        return new EvHook(value);
+	    }
+	
+	    this.value = value;
+	}
+	
+	EvHook.prototype.hook = function (node, propertyName) {
+	    var es = EvStore(node);
+	    var propName = propertyName.substr(3);
+	
+	    es[propName] = this.value;
+	};
+	
+	EvHook.prototype.unhook = function(node, propertyName) {
+	    var es = EvStore(node);
+	    var propName = propertyName.substr(3);
+	
+	    es[propName] = undefined;
+	};
+
+
+/***/ },
+/* 47 */
+/*!*************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
+  \*************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var version = __webpack_require__(/*! ./version */ 43)
+	
+	VirtualPatch.NONE = 0
+	VirtualPatch.VTEXT = 1
+	VirtualPatch.VNODE = 2
+	VirtualPatch.WIDGET = 3
+	VirtualPatch.PROPS = 4
+	VirtualPatch.ORDER = 5
+	VirtualPatch.INSERT = 6
+	VirtualPatch.REMOVE = 7
+	VirtualPatch.THUNK = 8
+	
+	module.exports = VirtualPatch
+	
+	function VirtualPatch(type, vNode, patch) {
+	    this.type = Number(type)
+	    this.vNode = vNode
+	    this.patch = patch
+	}
+	
+	VirtualPatch.prototype.version = version
+	VirtualPatch.prototype.type = "VirtualPatch"
+
+
+/***/ },
+/* 48 */
+/*!*******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vnode/handle-thunk.js ***!
+  \*******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isVNode = __webpack_require__(/*! ./is-vnode */ 35)
+	var isVText = __webpack_require__(/*! ./is-vtext */ 36)
+	var isWidget = __webpack_require__(/*! ./is-widget */ 38)
+	var isThunk = __webpack_require__(/*! ./is-thunk */ 37)
+	
+	module.exports = handleThunk
+	
+	function handleThunk(a, b) {
+	    var renderedA = a
+	    var renderedB = b
+	
+	    if (isThunk(b)) {
+	        renderedB = renderThunk(b, a)
+	    }
+	
+	    if (isThunk(a)) {
+	        renderedA = renderThunk(a, null)
+	    }
+	
+	    return {
+	        a: renderedA,
+	        b: renderedB
+	    }
+	}
+	
+	function renderThunk(thunk, previous) {
+	    var renderedThunk = thunk.vnode
+	
+	    if (!renderedThunk) {
+	        renderedThunk = thunk.vnode = thunk.render(previous)
+	    }
+	
+	    if (!(isVNode(renderedThunk) ||
+	            isVText(renderedThunk) ||
+	            isWidget(renderedThunk))) {
+	        throw new Error("thunk did not return a valid node");
+	    }
+	
+	    return renderedThunk
+	}
+
+
+/***/ },
+/* 49 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isObject = __webpack_require__(/*! is-object */ 76)
+	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 44)
+	
+	module.exports = diffProps
+	
+	function diffProps(a, b) {
+	    var diff
+	
+	    for (var aKey in a) {
+	        if (!(aKey in b)) {
+	            diff = diff || {}
+	            diff[aKey] = undefined
+	        }
+	
+	        var aValue = a[aKey]
+	        var bValue = b[aKey]
+	
+	        if (aValue === bValue) {
+	            continue
+	        } else if (isObject(aValue) && isObject(bValue)) {
+	            if (getPrototype(bValue) !== getPrototype(aValue)) {
+	                diff = diff || {}
+	                diff[aKey] = bValue
+	            } else if (isHook(bValue)) {
+	                 diff = diff || {}
+	                 diff[aKey] = bValue
+	            } else {
+	                var objectDiff = diffProps(aValue, bValue)
+	                if (objectDiff) {
+	                    diff = diff || {}
+	                    diff[aKey] = objectDiff
+	                }
+	            }
+	        } else {
+	            diff = diff || {}
+	            diff[aKey] = bValue
+	        }
+	    }
+	
+	    for (var bKey in b) {
+	        if (!(bKey in a)) {
+	            diff = diff || {}
+	            diff[bKey] = b[bKey]
+	        }
+	    }
+	
+	    return diff
+	}
+	
+	function getPrototype(value) {
+	  if (Object.getPrototypeOf) {
+	    return Object.getPrototypeOf(value)
+	  } else if (value.__proto__) {
+	    return value.__proto__
+	  } else if (value.constructor) {
+	    return value.constructor.prototype
+	  }
+	}
+
+
+/***/ },
+/* 50 */
 /*!***************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/dom-index.js ***!
   \***************************************************/
@@ -24404,19 +25453,19 @@
 
 
 /***/ },
-/* 36 */
+/* 51 */
 /*!**************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/patch-op.js ***!
   \**************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var applyProperties = __webpack_require__(/*! ./apply-properties */ 46)
+	var applyProperties = __webpack_require__(/*! ./apply-properties */ 58)
 	
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 40)
-	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 37)
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 38)
+	var VPatch = __webpack_require__(/*! ../vnode/vpatch.js */ 47)
 	
-	var render = __webpack_require__(/*! ./create-element */ 32)
-	var updateWidget = __webpack_require__(/*! ./update-widget */ 50)
+	var render = __webpack_require__(/*! ./create-element */ 42)
+	var updateWidget = __webpack_require__(/*! ./update-widget */ 62)
 	
 	module.exports = applyPatch
 	
@@ -24565,303 +25614,332 @@
 
 
 /***/ },
-/* 37 */
-/*!*************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/vpatch.js ***!
-  \*************************************************/
+/* 52 */
+/*!*********************************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/~/escape-html/index.js ***!
+  \*********************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 34)
+	/*!
+	 * escape-html
+	 * Copyright(c) 2012-2013 TJ Holowaychuk
+	 * MIT Licensed
+	 */
 	
-	VirtualPatch.NONE = 0
-	VirtualPatch.VTEXT = 1
-	VirtualPatch.VNODE = 2
-	VirtualPatch.WIDGET = 3
-	VirtualPatch.PROPS = 4
-	VirtualPatch.ORDER = 5
-	VirtualPatch.INSERT = 6
-	VirtualPatch.REMOVE = 7
-	VirtualPatch.THUNK = 8
+	/**
+	 * Module exports.
+	 * @public
+	 */
 	
-	module.exports = VirtualPatch
+	module.exports = escapeHtml;
 	
-	function VirtualPatch(type, vNode, patch) {
-	    this.type = Number(type)
-	    this.vNode = vNode
-	    this.patch = patch
-	}
+	/**
+	 * Escape special characters in the given string of html.
+	 *
+	 * @param  {string} str The string to escape for inserting into HTML
+	 * @return {string}
+	 * @public
+	 */
 	
-	VirtualPatch.prototype.version = version
-	VirtualPatch.prototype.type = "VirtualPatch"
-
-
-/***/ },
-/* 38 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vnode.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var version = __webpack_require__(/*! ./version */ 34)
-	
-	module.exports = isVirtualNode
-	
-	function isVirtualNode(x) {
-	    return x && x.type === "VirtualNode" && x.version === version
+	function escapeHtml(html) {
+	  return String(html)
+	    .replace(/&/g, '&amp;')
+	    .replace(/"/g, '&quot;')
+	    .replace(/'/g, '&#39;')
+	    .replace(/</g, '&lt;')
+	    .replace(/>/g, '&gt;');
 	}
 
 
 /***/ },
-/* 39 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vtext.js ***!
-  \***************************************************/
+/* 53 */
+/*!*********************************************!*\
+  !*** ./~/cyclejs/~/es6-map/lib/iterator.js ***!
+  \*********************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var version = __webpack_require__(/*! ./version */ 34)
+	'use strict';
 	
-	module.exports = isVirtualText
+	var setPrototypeOf    = __webpack_require__(/*! es5-ext/object/set-prototype-of */ 71)
+	  , d                 = __webpack_require__(/*! d */ 63)
+	  , Iterator          = __webpack_require__(/*! es6-iterator */ 74)
+	  , toStringTagSymbol = __webpack_require__(/*! es6-symbol */ 65).toStringTag
+	  , kinds             = __webpack_require__(/*! ./iterator-kinds */ 75)
 	
-	function isVirtualText(x) {
-	    return x && x.type === "VirtualText" && x.version === version
-	}
+	  , defineProperties = Object.defineProperties
+	  , unBind = Iterator.prototype._unBind
+	  , MapIterator;
+	
+	MapIterator = module.exports = function (map, kind) {
+		if (!(this instanceof MapIterator)) return new MapIterator(map, kind);
+		Iterator.call(this, map.__mapKeysData__, map);
+		if (!kind || !kinds[kind]) kind = 'key+value';
+		defineProperties(this, {
+			__kind__: d('', kind),
+			__values__: d('w', map.__mapValuesData__)
+		});
+	};
+	if (setPrototypeOf) setPrototypeOf(MapIterator, Iterator);
+	
+	MapIterator.prototype = Object.create(Iterator.prototype, {
+		constructor: d(MapIterator),
+		_resolve: d(function (i) {
+			if (this.__kind__ === 'value') return this.__values__[i];
+			if (this.__kind__ === 'key') return this.__list__[i];
+			return [this.__list__[i], this.__values__[i]];
+		}),
+		_unBind: d(function () {
+			this.__values__ = null;
+			unBind.call(this);
+		}),
+		toString: d(function () { return '[object Map Iterator]'; })
+	});
+	Object.defineProperty(MapIterator.prototype, toStringTagSymbol,
+		d('c', 'Map Iterator'));
 
 
 /***/ },
-/* 40 */
-/*!****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-widget.js ***!
-  \****************************************************/
+/* 54 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/is-native-implemented.js ***!
+  \******************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	module.exports = isWidget
+	// Exports true if environment provides native `Map` implementation,
+	// whatever that is.
 	
-	function isWidget(w) {
-	    return w && w.type === "Widget"
-	}
+	'use strict';
+	
+	module.exports = (function () {
+		if (typeof Map === 'undefined') return false;
+		return (Object.prototype.toString.call(Map.prototype) === '[object Map]');
+	}());
 
 
 /***/ },
-/* 41 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-thunk.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = isThunk
-	
-	function isThunk(t) {
-	    return t && t.type === "Thunk"
-	}
-
-
-/***/ },
-/* 42 */
+/* 55 */
 /*!*******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/handle-thunk.js ***!
+  !*** ./~/cyclejs/~/vdom-to-html/~/xtend/immutable.js ***!
   \*******************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isVNode = __webpack_require__(/*! ./is-vnode */ 38)
-	var isVText = __webpack_require__(/*! ./is-vtext */ 39)
-	var isWidget = __webpack_require__(/*! ./is-widget */ 40)
-	var isThunk = __webpack_require__(/*! ./is-thunk */ 41)
+	module.exports = extend
 	
-	module.exports = handleThunk
+	function extend() {
+	    var target = {}
 	
-	function handleThunk(a, b) {
-	    var renderedA = a
-	    var renderedB = b
+	    for (var i = 0; i < arguments.length; i++) {
+	        var source = arguments[i]
 	
-	    if (isThunk(b)) {
-	        renderedB = renderThunk(b, a)
+	        for (var key in source) {
+	            if (source.hasOwnProperty(key)) {
+	                target[key] = source[key]
+	            }
+	        }
 	    }
 	
-	    if (isThunk(a)) {
-	        renderedA = renderThunk(a, null)
-	    }
-	
-	    return {
-	        a: renderedA,
-	        b: renderedB
-	    }
-	}
-	
-	function renderThunk(thunk, previous) {
-	    var renderedThunk = thunk.vnode
-	
-	    if (!renderedThunk) {
-	        renderedThunk = thunk.vnode = thunk.render(previous)
-	    }
-	
-	    if (!(isVNode(renderedThunk) ||
-	            isVText(renderedThunk) ||
-	            isWidget(renderedThunk))) {
-	        throw new Error("thunk did not return a valid node");
-	    }
-	
-	    return renderedThunk
+	    return target
 	}
 
 
 /***/ },
-/* 43 */
+/* 56 */
+/*!*************************************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/~/param-case/param-case.js ***!
+  \*************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var sentenceCase = __webpack_require__(/*! sentence-case */ 91);
+	
+	/**
+	 * Param case a string.
+	 *
+	 * @param  {String} string
+	 * @param  {String} [locale]
+	 * @return {String}
+	 */
+	module.exports = function (string, locale) {
+	  return sentenceCase(string, locale, '-');
+	};
+
+
+/***/ },
+/* 57 */
 /*!*****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vtree/diff-props.js ***!
+  !*** ./~/cyclejs/~/vdom-to-html/property-config.js ***!
   \*****************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isObject = __webpack_require__(/*! is-object */ 54)
-	var isHook = __webpack_require__(/*! ../vnode/is-vhook */ 44)
+	/**
+	 * Attribute types.
+	 */
 	
-	module.exports = diffProps
-	
-	function diffProps(a, b) {
-	    var diff
-	
-	    for (var aKey in a) {
-	        if (!(aKey in b)) {
-	            diff = diff || {}
-	            diff[aKey] = undefined
-	        }
-	
-	        var aValue = a[aKey]
-	        var bValue = b[aKey]
-	
-	        if (aValue === bValue) {
-	            continue
-	        } else if (isObject(aValue) && isObject(bValue)) {
-	            if (getPrototype(bValue) !== getPrototype(aValue)) {
-	                diff = diff || {}
-	                diff[aKey] = bValue
-	            } else if (isHook(bValue)) {
-	                 diff = diff || {}
-	                 diff[aKey] = bValue
-	            } else {
-	                var objectDiff = diffProps(aValue, bValue)
-	                if (objectDiff) {
-	                    diff = diff || {}
-	                    diff[aKey] = objectDiff
-	                }
-	            }
-	        } else {
-	            diff = diff || {}
-	            diff[aKey] = bValue
-	        }
-	    }
-	
-	    for (var bKey in b) {
-	        if (!(bKey in a)) {
-	            diff = diff || {}
-	            diff[bKey] = b[bKey]
-	        }
-	    }
-	
-	    return diff
-	}
-	
-	function getPrototype(value) {
-	  if (Object.getPrototypeOf) {
-	    return Object.getPrototypeOf(value)
-	  } else if (value.__proto__) {
-	    return value.__proto__
-	  } else if (value.constructor) {
-	    return value.constructor.prototype
-	  }
-	}
-
-
-/***/ },
-/* 44 */
-/*!***************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vnode/is-vhook.js ***!
-  \***************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	module.exports = isHook
-	
-	function isHook(hook) {
-	    return hook &&
-	      (typeof hook.hook === "function" && !hook.hasOwnProperty("hook") ||
-	       typeof hook.unhook === "function" && !hook.hasOwnProperty("unhook"))
-	}
-
-
-/***/ },
-/* 45 */
-/*!**********************************************************!*\
-  !*** (webpack)/~/node-libs-browser/~/process/browser.js ***!
-  \**********************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	// shim for using process in browser
-	
-	var process = module.exports = {};
-	var queue = [];
-	var draining = false;
-	
-	function drainQueue() {
-	    if (draining) {
-	        return;
-	    }
-	    draining = true;
-	    var currentQueue;
-	    var len = queue.length;
-	    while(len) {
-	        currentQueue = queue;
-	        queue = [];
-	        var i = -1;
-	        while (++i < len) {
-	            currentQueue[i]();
-	        }
-	        len = queue.length;
-	    }
-	    draining = false;
-	}
-	process.nextTick = function (fun) {
-	    queue.push(fun);
-	    if (!draining) {
-	        setTimeout(drainQueue, 0);
-	    }
+	var types = {
+	  BOOLEAN: 1,
+	  OVERLOADED_BOOLEAN: 2
 	};
 	
-	process.title = 'browser';
-	process.browser = true;
-	process.env = {};
-	process.argv = [];
-	process.version = ''; // empty string to avoid regexp issues
-	process.versions = {};
+	/**
+	 * Properties.
+	 *
+	 * Taken from https://github.com/facebook/react/blob/847357e42e5267b04dd6e297219eaa125ab2f9f4/src/browser/ui/dom/HTMLDOMPropertyConfig.js
+	 *
+	 */
 	
-	function noop() {}
+	var properties = {
+	  /**
+	   * Standard Properties
+	   */
+	  accept: true,
+	  acceptCharset: true,
+	  accessKey: true,
+	  action: true,
+	  allowFullScreen: types.BOOLEAN,
+	  allowTransparency: true,
+	  alt: true,
+	  async: types.BOOLEAN,
+	  autocomplete: true,
+	  autofocus: types.BOOLEAN,
+	  autoplay: types.BOOLEAN,
+	  cellPadding: true,
+	  cellSpacing: true,
+	  charset: true,
+	  checked: types.BOOLEAN,
+	  classID: true,
+	  className: true,
+	  cols: true,
+	  colSpan: true,
+	  content: true,
+	  contentEditable: true,
+	  contextMenu: true,
+	  controls: types.BOOLEAN,
+	  coords: true,
+	  crossOrigin: true,
+	  data: true, // For `<object />` acts as `src`.
+	  dateTime: true,
+	  defer: types.BOOLEAN,
+	  dir: true,
+	  disabled: types.BOOLEAN,
+	  download: types.OVERLOADED_BOOLEAN,
+	  draggable: true,
+	  enctype: true,
+	  form: true,
+	  formAction: true,
+	  formEncType: true,
+	  formMethod: true,
+	  formNoValidate: types.BOOLEAN,
+	  formTarget: true,
+	  frameBorder: true,
+	  headers: true,
+	  height: true,
+	  hidden: types.BOOLEAN,
+	  href: true,
+	  hreflang: true,
+	  htmlFor: true,
+	  httpEquiv: true,
+	  icon: true,
+	  id: true,
+	  label: true,
+	  lang: true,
+	  list: true,
+	  loop: types.BOOLEAN,
+	  manifest: true,
+	  marginHeight: true,
+	  marginWidth: true,
+	  max: true,
+	  maxLength: true,
+	  media: true,
+	  mediaGroup: true,
+	  method: true,
+	  min: true,
+	  multiple: types.BOOLEAN,
+	  muted: types.BOOLEAN,
+	  name: true,
+	  noValidate: types.BOOLEAN,
+	  open: true,
+	  pattern: true,
+	  placeholder: true,
+	  poster: true,
+	  preload: true,
+	  radiogroup: true,
+	  readOnly: types.BOOLEAN,
+	  rel: true,
+	  required: types.BOOLEAN,
+	  role: true,
+	  rows: true,
+	  rowSpan: true,
+	  sandbox: true,
+	  scope: true,
+	  scrolling: true,
+	  seamless: types.BOOLEAN,
+	  selected: types.BOOLEAN,
+	  shape: true,
+	  size: true,
+	  sizes: true,
+	  span: true,
+	  spellcheck: true,
+	  src: true,
+	  srcdoc: true,
+	  srcset: true,
+	  start: true,
+	  step: true,
+	  style: true,
+	  tabIndex: true,
+	  target: true,
+	  title: true,
+	  type: true,
+	  useMap: true,
+	  value: true,
+	  width: true,
+	  wmode: true,
 	
-	process.on = noop;
-	process.addListener = noop;
-	process.once = noop;
-	process.off = noop;
-	process.removeListener = noop;
-	process.removeAllListeners = noop;
-	process.emit = noop;
-	
-	process.binding = function (name) {
-	    throw new Error('process.binding is not supported');
+	  /**
+	   * Non-standard Properties
+	   */
+	  // autoCapitalize and autoCorrect are supported in Mobile Safari for
+	  // keyboard hints.
+	  autocapitalize: true,
+	  autocorrect: true,
+	  // itemProp, itemScope, itemType are for Microdata support. See
+	  // http://schema.org/docs/gs.html
+	  itemProp: true,
+	  itemScope: types.BOOLEAN,
+	  itemType: true,
+	  // property is supported for OpenGraph in meta tags.
+	  property: true
 	};
 	
-	// TODO(shtylman)
-	process.cwd = function () { return '/' };
-	process.chdir = function (dir) {
-	    throw new Error('process.chdir is not supported');
+	/**
+	 * Properties to attributes mapping.
+	 *
+	 * The ones not here are simply converted to lower case.
+	 */
+	
+	var attributeNames = {
+	  acceptCharset: 'accept-charset',
+	  className: 'class',
+	  htmlFor: 'for',
+	  httpEquiv: 'http-equiv'
 	};
-	process.umask = function() { return 0; };
-
+	
+	/**
+	 * Exports.
+	 */
+	
+	module.exports = {
+	  attributeTypes: types,
+	  properties: properties,
+	  attributeNames: attributeNames
+	};
 
 /***/ },
-/* 46 */
+/* 58 */
 /*!**********************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/vdom/apply-properties.js ***!
   \**********************************************************/
 /***/ function(module, exports, __webpack_require__) {
 
-	var isObject = __webpack_require__(/*! is-object */ 54)
+	var isObject = __webpack_require__(/*! is-object */ 76)
 	var isHook = __webpack_require__(/*! ../vnode/is-vhook.js */ 44)
 	
 	module.exports = applyProperties
@@ -24961,173 +26039,7 @@
 
 
 /***/ },
-/* 47 */
-/*!****************************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/soft-set-hook.js ***!
-  \****************************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	module.exports = SoftSetHook;
-	
-	function SoftSetHook(value) {
-	    if (!(this instanceof SoftSetHook)) {
-	        return new SoftSetHook(value);
-	    }
-	
-	    this.value = value;
-	}
-	
-	SoftSetHook.prototype.hook = function (node, propertyName) {
-	    if (node[propertyName] !== this.value) {
-	        node[propertyName] = this.value;
-	    }
-	};
-
-
-/***/ },
-/* 48 */
-/*!******************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/parse-tag.js ***!
-  \******************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var split = __webpack_require__(/*! browser-split */ 56);
-	
-	var classIdSplit = /([\.#]?[a-zA-Z0-9_:-]+)/;
-	var notClassId = /^\.|#/;
-	
-	module.exports = parseTag;
-	
-	function parseTag(tag, props) {
-	    if (!tag) {
-	        return 'DIV';
-	    }
-	
-	    var noId = !(props.hasOwnProperty('id'));
-	
-	    var tagParts = split(tag, classIdSplit);
-	    var tagName = null;
-	
-	    if (notClassId.test(tagParts[1])) {
-	        tagName = 'DIV';
-	    }
-	
-	    var classes, part, type, i;
-	
-	    for (i = 0; i < tagParts.length; i++) {
-	        part = tagParts[i];
-	
-	        if (!part) {
-	            continue;
-	        }
-	
-	        type = part.charAt(0);
-	
-	        if (!tagName) {
-	            tagName = part;
-	        } else if (type === '.') {
-	            classes = classes || [];
-	            classes.push(part.substring(1, part.length));
-	        } else if (type === '#' && noId) {
-	            props.id = part.substring(1, part.length);
-	        }
-	    }
-	
-	    if (classes) {
-	        if (props.className) {
-	            classes.push(props.className);
-	        }
-	
-	        props.className = classes.join(' ');
-	    }
-	
-	    return props.namespace ? tagName : tagName.toUpperCase();
-	}
-
-
-/***/ },
-/* 49 */
-/*!**********************************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/virtual-hyperscript/hooks/ev-hook.js ***!
-  \**********************************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var EvStore = __webpack_require__(/*! ev-store */ 55);
-	
-	module.exports = EvHook;
-	
-	function EvHook(value) {
-	    if (!(this instanceof EvHook)) {
-	        return new EvHook(value);
-	    }
-	
-	    this.value = value;
-	}
-	
-	EvHook.prototype.hook = function (node, propertyName) {
-	    var es = EvStore(node);
-	    var propName = propertyName.substr(3);
-	
-	    es[propName] = this.value;
-	};
-	
-	EvHook.prototype.unhook = function(node, propertyName) {
-	    var es = EvStore(node);
-	    var propName = propertyName.substr(3);
-	
-	    es[propName] = undefined;
-	};
-
-
-/***/ },
-/* 50 */
-/*!*******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/vdom/update-widget.js ***!
-  \*******************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 40)
-	
-	module.exports = updateWidget
-	
-	function updateWidget(a, b) {
-	    if (isWidget(a) && isWidget(b)) {
-	        if ("name" in a && "name" in b) {
-	            return a.id === b.id
-	        } else {
-	            return a.init === b.init
-	        }
-	    }
-	
-	    return false
-	}
-
-
-/***/ },
-/* 51 */
-/*!*******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/x-is-array/index.js ***!
-  \*******************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	var nativeIsArray = Array.isArray
-	var toString = Object.prototype.toString
-	
-	module.exports = nativeIsArray || isArray
-	
-	function isArray(obj) {
-	    return toString.call(obj) === "[object Array]"
-	}
-
-
-/***/ },
-/* 52 */
+/* 59 */
 /*!******************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/global/document.js ***!
   \******************************************************/
@@ -25135,7 +26047,7 @@
 
 	/* WEBPACK VAR INJECTION */(function(global) {var topLevel = typeof global !== 'undefined' ? global :
 	    typeof window !== 'undefined' ? window : {}
-	var minDoc = __webpack_require__(/*! min-document */ 53);
+	var minDoc = __webpack_require__(/*! min-document */ 68);
 	
 	if (typeof document !== 'undefined') {
 	    module.exports = document;
@@ -25152,59 +26064,7 @@
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
 
 /***/ },
-/* 53 */
-/*!******************************!*\
-  !*** min-document (ignored) ***!
-  \******************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	/* (ignored) */
-
-/***/ },
-/* 54 */
-/*!******************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/is-object/index.js ***!
-  \******************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	"use strict";
-	
-	module.exports = function isObject(x) {
-		return typeof x === "object" && x !== null;
-	};
-
-
-/***/ },
-/* 55 */
-/*!*****************************************************!*\
-  !*** ./~/cyclejs/~/virtual-dom/~/ev-store/index.js ***!
-  \*****************************************************/
-/***/ function(module, exports, __webpack_require__) {
-
-	'use strict';
-	
-	var OneVersionConstraint = __webpack_require__(/*! individual/one-version */ 57);
-	
-	var MY_VERSION = '7';
-	OneVersionConstraint('ev-store', MY_VERSION);
-	
-	var hashKey = '__EV_STORE_KEY@' + MY_VERSION;
-	
-	module.exports = EvStore;
-	
-	function EvStore(elem) {
-	    var hash = elem[hashKey];
-	
-	    if (!hash) {
-	        hash = elem[hashKey] = {};
-	    }
-	
-	    return hash;
-	}
-
-
-/***/ },
-/* 56 */
+/* 60 */
 /*!**********************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/browser-split/index.js ***!
   \**********************************************************/
@@ -25319,7 +26179,1039 @@
 
 
 /***/ },
-/* 57 */
+/* 61 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/ev-store/index.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var OneVersionConstraint = __webpack_require__(/*! individual/one-version */ 92);
+	
+	var MY_VERSION = '7';
+	OneVersionConstraint('ev-store', MY_VERSION);
+	
+	var hashKey = '__EV_STORE_KEY@' + MY_VERSION;
+	
+	module.exports = EvStore;
+	
+	function EvStore(elem) {
+	    var hash = elem[hashKey];
+	
+	    if (!hash) {
+	        hash = elem[hashKey] = {};
+	    }
+	
+	    return hash;
+	}
+
+
+/***/ },
+/* 62 */
+/*!*******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/vdom/update-widget.js ***!
+  \*******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var isWidget = __webpack_require__(/*! ../vnode/is-widget.js */ 38)
+	
+	module.exports = updateWidget
+	
+	function updateWidget(a, b) {
+	    if (isWidget(a) && isWidget(b)) {
+	        if ("name" in a && "name" in b) {
+	            return a.id === b.id
+	        } else {
+	            return a.init === b.init
+	        }
+	    }
+	
+	    return false
+	}
+
+
+/***/ },
+/* 63 */
+/*!******************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/d/index.js ***!
+  \******************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var assign        = __webpack_require__(/*! es5-ext/object/assign */ 81)
+	  , normalizeOpts = __webpack_require__(/*! es5-ext/object/normalize-options */ 77)
+	  , isCallable    = __webpack_require__(/*! es5-ext/object/is-callable */ 78)
+	  , contains      = __webpack_require__(/*! es5-ext/string/#/contains */ 82)
+	
+	  , d;
+	
+	d = module.exports = function (dscr, value/*, options*/) {
+		var c, e, w, options, desc;
+		if ((arguments.length < 2) || (typeof dscr !== 'string')) {
+			options = value;
+			value = dscr;
+			dscr = null;
+		} else {
+			options = arguments[2];
+		}
+		if (dscr == null) {
+			c = w = true;
+			e = false;
+		} else {
+			c = contains.call(dscr, 'c');
+			e = contains.call(dscr, 'e');
+			w = contains.call(dscr, 'w');
+		}
+	
+		desc = { value: value, configurable: c, enumerable: e, writable: w };
+		return !options ? desc : assign(normalizeOpts(options), desc);
+	};
+	
+	d.gs = function (dscr, get, set/*, options*/) {
+		var c, e, options, desc;
+		if (typeof dscr !== 'string') {
+			options = set;
+			set = get;
+			get = dscr;
+			dscr = null;
+		} else {
+			options = arguments[3];
+		}
+		if (get == null) {
+			get = undefined;
+		} else if (!isCallable(get)) {
+			options = get;
+			get = set = undefined;
+		} else if (set == null) {
+			set = undefined;
+		} else if (!isCallable(set)) {
+			options = set;
+			set = undefined;
+		}
+		if (dscr == null) {
+			c = true;
+			e = false;
+		} else {
+			c = contains.call(dscr, 'c');
+			e = contains.call(dscr, 'e');
+		}
+	
+		desc = { get: get, set: set, configurable: c, enumerable: e };
+		return !options ? desc : assign(normalizeOpts(options), desc);
+	};
+
+
+/***/ },
+/* 64 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/event-emitter/index.js ***!
+  \******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var d        = __webpack_require__(/*! d */ 63)
+	  , callable = __webpack_require__(/*! es5-ext/object/valid-callable */ 69)
+	
+	  , apply = Function.prototype.apply, call = Function.prototype.call
+	  , create = Object.create, defineProperty = Object.defineProperty
+	  , defineProperties = Object.defineProperties
+	  , hasOwnProperty = Object.prototype.hasOwnProperty
+	  , descriptor = { configurable: true, enumerable: false, writable: true }
+	
+	  , on, once, off, emit, methods, descriptors, base;
+	
+	on = function (type, listener) {
+		var data;
+	
+		callable(listener);
+	
+		if (!hasOwnProperty.call(this, '__ee__')) {
+			data = descriptor.value = create(null);
+			defineProperty(this, '__ee__', descriptor);
+			descriptor.value = null;
+		} else {
+			data = this.__ee__;
+		}
+		if (!data[type]) data[type] = listener;
+		else if (typeof data[type] === 'object') data[type].push(listener);
+		else data[type] = [data[type], listener];
+	
+		return this;
+	};
+	
+	once = function (type, listener) {
+		var once, self;
+	
+		callable(listener);
+		self = this;
+		on.call(this, type, once = function () {
+			off.call(self, type, once);
+			apply.call(listener, this, arguments);
+		});
+	
+		once.__eeOnceListener__ = listener;
+		return this;
+	};
+	
+	off = function (type, listener) {
+		var data, listeners, candidate, i;
+	
+		callable(listener);
+	
+		if (!hasOwnProperty.call(this, '__ee__')) return this;
+		data = this.__ee__;
+		if (!data[type]) return this;
+		listeners = data[type];
+	
+		if (typeof listeners === 'object') {
+			for (i = 0; (candidate = listeners[i]); ++i) {
+				if ((candidate === listener) ||
+						(candidate.__eeOnceListener__ === listener)) {
+					if (listeners.length === 2) data[type] = listeners[i ? 0 : 1];
+					else listeners.splice(i, 1);
+				}
+			}
+		} else {
+			if ((listeners === listener) ||
+					(listeners.__eeOnceListener__ === listener)) {
+				delete data[type];
+			}
+		}
+	
+		return this;
+	};
+	
+	emit = function (type) {
+		var i, l, listener, listeners, args;
+	
+		if (!hasOwnProperty.call(this, '__ee__')) return;
+		listeners = this.__ee__[type];
+		if (!listeners) return;
+	
+		if (typeof listeners === 'object') {
+			l = arguments.length;
+			args = new Array(l - 1);
+			for (i = 1; i < l; ++i) args[i - 1] = arguments[i];
+	
+			listeners = listeners.slice();
+			for (i = 0; (listener = listeners[i]); ++i) {
+				apply.call(listener, this, args);
+			}
+		} else {
+			switch (arguments.length) {
+			case 1:
+				call.call(listeners, this);
+				break;
+			case 2:
+				call.call(listeners, this, arguments[1]);
+				break;
+			case 3:
+				call.call(listeners, this, arguments[1], arguments[2]);
+				break;
+			default:
+				l = arguments.length;
+				args = new Array(l - 1);
+				for (i = 1; i < l; ++i) {
+					args[i - 1] = arguments[i];
+				}
+				apply.call(listeners, this, args);
+			}
+		}
+	};
+	
+	methods = {
+		on: on,
+		once: once,
+		off: off,
+		emit: emit
+	};
+	
+	descriptors = {
+		on: d(on),
+		once: d(once),
+		off: d(off),
+		emit: d(emit)
+	};
+	
+	base = defineProperties({}, descriptors);
+	
+	module.exports = exports = function (o) {
+		return (o == null) ? create(base) : defineProperties(Object(o), descriptors);
+	};
+	exports.methods = methods;
+
+
+/***/ },
+/* 65 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-symbol/index.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! ./is-implemented */ 79)() ? Symbol : __webpack_require__(/*! ./polyfill */ 80);
+
+
+/***/ },
+/* 66 */
+/*!**************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/valid-iterable.js ***!
+  \**************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var isIterable = __webpack_require__(/*! ./is-iterable */ 85);
+	
+	module.exports = function (value) {
+		if (!isIterable(value)) throw new TypeError(value + " is not iterable");
+		return value;
+	};
+
+
+/***/ },
+/* 67 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/for-of.js ***!
+  \******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var callable = __webpack_require__(/*! es5-ext/object/valid-callable */ 69)
+	  , isString = __webpack_require__(/*! es5-ext/string/is-string */ 83)
+	  , get      = __webpack_require__(/*! ./get */ 84)
+	
+	  , isArray = Array.isArray, call = Function.prototype.call;
+	
+	module.exports = function (iterable, cb/*, thisArg*/) {
+		var mode, thisArg = arguments[2], result, doBreak, broken, i, l, char, code;
+		if (isArray(iterable)) mode = 'array';
+		else if (isString(iterable)) mode = 'string';
+		else iterable = get(iterable);
+	
+		callable(cb);
+		doBreak = function () { broken = true; };
+		if (mode === 'array') {
+			iterable.some(function (value) {
+				call.call(cb, thisArg, value, doBreak);
+				if (broken) return true;
+			});
+			return;
+		}
+		if (mode === 'string') {
+			l = iterable.length;
+			for (i = 0; i < l; ++i) {
+				char = iterable[i];
+				if ((i + 1) < l) {
+					code = char.charCodeAt(0);
+					if ((code >= 0xD800) && (code <= 0xDBFF)) char += iterable[++i];
+				}
+				call.call(cb, thisArg, char, doBreak);
+				if (broken) break;
+			}
+			return;
+		}
+		result = iterable.next();
+	
+		while (!result.done) {
+			call.call(cb, thisArg, result.value, doBreak);
+			if (broken) return;
+			result = iterable.next();
+		}
+	};
+
+
+/***/ },
+/* 68 */
+/*!******************************!*\
+  !*** min-document (ignored) ***!
+  \******************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	/* (ignored) */
+
+/***/ },
+/* 69 */
+/*!****************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/valid-callable.js ***!
+  \****************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function (fn) {
+		if (typeof fn !== 'function') throw new TypeError(fn + " is not a function");
+		return fn;
+	};
+
+
+/***/ },
+/* 70 */
+/*!*************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/valid-value.js ***!
+  \*************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function (value) {
+		if (value == null) throw new TypeError("Cannot use null or undefined");
+		return value;
+	};
+
+
+/***/ },
+/* 71 */
+/*!************************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/set-prototype-of/index.js ***!
+  \************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! ./is-implemented */ 86)()
+		? Object.setPrototypeOf
+		: __webpack_require__(/*! ./shim */ 87);
+
+
+/***/ },
+/* 72 */
+/*!********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/array/#/clear.js ***!
+  \********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	// Inspired by Google Closure:
+	// http://closure-library.googlecode.com/svn/docs/
+	// closure_goog_array_array.js.html#goog.array.clear
+	
+	'use strict';
+	
+	var value = __webpack_require__(/*! ../../object/valid-value */ 70);
+	
+	module.exports = function () {
+		value(this).length = 0;
+		return this;
+	};
+
+
+/***/ },
+/* 73 */
+/*!*************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/array/#/e-index-of.js ***!
+  \*************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var toPosInt = __webpack_require__(/*! ../../number/to-pos-integer */ 88)
+	  , value    = __webpack_require__(/*! ../../object/valid-value */ 70)
+	
+	  , indexOf = Array.prototype.indexOf
+	  , hasOwnProperty = Object.prototype.hasOwnProperty
+	  , abs = Math.abs, floor = Math.floor;
+	
+	module.exports = function (searchElement/*, fromIndex*/) {
+		var i, l, fromIndex, val;
+		if (searchElement === searchElement) { //jslint: ignore
+			return indexOf.apply(this, arguments);
+		}
+	
+		l = toPosInt(value(this).length);
+		fromIndex = arguments[1];
+		if (isNaN(fromIndex)) fromIndex = 0;
+		else if (fromIndex >= 0) fromIndex = floor(fromIndex);
+		else fromIndex = toPosInt(this.length) - floor(abs(fromIndex));
+	
+		for (i = fromIndex; i < l; ++i) {
+			if (hasOwnProperty.call(this, i)) {
+				val = this[i];
+				if (val !== val) return i; //jslint: ignore
+			}
+		}
+		return -1;
+	};
+
+
+/***/ },
+/* 74 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/index.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var clear    = __webpack_require__(/*! es5-ext/array/#/clear */ 72)
+	  , assign   = __webpack_require__(/*! es5-ext/object/assign */ 81)
+	  , callable = __webpack_require__(/*! es5-ext/object/valid-callable */ 69)
+	  , value    = __webpack_require__(/*! es5-ext/object/valid-value */ 70)
+	  , d        = __webpack_require__(/*! d */ 63)
+	  , autoBind = __webpack_require__(/*! d/auto-bind */ 90)
+	  , Symbol   = __webpack_require__(/*! es6-symbol */ 93)
+	
+	  , defineProperty = Object.defineProperty
+	  , defineProperties = Object.defineProperties
+	  , Iterator;
+	
+	module.exports = Iterator = function (list, context) {
+		if (!(this instanceof Iterator)) return new Iterator(list, context);
+		defineProperties(this, {
+			__list__: d('w', value(list)),
+			__context__: d('w', context),
+			__nextIndex__: d('w', 0)
+		});
+		if (!context) return;
+		callable(context.on);
+		context.on('_add', this._onAdd);
+		context.on('_delete', this._onDelete);
+		context.on('_clear', this._onClear);
+	};
+	
+	defineProperties(Iterator.prototype, assign({
+		constructor: d(Iterator),
+		_next: d(function () {
+			var i;
+			if (!this.__list__) return;
+			if (this.__redo__) {
+				i = this.__redo__.shift();
+				if (i !== undefined) return i;
+			}
+			if (this.__nextIndex__ < this.__list__.length) return this.__nextIndex__++;
+			this._unBind();
+		}),
+		next: d(function () { return this._createResult(this._next()); }),
+		_createResult: d(function (i) {
+			if (i === undefined) return { done: true, value: undefined };
+			return { done: false, value: this._resolve(i) };
+		}),
+		_resolve: d(function (i) { return this.__list__[i]; }),
+		_unBind: d(function () {
+			this.__list__ = null;
+			delete this.__redo__;
+			if (!this.__context__) return;
+			this.__context__.off('_add', this._onAdd);
+			this.__context__.off('_delete', this._onDelete);
+			this.__context__.off('_clear', this._onClear);
+			this.__context__ = null;
+		}),
+		toString: d(function () { return '[object Iterator]'; })
+	}, autoBind({
+		_onAdd: d(function (index) {
+			if (index >= this.__nextIndex__) return;
+			++this.__nextIndex__;
+			if (!this.__redo__) {
+				defineProperty(this, '__redo__', d('c', [index]));
+				return;
+			}
+			this.__redo__.forEach(function (redo, i) {
+				if (redo >= index) this.__redo__[i] = ++redo;
+			}, this);
+			this.__redo__.push(index);
+		}),
+		_onDelete: d(function (index) {
+			var i;
+			if (index >= this.__nextIndex__) return;
+			--this.__nextIndex__;
+			if (!this.__redo__) return;
+			i = this.__redo__.indexOf(index);
+			if (i !== -1) this.__redo__.splice(i, 1);
+			this.__redo__.forEach(function (redo, i) {
+				if (redo > index) this.__redo__[i] = --redo;
+			}, this);
+		}),
+		_onClear: d(function () {
+			if (this.__redo__) clear.call(this.__redo__);
+			this.__nextIndex__ = 0;
+		})
+	})));
+	
+	defineProperty(Iterator.prototype, Symbol.iterator, d(function () {
+		return this;
+	}));
+	defineProperty(Iterator.prototype, Symbol.toStringTag, d('', 'Iterator'));
+
+
+/***/ },
+/* 75 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/lib/iterator-kinds.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! es5-ext/object/primitive-set */ 89)('key',
+		'value', 'key+value');
+
+
+/***/ },
+/* 76 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/virtual-dom/~/is-object/index.js ***!
+  \******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	"use strict";
+	
+	module.exports = function isObject(x) {
+		return typeof x === "object" && x !== null;
+	};
+
+
+/***/ },
+/* 77 */
+/*!*******************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/normalize-options.js ***!
+  \*******************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var forEach = Array.prototype.forEach, create = Object.create;
+	
+	var process = function (src, obj) {
+		var key;
+		for (key in src) obj[key] = src[key];
+	};
+	
+	module.exports = function (options/*, …options*/) {
+		var result = create(null);
+		forEach.call(arguments, function (options) {
+			if (options == null) return;
+			process(Object(options), result);
+		});
+		return result;
+	};
+
+
+/***/ },
+/* 78 */
+/*!*************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/is-callable.js ***!
+  \*************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	// Deprecated
+	
+	'use strict';
+	
+	module.exports = function (obj) { return typeof obj === 'function'; };
+
+
+/***/ },
+/* 79 */
+/*!************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-symbol/is-implemented.js ***!
+  \************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function () {
+		var symbol;
+		if (typeof Symbol !== 'function') return false;
+		symbol = Symbol('test symbol');
+		try { String(symbol); } catch (e) { return false; }
+		if (typeof Symbol.iterator === 'symbol') return true;
+	
+		// Return 'true' for polyfills
+		if (typeof Symbol.isConcatSpreadable !== 'object') return false;
+		if (typeof Symbol.isRegExp !== 'object') return false;
+		if (typeof Symbol.iterator !== 'object') return false;
+		if (typeof Symbol.toPrimitive !== 'object') return false;
+		if (typeof Symbol.toStringTag !== 'object') return false;
+		if (typeof Symbol.unscopables !== 'object') return false;
+	
+		return true;
+	};
+
+
+/***/ },
+/* 80 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-symbol/polyfill.js ***!
+  \******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var d = __webpack_require__(/*! d */ 63)
+	
+	  , create = Object.create, defineProperties = Object.defineProperties
+	  , generateName, Symbol;
+	
+	generateName = (function () {
+		var created = create(null);
+		return function (desc) {
+			var postfix = 0;
+			while (created[desc + (postfix || '')]) ++postfix;
+			desc += (postfix || '');
+			created[desc] = true;
+			return '@@' + desc;
+		};
+	}());
+	
+	module.exports = Symbol = function (description) {
+		var symbol;
+		if (this instanceof Symbol) {
+			throw new TypeError('TypeError: Symbol is not a constructor');
+		}
+		symbol = create(Symbol.prototype);
+		description = (description === undefined ? '' : String(description));
+		return defineProperties(symbol, {
+			__description__: d('', description),
+			__name__: d('', generateName(description))
+		});
+	};
+	
+	Object.defineProperties(Symbol, {
+		create: d('', Symbol('create')),
+		hasInstance: d('', Symbol('hasInstance')),
+		isConcatSpreadable: d('', Symbol('isConcatSpreadable')),
+		isRegExp: d('', Symbol('isRegExp')),
+		iterator: d('', Symbol('iterator')),
+		toPrimitive: d('', Symbol('toPrimitive')),
+		toStringTag: d('', Symbol('toStringTag')),
+		unscopables: d('', Symbol('unscopables'))
+	});
+	
+	defineProperties(Symbol.prototype, {
+		properToString: d(function () {
+			return 'Symbol (' + this.__description__ + ')';
+		}),
+		toString: d('', function () { return this.__name__; })
+	});
+	Object.defineProperty(Symbol.prototype, Symbol.toPrimitive, d('',
+		function (hint) {
+			throw new TypeError("Conversion of symbol objects is not allowed");
+		}));
+	Object.defineProperty(Symbol.prototype, Symbol.toStringTag, d('c', 'Symbol'));
+
+
+/***/ },
+/* 81 */
+/*!**************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/assign/index.js ***!
+  \**************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! ./is-implemented */ 94)()
+		? Object.assign
+		: __webpack_require__(/*! ./shim */ 95);
+
+
+/***/ },
+/* 82 */
+/*!******************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/string/#/contains/index.js ***!
+  \******************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! ./is-implemented */ 96)()
+		? String.prototype.contains
+		: __webpack_require__(/*! ./shim */ 97);
+
+
+/***/ },
+/* 83 */
+/*!***********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/string/is-string.js ***!
+  \***********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var toString = Object.prototype.toString
+	
+	  , id = toString.call('');
+	
+	module.exports = function (x) {
+		return (typeof x === 'string') || (x && (typeof x === 'object') &&
+			((x instanceof String) || (toString.call(x) === id))) || false;
+	};
+
+
+/***/ },
+/* 84 */
+/*!***************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/get.js ***!
+  \***************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var isString = __webpack_require__(/*! es5-ext/string/is-string */ 83)
+	  , ArrayIterator  = __webpack_require__(/*! ./array */ 98)
+	  , StringIterator = __webpack_require__(/*! ./string */ 99)
+	  , iterable       = __webpack_require__(/*! ./valid-iterable */ 66)
+	  , iteratorSymbol = __webpack_require__(/*! es6-symbol */ 93).iterator;
+	
+	module.exports = function (obj) {
+		if (typeof iterable(obj)[iteratorSymbol] === 'function') return obj[iteratorSymbol]();
+		if (isString(obj)) return new StringIterator(obj);
+		return new ArrayIterator(obj);
+	};
+
+
+/***/ },
+/* 85 */
+/*!***********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/is-iterable.js ***!
+  \***********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var isString       = __webpack_require__(/*! es5-ext/string/is-string */ 83)
+	  , iteratorSymbol = __webpack_require__(/*! es6-symbol */ 93).iterator
+	
+	  , isArray = Array.isArray;
+	
+	module.exports = function (value) {
+		if (value == null) return false;
+		if (isArray(value)) return true;
+		if (isString(value)) return true;
+		return (typeof value[iteratorSymbol] === 'function');
+	};
+
+
+/***/ },
+/* 86 */
+/*!*********************************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/set-prototype-of/is-implemented.js ***!
+  \*********************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var create = Object.create, getPrototypeOf = Object.getPrototypeOf
+	  , x = {};
+	
+	module.exports = function (/*customCreate*/) {
+		var setPrototypeOf = Object.setPrototypeOf
+		  , customCreate = arguments[0] || create;
+		if (typeof setPrototypeOf !== 'function') return false;
+		return getPrototypeOf(setPrototypeOf(customCreate(null), x)) === x;
+	};
+
+
+/***/ },
+/* 87 */
+/*!***********************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/set-prototype-of/shim.js ***!
+  \***********************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	// Big thanks to @WebReflection for sorting this out
+	// https://gist.github.com/WebReflection/5593554
+	
+	'use strict';
+	
+	var isObject      = __webpack_require__(/*! ../is-object */ 100)
+	  , value         = __webpack_require__(/*! ../valid-value */ 70)
+	
+	  , isPrototypeOf = Object.prototype.isPrototypeOf
+	  , defineProperty = Object.defineProperty
+	  , nullDesc = { configurable: true, enumerable: false, writable: true,
+			value: undefined }
+	  , validate;
+	
+	validate = function (obj, prototype) {
+		value(obj);
+		if ((prototype === null) || isObject(prototype)) return obj;
+		throw new TypeError('Prototype must be null or an object');
+	};
+	
+	module.exports = (function (status) {
+		var fn, set;
+		if (!status) return null;
+		if (status.level === 2) {
+			if (status.set) {
+				set = status.set;
+				fn = function (obj, prototype) {
+					set.call(validate(obj, prototype), prototype);
+					return obj;
+				};
+			} else {
+				fn = function (obj, prototype) {
+					validate(obj, prototype).__proto__ = prototype;
+					return obj;
+				};
+			}
+		} else {
+			fn = function self(obj, prototype) {
+				var isNullBase;
+				validate(obj, prototype);
+				isNullBase = isPrototypeOf.call(self.nullPolyfill, obj);
+				if (isNullBase) delete self.nullPolyfill.__proto__;
+				if (prototype === null) prototype = self.nullPolyfill;
+				obj.__proto__ = prototype;
+				if (isNullBase) defineProperty(self.nullPolyfill, '__proto__', nullDesc);
+				return obj;
+			};
+		}
+		return Object.defineProperty(fn, 'level', { configurable: false,
+			enumerable: false, writable: false, value: status.level });
+	}((function () {
+		var x = Object.create(null), y = {}, set
+		  , desc = Object.getOwnPropertyDescriptor(Object.prototype, '__proto__');
+	
+		if (desc) {
+			try {
+				set = desc.set; // Opera crashes at this point
+				set.call(x, y);
+			} catch (ignore) { }
+			if (Object.getPrototypeOf(x) === y) return { set: set, level: 2 };
+		}
+	
+		x.__proto__ = y;
+		if (Object.getPrototypeOf(x) === y) return { level: 2 };
+	
+		x = {};
+		x.__proto__ = y;
+		if (Object.getPrototypeOf(x) === y) return { level: 1 };
+	
+		return false;
+	}())));
+	
+	__webpack_require__(/*! ../create */ 101);
+
+
+/***/ },
+/* 88 */
+/*!****************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/number/to-pos-integer.js ***!
+  \****************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var toInteger = __webpack_require__(/*! ./to-integer */ 102)
+	
+	  , max = Math.max;
+	
+	module.exports = function (value) { return max(0, toInteger(value)); };
+
+
+/***/ },
+/* 89 */
+/*!***************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/primitive-set.js ***!
+  \***************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var forEach = Array.prototype.forEach, create = Object.create;
+	
+	module.exports = function (arg/*, …args*/) {
+		var set = create(null);
+		forEach.call(arguments, function (name) { set[name] = true; });
+		return set;
+	};
+
+
+/***/ },
+/* 90 */
+/*!**********************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/d/auto-bind.js ***!
+  \**********************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var copy       = __webpack_require__(/*! es5-ext/object/copy */ 103)
+	  , map        = __webpack_require__(/*! es5-ext/object/map */ 104)
+	  , callable   = __webpack_require__(/*! es5-ext/object/valid-callable */ 69)
+	  , validValue = __webpack_require__(/*! es5-ext/object/valid-value */ 70)
+	
+	  , bind = Function.prototype.bind, defineProperty = Object.defineProperty
+	  , hasOwnProperty = Object.prototype.hasOwnProperty
+	  , define;
+	
+	define = function (name, desc, bindTo) {
+		var value = validValue(desc) && callable(desc.value), dgs;
+		dgs = copy(desc);
+		delete dgs.writable;
+		delete dgs.value;
+		dgs.get = function () {
+			if (hasOwnProperty.call(this, name)) return value;
+			desc.value = bind.call(value, (bindTo == null) ? this : this[bindTo]);
+			defineProperty(this, name, desc);
+			return this[name];
+		};
+		return dgs;
+	};
+	
+	module.exports = function (props/*, bindTo*/) {
+		var bindTo = arguments[1];
+		return map(props, function (desc, name) {
+			return define(name, desc, bindTo);
+		});
+	};
+
+
+/***/ },
+/* 91 */
+/*!********************************************************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/~/param-case/~/sentence-case/sentence-case.js ***!
+  \********************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	var lowerCase = __webpack_require__(/*! lower-case */ 113)
+	
+	var NON_WORD_REGEXP = __webpack_require__(/*! ./vendor/non-word-regexp */ 105)
+	var CAMEL_CASE_REGEXP = __webpack_require__(/*! ./vendor/camel-case-regexp */ 106)
+	var TRAILING_DIGIT_REGEXP = __webpack_require__(/*! ./vendor/trailing-digit-regexp */ 107)
+	
+	/**
+	 * Sentence case a string.
+	 *
+	 * @param  {String} str
+	 * @param  {String} locale
+	 * @param  {String} replacement
+	 * @return {String}
+	 */
+	module.exports = function (str, locale, replacement) {
+	  if (str == null) {
+	    return ''
+	  }
+	
+	  replacement = replacement || ' '
+	
+	  function replace (match, index, string) {
+	    if (index === 0 || index === (string.length - match.length)) {
+	      return ''
+	    }
+	
+	    return replacement
+	  }
+	
+	  str = String(str)
+	    // Support camel case ("camelCase" -> "camel Case").
+	    .replace(CAMEL_CASE_REGEXP, '$1 $2')
+	    // Support digit groups ("test2012" -> "test 2012").
+	    .replace(TRAILING_DIGIT_REGEXP, '$1 $2')
+	    // Remove all non-word characters and replace with a single space.
+	    .replace(NON_WORD_REGEXP, replace)
+	
+	  // Lower case the entire string.
+	  return lowerCase(str, locale)
+	}
+
+
+/***/ },
+/* 92 */
 /*!************************************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/ev-store/~/individual/one-version.js ***!
   \************************************************************************/
@@ -25327,7 +27219,7 @@
 
 	'use strict';
 	
-	var Individual = __webpack_require__(/*! ./index.js */ 58);
+	var Individual = __webpack_require__(/*! ./index.js */ 108);
 	
 	module.exports = OneVersion;
 	
@@ -25350,7 +27242,341 @@
 
 
 /***/ },
-/* 58 */
+/* 93 */
+/*!******************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/~/es6-symbol/index.js ***!
+  \******************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! ./is-implemented */ 109)() ? Symbol : __webpack_require__(/*! ./polyfill */ 110);
+
+
+/***/ },
+/* 94 */
+/*!***********************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/assign/is-implemented.js ***!
+  \***********************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function () {
+		var assign = Object.assign, obj;
+		if (typeof assign !== 'function') return false;
+		obj = { foo: 'raz' };
+		assign(obj, { bar: 'dwa' }, { trzy: 'trzy' });
+		return (obj.foo + obj.bar + obj.trzy) === 'razdwatrzy';
+	};
+
+
+/***/ },
+/* 95 */
+/*!*************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/assign/shim.js ***!
+  \*************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var keys  = __webpack_require__(/*! ../keys */ 111)
+	  , value = __webpack_require__(/*! ../valid-value */ 70)
+	
+	  , max = Math.max;
+	
+	module.exports = function (dest, src/*, …srcn*/) {
+		var error, i, l = max(arguments.length, 2), assign;
+		dest = Object(value(dest));
+		assign = function (key) {
+			try { dest[key] = src[key]; } catch (e) {
+				if (!error) error = e;
+			}
+		};
+		for (i = 1; i < l; ++i) {
+			src = arguments[i];
+			keys(src).forEach(assign);
+		}
+		if (error !== undefined) throw error;
+		return dest;
+	};
+
+
+/***/ },
+/* 96 */
+/*!***************************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/string/#/contains/is-implemented.js ***!
+  \***************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var str = 'razdwatrzy';
+	
+	module.exports = function () {
+		if (typeof str.contains !== 'function') return false;
+		return ((str.contains('dwa') === true) && (str.contains('foo') === false));
+	};
+
+
+/***/ },
+/* 97 */
+/*!*****************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/string/#/contains/shim.js ***!
+  \*****************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var indexOf = String.prototype.indexOf;
+	
+	module.exports = function (searchString/*, position*/) {
+		return indexOf.call(this, searchString, arguments[1]) > -1;
+	};
+
+
+/***/ },
+/* 98 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/array.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var setPrototypeOf = __webpack_require__(/*! es5-ext/object/set-prototype-of */ 71)
+	  , contains       = __webpack_require__(/*! es5-ext/string/#/contains */ 82)
+	  , d              = __webpack_require__(/*! d */ 63)
+	  , Iterator       = __webpack_require__(/*! ./ */ 74)
+	
+	  , defineProperty = Object.defineProperty
+	  , ArrayIterator;
+	
+	ArrayIterator = module.exports = function (arr, kind) {
+		if (!(this instanceof ArrayIterator)) return new ArrayIterator(arr, kind);
+		Iterator.call(this, arr);
+		if (!kind) kind = 'value';
+		else if (contains.call(kind, 'key+value')) kind = 'key+value';
+		else if (contains.call(kind, 'key')) kind = 'key';
+		else kind = 'value';
+		defineProperty(this, '__kind__', d('', kind));
+	};
+	if (setPrototypeOf) setPrototypeOf(ArrayIterator, Iterator);
+	
+	ArrayIterator.prototype = Object.create(Iterator.prototype, {
+		constructor: d(ArrayIterator),
+		_resolve: d(function (i) {
+			if (this.__kind__ === 'value') return this.__list__[i];
+			if (this.__kind__ === 'key+value') return [i, this.__list__[i]];
+			return i;
+		}),
+		toString: d(function () { return '[object Array Iterator]'; })
+	});
+
+
+/***/ },
+/* 99 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/string.js ***!
+  \******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	// Thanks @mathiasbynens
+	// http://mathiasbynens.be/notes/javascript-unicode#iterating-over-symbols
+	
+	'use strict';
+	
+	var setPrototypeOf = __webpack_require__(/*! es5-ext/object/set-prototype-of */ 71)
+	  , d              = __webpack_require__(/*! d */ 63)
+	  , Iterator       = __webpack_require__(/*! ./ */ 74)
+	
+	  , defineProperty = Object.defineProperty
+	  , StringIterator;
+	
+	StringIterator = module.exports = function (str) {
+		if (!(this instanceof StringIterator)) return new StringIterator(str);
+		str = String(str);
+		Iterator.call(this, str);
+		defineProperty(this, '__length__', d('', str.length));
+	
+	};
+	if (setPrototypeOf) setPrototypeOf(StringIterator, Iterator);
+	
+	StringIterator.prototype = Object.create(Iterator.prototype, {
+		constructor: d(StringIterator),
+		_next: d(function () {
+			if (!this.__list__) return;
+			if (this.__nextIndex__ < this.__length__) return this.__nextIndex__++;
+			this._unBind();
+		}),
+		_resolve: d(function (i) {
+			var char = this.__list__[i], code;
+			if (this.__nextIndex__ === this.__length__) return char;
+			code = char.charCodeAt(0);
+			if ((code >= 0xD800) && (code <= 0xDBFF)) return char + this.__list__[this.__nextIndex__++];
+			return char;
+		}),
+		toString: d(function () { return '[object String Iterator]'; })
+	});
+
+
+/***/ },
+/* 100 */
+/*!***********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/is-object.js ***!
+  \***********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var map = { function: true, object: true };
+	
+	module.exports = function (x) {
+		return ((x != null) && map[typeof x]) || false;
+	};
+
+
+/***/ },
+/* 101 */
+/*!********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/create.js ***!
+  \********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	// Workaround for http://code.google.com/p/v8/issues/detail?id=2804
+	
+	'use strict';
+	
+	var create = Object.create, shim;
+	
+	if (!__webpack_require__(/*! ./set-prototype-of/is-implemented */ 86)()) {
+		shim = __webpack_require__(/*! ./set-prototype-of/shim */ 87);
+	}
+	
+	module.exports = (function () {
+		var nullObject, props, desc;
+		if (!shim) return create;
+		if (shim.level !== 1) return create;
+	
+		nullObject = {};
+		props = {};
+		desc = { configurable: false, enumerable: false, writable: true,
+			value: undefined };
+		Object.getOwnPropertyNames(Object.prototype).forEach(function (name) {
+			if (name === '__proto__') {
+				props[name] = { configurable: true, enumerable: false, writable: true,
+					value: undefined };
+				return;
+			}
+			props[name] = desc;
+		});
+		Object.defineProperties(nullObject, props);
+	
+		Object.defineProperty(shim, 'nullPolyfill', { configurable: false,
+			enumerable: false, writable: false, value: nullObject });
+	
+		return function (prototype, props) {
+			return create((prototype === null) ? nullObject : prototype, props);
+		};
+	}());
+
+
+/***/ },
+/* 102 */
+/*!************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/number/to-integer.js ***!
+  \************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var sign = __webpack_require__(/*! ../math/sign */ 114)
+	
+	  , abs = Math.abs, floor = Math.floor;
+	
+	module.exports = function (value) {
+		if (isNaN(value)) return 0;
+		value = Number(value);
+		if ((value === 0) || !isFinite(value)) return value;
+		return sign(value) * floor(abs(value));
+	};
+
+
+/***/ },
+/* 103 */
+/*!******************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/copy.js ***!
+  \******************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var assign = __webpack_require__(/*! ./assign */ 81)
+	  , value  = __webpack_require__(/*! ./valid-value */ 70);
+	
+	module.exports = function (obj) {
+		var copy = Object(value(obj));
+		if (copy !== obj) return copy;
+		return assign({}, obj);
+	};
+
+
+/***/ },
+/* 104 */
+/*!*****************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/map.js ***!
+  \*****************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var callable = __webpack_require__(/*! ./valid-callable */ 69)
+	  , forEach  = __webpack_require__(/*! ./for-each */ 112)
+	
+	  , call = Function.prototype.call;
+	
+	module.exports = function (obj, cb/*, thisArg*/) {
+		var o = {}, thisArg = arguments[2];
+		callable(cb);
+		forEach(obj, function (value, key, obj, index) {
+			o[key] = call.call(cb, thisArg, value, key, obj, index);
+		});
+		return o;
+	};
+
+
+/***/ },
+/* 105 */
+/*!*****************************************************************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/~/param-case/~/sentence-case/vendor/non-word-regexp.js ***!
+  \*****************************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = /[^\u0041-\u005A\u0061-\u007A\u00AA\u00B5\u00BA\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u02C1\u02C6-\u02D1\u02E0-\u02E4\u02EC\u02EE\u0370-\u0374\u0376\u0377\u037A-\u037D\u0386\u0388-\u038A\u038C\u038E-\u03A1\u03A3-\u03F5\u03F7-\u0481\u048A-\u0527\u0531-\u0556\u0559\u0561-\u0587\u05D0-\u05EA\u05F0-\u05F2\u0620-\u064A\u066E\u066F\u0671-\u06D3\u06D5\u06E5\u06E6\u06EE\u06EF\u06FA-\u06FC\u06FF\u0710\u0712-\u072F\u074D-\u07A5\u07B1\u07CA-\u07EA\u07F4\u07F5\u07FA\u0800-\u0815\u081A\u0824\u0828\u0840-\u0858\u08A0\u08A2-\u08AC\u0904-\u0939\u093D\u0950\u0958-\u0961\u0971-\u0977\u0979-\u097F\u0985-\u098C\u098F\u0990\u0993-\u09A8\u09AA-\u09B0\u09B2\u09B6-\u09B9\u09BD\u09CE\u09DC\u09DD\u09DF-\u09E1\u09F0\u09F1\u0A05-\u0A0A\u0A0F\u0A10\u0A13-\u0A28\u0A2A-\u0A30\u0A32\u0A33\u0A35\u0A36\u0A38\u0A39\u0A59-\u0A5C\u0A5E\u0A72-\u0A74\u0A85-\u0A8D\u0A8F-\u0A91\u0A93-\u0AA8\u0AAA-\u0AB0\u0AB2\u0AB3\u0AB5-\u0AB9\u0ABD\u0AD0\u0AE0\u0AE1\u0B05-\u0B0C\u0B0F\u0B10\u0B13-\u0B28\u0B2A-\u0B30\u0B32\u0B33\u0B35-\u0B39\u0B3D\u0B5C\u0B5D\u0B5F-\u0B61\u0B71\u0B83\u0B85-\u0B8A\u0B8E-\u0B90\u0B92-\u0B95\u0B99\u0B9A\u0B9C\u0B9E\u0B9F\u0BA3\u0BA4\u0BA8-\u0BAA\u0BAE-\u0BB9\u0BD0\u0C05-\u0C0C\u0C0E-\u0C10\u0C12-\u0C28\u0C2A-\u0C33\u0C35-\u0C39\u0C3D\u0C58\u0C59\u0C60\u0C61\u0C85-\u0C8C\u0C8E-\u0C90\u0C92-\u0CA8\u0CAA-\u0CB3\u0CB5-\u0CB9\u0CBD\u0CDE\u0CE0\u0CE1\u0CF1\u0CF2\u0D05-\u0D0C\u0D0E-\u0D10\u0D12-\u0D3A\u0D3D\u0D4E\u0D60\u0D61\u0D7A-\u0D7F\u0D85-\u0D96\u0D9A-\u0DB1\u0DB3-\u0DBB\u0DBD\u0DC0-\u0DC6\u0E01-\u0E30\u0E32\u0E33\u0E40-\u0E46\u0E81\u0E82\u0E84\u0E87\u0E88\u0E8A\u0E8D\u0E94-\u0E97\u0E99-\u0E9F\u0EA1-\u0EA3\u0EA5\u0EA7\u0EAA\u0EAB\u0EAD-\u0EB0\u0EB2\u0EB3\u0EBD\u0EC0-\u0EC4\u0EC6\u0EDC-\u0EDF\u0F00\u0F40-\u0F47\u0F49-\u0F6C\u0F88-\u0F8C\u1000-\u102A\u103F\u1050-\u1055\u105A-\u105D\u1061\u1065\u1066\u106E-\u1070\u1075-\u1081\u108E\u10A0-\u10C5\u10C7\u10CD\u10D0-\u10FA\u10FC-\u1248\u124A-\u124D\u1250-\u1256\u1258\u125A-\u125D\u1260-\u1288\u128A-\u128D\u1290-\u12B0\u12B2-\u12B5\u12B8-\u12BE\u12C0\u12C2-\u12C5\u12C8-\u12D6\u12D8-\u1310\u1312-\u1315\u1318-\u135A\u1380-\u138F\u13A0-\u13F4\u1401-\u166C\u166F-\u167F\u1681-\u169A\u16A0-\u16EA\u1700-\u170C\u170E-\u1711\u1720-\u1731\u1740-\u1751\u1760-\u176C\u176E-\u1770\u1780-\u17B3\u17D7\u17DC\u1820-\u1877\u1880-\u18A8\u18AA\u18B0-\u18F5\u1900-\u191C\u1950-\u196D\u1970-\u1974\u1980-\u19AB\u19C1-\u19C7\u1A00-\u1A16\u1A20-\u1A54\u1AA7\u1B05-\u1B33\u1B45-\u1B4B\u1B83-\u1BA0\u1BAE\u1BAF\u1BBA-\u1BE5\u1C00-\u1C23\u1C4D-\u1C4F\u1C5A-\u1C7D\u1CE9-\u1CEC\u1CEE-\u1CF1\u1CF5\u1CF6\u1D00-\u1DBF\u1E00-\u1F15\u1F18-\u1F1D\u1F20-\u1F45\u1F48-\u1F4D\u1F50-\u1F57\u1F59\u1F5B\u1F5D\u1F5F-\u1F7D\u1F80-\u1FB4\u1FB6-\u1FBC\u1FBE\u1FC2-\u1FC4\u1FC6-\u1FCC\u1FD0-\u1FD3\u1FD6-\u1FDB\u1FE0-\u1FEC\u1FF2-\u1FF4\u1FF6-\u1FFC\u2071\u207F\u2090-\u209C\u2102\u2107\u210A-\u2113\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u212F-\u2139\u213C-\u213F\u2145-\u2149\u214E\u2183\u2184\u2C00-\u2C2E\u2C30-\u2C5E\u2C60-\u2CE4\u2CEB-\u2CEE\u2CF2\u2CF3\u2D00-\u2D25\u2D27\u2D2D\u2D30-\u2D67\u2D6F\u2D80-\u2D96\u2DA0-\u2DA6\u2DA8-\u2DAE\u2DB0-\u2DB6\u2DB8-\u2DBE\u2DC0-\u2DC6\u2DC8-\u2DCE\u2DD0-\u2DD6\u2DD8-\u2DDE\u2E2F\u3005\u3006\u3031-\u3035\u303B\u303C\u3041-\u3096\u309D-\u309F\u30A1-\u30FA\u30FC-\u30FF\u3105-\u312D\u3131-\u318E\u31A0-\u31BA\u31F0-\u31FF\u3400-\u4DB5\u4E00-\u9FCC\uA000-\uA48C\uA4D0-\uA4FD\uA500-\uA60C\uA610-\uA61F\uA62A\uA62B\uA640-\uA66E\uA67F-\uA697\uA6A0-\uA6E5\uA717-\uA71F\uA722-\uA788\uA78B-\uA78E\uA790-\uA793\uA7A0-\uA7AA\uA7F8-\uA801\uA803-\uA805\uA807-\uA80A\uA80C-\uA822\uA840-\uA873\uA882-\uA8B3\uA8F2-\uA8F7\uA8FB\uA90A-\uA925\uA930-\uA946\uA960-\uA97C\uA984-\uA9B2\uA9CF\uAA00-\uAA28\uAA40-\uAA42\uAA44-\uAA4B\uAA60-\uAA76\uAA7A\uAA80-\uAAAF\uAAB1\uAAB5\uAAB6\uAAB9-\uAABD\uAAC0\uAAC2\uAADB-\uAADD\uAAE0-\uAAEA\uAAF2-\uAAF4\uAB01-\uAB06\uAB09-\uAB0E\uAB11-\uAB16\uAB20-\uAB26\uAB28-\uAB2E\uABC0-\uABE2\uAC00-\uD7A3\uD7B0-\uD7C6\uD7CB-\uD7FB\uF900-\uFA6D\uFA70-\uFAD9\uFB00-\uFB06\uFB13-\uFB17\uFB1D\uFB1F-\uFB28\uFB2A-\uFB36\uFB38-\uFB3C\uFB3E\uFB40\uFB41\uFB43\uFB44\uFB46-\uFBB1\uFBD3-\uFD3D\uFD50-\uFD8F\uFD92-\uFDC7\uFDF0-\uFDFB\uFE70-\uFE74\uFE76-\uFEFC\uFF21-\uFF3A\uFF41-\uFF5A\uFF66-\uFFBE\uFFC2-\uFFC7\uFFCA-\uFFCF\uFFD2-\uFFD7\uFFDA-\uFFDC\u0030-\u0039\u00B2\u00B3\u00B9\u00BC-\u00BE\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u09F4-\u09F9\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0B72-\u0B77\u0BE6-\u0BF2\u0C66-\u0C6F\u0C78-\u0C7E\u0CE6-\u0CEF\u0D66-\u0D75\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F33\u1040-\u1049\u1090-\u1099\u1369-\u137C\u16EE-\u16F0\u17E0-\u17E9\u17F0-\u17F9\u1810-\u1819\u1946-\u194F\u19D0-\u19DA\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\u2070\u2074-\u2079\u2080-\u2089\u2150-\u2182\u2185-\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3007\u3021-\u3029\u3038-\u303A\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA620-\uA629\uA6E6-\uA6EF\uA830-\uA835\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19]+/g
+
+
+/***/ },
+/* 106 */
+/*!*******************************************************************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/~/param-case/~/sentence-case/vendor/camel-case-regexp.js ***!
+  \*******************************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = /([\u0061-\u007A\u00B5\u00DF-\u00F6\u00F8-\u00FF\u0101\u0103\u0105\u0107\u0109\u010B\u010D\u010F\u0111\u0113\u0115\u0117\u0119\u011B\u011D\u011F\u0121\u0123\u0125\u0127\u0129\u012B\u012D\u012F\u0131\u0133\u0135\u0137\u0138\u013A\u013C\u013E\u0140\u0142\u0144\u0146\u0148\u0149\u014B\u014D\u014F\u0151\u0153\u0155\u0157\u0159\u015B\u015D\u015F\u0161\u0163\u0165\u0167\u0169\u016B\u016D\u016F\u0171\u0173\u0175\u0177\u017A\u017C\u017E-\u0180\u0183\u0185\u0188\u018C\u018D\u0192\u0195\u0199-\u019B\u019E\u01A1\u01A3\u01A5\u01A8\u01AA\u01AB\u01AD\u01B0\u01B4\u01B6\u01B9\u01BA\u01BD-\u01BF\u01C6\u01C9\u01CC\u01CE\u01D0\u01D2\u01D4\u01D6\u01D8\u01DA\u01DC\u01DD\u01DF\u01E1\u01E3\u01E5\u01E7\u01E9\u01EB\u01ED\u01EF\u01F0\u01F3\u01F5\u01F9\u01FB\u01FD\u01FF\u0201\u0203\u0205\u0207\u0209\u020B\u020D\u020F\u0211\u0213\u0215\u0217\u0219\u021B\u021D\u021F\u0221\u0223\u0225\u0227\u0229\u022B\u022D\u022F\u0231\u0233-\u0239\u023C\u023F\u0240\u0242\u0247\u0249\u024B\u024D\u024F-\u0293\u0295-\u02AF\u0371\u0373\u0377\u037B-\u037D\u0390\u03AC-\u03CE\u03D0\u03D1\u03D5-\u03D7\u03D9\u03DB\u03DD\u03DF\u03E1\u03E3\u03E5\u03E7\u03E9\u03EB\u03ED\u03EF-\u03F3\u03F5\u03F8\u03FB\u03FC\u0430-\u045F\u0461\u0463\u0465\u0467\u0469\u046B\u046D\u046F\u0471\u0473\u0475\u0477\u0479\u047B\u047D\u047F\u0481\u048B\u048D\u048F\u0491\u0493\u0495\u0497\u0499\u049B\u049D\u049F\u04A1\u04A3\u04A5\u04A7\u04A9\u04AB\u04AD\u04AF\u04B1\u04B3\u04B5\u04B7\u04B9\u04BB\u04BD\u04BF\u04C2\u04C4\u04C6\u04C8\u04CA\u04CC\u04CE\u04CF\u04D1\u04D3\u04D5\u04D7\u04D9\u04DB\u04DD\u04DF\u04E1\u04E3\u04E5\u04E7\u04E9\u04EB\u04ED\u04EF\u04F1\u04F3\u04F5\u04F7\u04F9\u04FB\u04FD\u04FF\u0501\u0503\u0505\u0507\u0509\u050B\u050D\u050F\u0511\u0513\u0515\u0517\u0519\u051B\u051D\u051F\u0521\u0523\u0525\u0527\u0561-\u0587\u1D00-\u1D2B\u1D6B-\u1D77\u1D79-\u1D9A\u1E01\u1E03\u1E05\u1E07\u1E09\u1E0B\u1E0D\u1E0F\u1E11\u1E13\u1E15\u1E17\u1E19\u1E1B\u1E1D\u1E1F\u1E21\u1E23\u1E25\u1E27\u1E29\u1E2B\u1E2D\u1E2F\u1E31\u1E33\u1E35\u1E37\u1E39\u1E3B\u1E3D\u1E3F\u1E41\u1E43\u1E45\u1E47\u1E49\u1E4B\u1E4D\u1E4F\u1E51\u1E53\u1E55\u1E57\u1E59\u1E5B\u1E5D\u1E5F\u1E61\u1E63\u1E65\u1E67\u1E69\u1E6B\u1E6D\u1E6F\u1E71\u1E73\u1E75\u1E77\u1E79\u1E7B\u1E7D\u1E7F\u1E81\u1E83\u1E85\u1E87\u1E89\u1E8B\u1E8D\u1E8F\u1E91\u1E93\u1E95-\u1E9D\u1E9F\u1EA1\u1EA3\u1EA5\u1EA7\u1EA9\u1EAB\u1EAD\u1EAF\u1EB1\u1EB3\u1EB5\u1EB7\u1EB9\u1EBB\u1EBD\u1EBF\u1EC1\u1EC3\u1EC5\u1EC7\u1EC9\u1ECB\u1ECD\u1ECF\u1ED1\u1ED3\u1ED5\u1ED7\u1ED9\u1EDB\u1EDD\u1EDF\u1EE1\u1EE3\u1EE5\u1EE7\u1EE9\u1EEB\u1EED\u1EEF\u1EF1\u1EF3\u1EF5\u1EF7\u1EF9\u1EFB\u1EFD\u1EFF-\u1F07\u1F10-\u1F15\u1F20-\u1F27\u1F30-\u1F37\u1F40-\u1F45\u1F50-\u1F57\u1F60-\u1F67\u1F70-\u1F7D\u1F80-\u1F87\u1F90-\u1F97\u1FA0-\u1FA7\u1FB0-\u1FB4\u1FB6\u1FB7\u1FBE\u1FC2-\u1FC4\u1FC6\u1FC7\u1FD0-\u1FD3\u1FD6\u1FD7\u1FE0-\u1FE7\u1FF2-\u1FF4\u1FF6\u1FF7\u210A\u210E\u210F\u2113\u212F\u2134\u2139\u213C\u213D\u2146-\u2149\u214E\u2184\u2C30-\u2C5E\u2C61\u2C65\u2C66\u2C68\u2C6A\u2C6C\u2C71\u2C73\u2C74\u2C76-\u2C7B\u2C81\u2C83\u2C85\u2C87\u2C89\u2C8B\u2C8D\u2C8F\u2C91\u2C93\u2C95\u2C97\u2C99\u2C9B\u2C9D\u2C9F\u2CA1\u2CA3\u2CA5\u2CA7\u2CA9\u2CAB\u2CAD\u2CAF\u2CB1\u2CB3\u2CB5\u2CB7\u2CB9\u2CBB\u2CBD\u2CBF\u2CC1\u2CC3\u2CC5\u2CC7\u2CC9\u2CCB\u2CCD\u2CCF\u2CD1\u2CD3\u2CD5\u2CD7\u2CD9\u2CDB\u2CDD\u2CDF\u2CE1\u2CE3\u2CE4\u2CEC\u2CEE\u2CF3\u2D00-\u2D25\u2D27\u2D2D\uA641\uA643\uA645\uA647\uA649\uA64B\uA64D\uA64F\uA651\uA653\uA655\uA657\uA659\uA65B\uA65D\uA65F\uA661\uA663\uA665\uA667\uA669\uA66B\uA66D\uA681\uA683\uA685\uA687\uA689\uA68B\uA68D\uA68F\uA691\uA693\uA695\uA697\uA723\uA725\uA727\uA729\uA72B\uA72D\uA72F-\uA731\uA733\uA735\uA737\uA739\uA73B\uA73D\uA73F\uA741\uA743\uA745\uA747\uA749\uA74B\uA74D\uA74F\uA751\uA753\uA755\uA757\uA759\uA75B\uA75D\uA75F\uA761\uA763\uA765\uA767\uA769\uA76B\uA76D\uA76F\uA771-\uA778\uA77A\uA77C\uA77F\uA781\uA783\uA785\uA787\uA78C\uA78E\uA791\uA793\uA7A1\uA7A3\uA7A5\uA7A7\uA7A9\uA7FA\uFB00-\uFB06\uFB13-\uFB17\uFF41-\uFF5A])([\u0041-\u005A\u00C0-\u00D6\u00D8-\u00DE\u0100\u0102\u0104\u0106\u0108\u010A\u010C\u010E\u0110\u0112\u0114\u0116\u0118\u011A\u011C\u011E\u0120\u0122\u0124\u0126\u0128\u012A\u012C\u012E\u0130\u0132\u0134\u0136\u0139\u013B\u013D\u013F\u0141\u0143\u0145\u0147\u014A\u014C\u014E\u0150\u0152\u0154\u0156\u0158\u015A\u015C\u015E\u0160\u0162\u0164\u0166\u0168\u016A\u016C\u016E\u0170\u0172\u0174\u0176\u0178\u0179\u017B\u017D\u0181\u0182\u0184\u0186\u0187\u0189-\u018B\u018E-\u0191\u0193\u0194\u0196-\u0198\u019C\u019D\u019F\u01A0\u01A2\u01A4\u01A6\u01A7\u01A9\u01AC\u01AE\u01AF\u01B1-\u01B3\u01B5\u01B7\u01B8\u01BC\u01C4\u01C7\u01CA\u01CD\u01CF\u01D1\u01D3\u01D5\u01D7\u01D9\u01DB\u01DE\u01E0\u01E2\u01E4\u01E6\u01E8\u01EA\u01EC\u01EE\u01F1\u01F4\u01F6-\u01F8\u01FA\u01FC\u01FE\u0200\u0202\u0204\u0206\u0208\u020A\u020C\u020E\u0210\u0212\u0214\u0216\u0218\u021A\u021C\u021E\u0220\u0222\u0224\u0226\u0228\u022A\u022C\u022E\u0230\u0232\u023A\u023B\u023D\u023E\u0241\u0243-\u0246\u0248\u024A\u024C\u024E\u0370\u0372\u0376\u0386\u0388-\u038A\u038C\u038E\u038F\u0391-\u03A1\u03A3-\u03AB\u03CF\u03D2-\u03D4\u03D8\u03DA\u03DC\u03DE\u03E0\u03E2\u03E4\u03E6\u03E8\u03EA\u03EC\u03EE\u03F4\u03F7\u03F9\u03FA\u03FD-\u042F\u0460\u0462\u0464\u0466\u0468\u046A\u046C\u046E\u0470\u0472\u0474\u0476\u0478\u047A\u047C\u047E\u0480\u048A\u048C\u048E\u0490\u0492\u0494\u0496\u0498\u049A\u049C\u049E\u04A0\u04A2\u04A4\u04A6\u04A8\u04AA\u04AC\u04AE\u04B0\u04B2\u04B4\u04B6\u04B8\u04BA\u04BC\u04BE\u04C0\u04C1\u04C3\u04C5\u04C7\u04C9\u04CB\u04CD\u04D0\u04D2\u04D4\u04D6\u04D8\u04DA\u04DC\u04DE\u04E0\u04E2\u04E4\u04E6\u04E8\u04EA\u04EC\u04EE\u04F0\u04F2\u04F4\u04F6\u04F8\u04FA\u04FC\u04FE\u0500\u0502\u0504\u0506\u0508\u050A\u050C\u050E\u0510\u0512\u0514\u0516\u0518\u051A\u051C\u051E\u0520\u0522\u0524\u0526\u0531-\u0556\u10A0-\u10C5\u10C7\u10CD\u1E00\u1E02\u1E04\u1E06\u1E08\u1E0A\u1E0C\u1E0E\u1E10\u1E12\u1E14\u1E16\u1E18\u1E1A\u1E1C\u1E1E\u1E20\u1E22\u1E24\u1E26\u1E28\u1E2A\u1E2C\u1E2E\u1E30\u1E32\u1E34\u1E36\u1E38\u1E3A\u1E3C\u1E3E\u1E40\u1E42\u1E44\u1E46\u1E48\u1E4A\u1E4C\u1E4E\u1E50\u1E52\u1E54\u1E56\u1E58\u1E5A\u1E5C\u1E5E\u1E60\u1E62\u1E64\u1E66\u1E68\u1E6A\u1E6C\u1E6E\u1E70\u1E72\u1E74\u1E76\u1E78\u1E7A\u1E7C\u1E7E\u1E80\u1E82\u1E84\u1E86\u1E88\u1E8A\u1E8C\u1E8E\u1E90\u1E92\u1E94\u1E9E\u1EA0\u1EA2\u1EA4\u1EA6\u1EA8\u1EAA\u1EAC\u1EAE\u1EB0\u1EB2\u1EB4\u1EB6\u1EB8\u1EBA\u1EBC\u1EBE\u1EC0\u1EC2\u1EC4\u1EC6\u1EC8\u1ECA\u1ECC\u1ECE\u1ED0\u1ED2\u1ED4\u1ED6\u1ED8\u1EDA\u1EDC\u1EDE\u1EE0\u1EE2\u1EE4\u1EE6\u1EE8\u1EEA\u1EEC\u1EEE\u1EF0\u1EF2\u1EF4\u1EF6\u1EF8\u1EFA\u1EFC\u1EFE\u1F08-\u1F0F\u1F18-\u1F1D\u1F28-\u1F2F\u1F38-\u1F3F\u1F48-\u1F4D\u1F59\u1F5B\u1F5D\u1F5F\u1F68-\u1F6F\u1FB8-\u1FBB\u1FC8-\u1FCB\u1FD8-\u1FDB\u1FE8-\u1FEC\u1FF8-\u1FFB\u2102\u2107\u210B-\u210D\u2110-\u2112\u2115\u2119-\u211D\u2124\u2126\u2128\u212A-\u212D\u2130-\u2133\u213E\u213F\u2145\u2183\u2C00-\u2C2E\u2C60\u2C62-\u2C64\u2C67\u2C69\u2C6B\u2C6D-\u2C70\u2C72\u2C75\u2C7E-\u2C80\u2C82\u2C84\u2C86\u2C88\u2C8A\u2C8C\u2C8E\u2C90\u2C92\u2C94\u2C96\u2C98\u2C9A\u2C9C\u2C9E\u2CA0\u2CA2\u2CA4\u2CA6\u2CA8\u2CAA\u2CAC\u2CAE\u2CB0\u2CB2\u2CB4\u2CB6\u2CB8\u2CBA\u2CBC\u2CBE\u2CC0\u2CC2\u2CC4\u2CC6\u2CC8\u2CCA\u2CCC\u2CCE\u2CD0\u2CD2\u2CD4\u2CD6\u2CD8\u2CDA\u2CDC\u2CDE\u2CE0\u2CE2\u2CEB\u2CED\u2CF2\uA640\uA642\uA644\uA646\uA648\uA64A\uA64C\uA64E\uA650\uA652\uA654\uA656\uA658\uA65A\uA65C\uA65E\uA660\uA662\uA664\uA666\uA668\uA66A\uA66C\uA680\uA682\uA684\uA686\uA688\uA68A\uA68C\uA68E\uA690\uA692\uA694\uA696\uA722\uA724\uA726\uA728\uA72A\uA72C\uA72E\uA732\uA734\uA736\uA738\uA73A\uA73C\uA73E\uA740\uA742\uA744\uA746\uA748\uA74A\uA74C\uA74E\uA750\uA752\uA754\uA756\uA758\uA75A\uA75C\uA75E\uA760\uA762\uA764\uA766\uA768\uA76A\uA76C\uA76E\uA779\uA77B\uA77D\uA77E\uA780\uA782\uA784\uA786\uA78B\uA78D\uA790\uA792\uA7A0\uA7A2\uA7A4\uA7A6\uA7A8\uA7AA\uFF21-\uFF3A\u0030-\u0039\u00B2\u00B3\u00B9\u00BC-\u00BE\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u09F4-\u09F9\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0B72-\u0B77\u0BE6-\u0BF2\u0C66-\u0C6F\u0C78-\u0C7E\u0CE6-\u0CEF\u0D66-\u0D75\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F33\u1040-\u1049\u1090-\u1099\u1369-\u137C\u16EE-\u16F0\u17E0-\u17E9\u17F0-\u17F9\u1810-\u1819\u1946-\u194F\u19D0-\u19DA\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\u2070\u2074-\u2079\u2080-\u2089\u2150-\u2182\u2185-\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3007\u3021-\u3029\u3038-\u303A\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA620-\uA629\uA6E6-\uA6EF\uA830-\uA835\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19])/g
+
+
+/***/ },
+/* 107 */
+/*!***********************************************************************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/~/param-case/~/sentence-case/vendor/trailing-digit-regexp.js ***!
+  \***********************************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	module.exports = /([\u0030-\u0039\u00B2\u00B3\u00B9\u00BC-\u00BE\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u09F4-\u09F9\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0B72-\u0B77\u0BE6-\u0BF2\u0C66-\u0C6F\u0C78-\u0C7E\u0CE6-\u0CEF\u0D66-\u0D75\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F33\u1040-\u1049\u1090-\u1099\u1369-\u137C\u16EE-\u16F0\u17E0-\u17E9\u17F0-\u17F9\u1810-\u1819\u1946-\u194F\u19D0-\u19DA\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\u2070\u2074-\u2079\u2080-\u2089\u2150-\u2182\u2185-\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3007\u3021-\u3029\u3038-\u303A\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA620-\uA629\uA6E6-\uA6EF\uA830-\uA835\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19])([^\u0030-\u0039\u00B2\u00B3\u00B9\u00BC-\u00BE\u0660-\u0669\u06F0-\u06F9\u07C0-\u07C9\u0966-\u096F\u09E6-\u09EF\u09F4-\u09F9\u0A66-\u0A6F\u0AE6-\u0AEF\u0B66-\u0B6F\u0B72-\u0B77\u0BE6-\u0BF2\u0C66-\u0C6F\u0C78-\u0C7E\u0CE6-\u0CEF\u0D66-\u0D75\u0E50-\u0E59\u0ED0-\u0ED9\u0F20-\u0F33\u1040-\u1049\u1090-\u1099\u1369-\u137C\u16EE-\u16F0\u17E0-\u17E9\u17F0-\u17F9\u1810-\u1819\u1946-\u194F\u19D0-\u19DA\u1A80-\u1A89\u1A90-\u1A99\u1B50-\u1B59\u1BB0-\u1BB9\u1C40-\u1C49\u1C50-\u1C59\u2070\u2074-\u2079\u2080-\u2089\u2150-\u2182\u2185-\u2189\u2460-\u249B\u24EA-\u24FF\u2776-\u2793\u2CFD\u3007\u3021-\u3029\u3038-\u303A\u3192-\u3195\u3220-\u3229\u3248-\u324F\u3251-\u325F\u3280-\u3289\u32B1-\u32BF\uA620-\uA629\uA6E6-\uA6EF\uA830-\uA835\uA8D0-\uA8D9\uA900-\uA909\uA9D0-\uA9D9\uAA50-\uAA59\uABF0-\uABF9\uFF10-\uFF19])/g
+
+
+/***/ },
+/* 108 */
 /*!******************************************************************!*\
   !*** ./~/cyclejs/~/virtual-dom/~/ev-store/~/individual/index.js ***!
   \******************************************************************/
@@ -25377,6 +27603,356 @@
 	}
 	
 	/* WEBPACK VAR INJECTION */}.call(exports, (function() { return this; }())))
+
+/***/ },
+/* 109 */
+/*!***************************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/~/es6-symbol/is-implemented.js ***!
+  \***************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function () {
+		var symbol;
+		if (typeof Symbol !== 'function') return false;
+		symbol = Symbol('test symbol');
+		try { String(symbol); } catch (e) { return false; }
+		if (typeof Symbol.iterator === 'symbol') return true;
+	
+		// Return 'true' for polyfills
+		if (typeof Symbol.isConcatSpreadable !== 'object') return false;
+		if (typeof Symbol.iterator !== 'object') return false;
+		if (typeof Symbol.toPrimitive !== 'object') return false;
+		if (typeof Symbol.toStringTag !== 'object') return false;
+		if (typeof Symbol.unscopables !== 'object') return false;
+	
+		return true;
+	};
+
+
+/***/ },
+/* 110 */
+/*!*********************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/~/es6-symbol/polyfill.js ***!
+  \*********************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var d              = __webpack_require__(/*! d */ 63)
+	  , validateSymbol = __webpack_require__(/*! ./validate-symbol */ 115)
+	
+	  , create = Object.create, defineProperties = Object.defineProperties
+	  , defineProperty = Object.defineProperty, objPrototype = Object.prototype
+	  , Symbol, HiddenSymbol, globalSymbols = create(null);
+	
+	var generateName = (function () {
+		var created = create(null);
+		return function (desc) {
+			var postfix = 0, name;
+			while (created[desc + (postfix || '')]) ++postfix;
+			desc += (postfix || '');
+			created[desc] = true;
+			name = '@@' + desc;
+			defineProperty(objPrototype, name, d.gs(null, function (value) {
+				defineProperty(this, name, d(value));
+			}));
+			return name;
+		};
+	}());
+	
+	HiddenSymbol = function Symbol(description) {
+		if (this instanceof HiddenSymbol) throw new TypeError('TypeError: Symbol is not a constructor');
+		return Symbol(description);
+	};
+	module.exports = Symbol = function Symbol(description) {
+		var symbol;
+		if (this instanceof Symbol) throw new TypeError('TypeError: Symbol is not a constructor');
+		symbol = create(HiddenSymbol.prototype);
+		description = (description === undefined ? '' : String(description));
+		return defineProperties(symbol, {
+			__description__: d('', description),
+			__name__: d('', generateName(description))
+		});
+	};
+	defineProperties(Symbol, {
+		for: d(function (key) {
+			if (globalSymbols[key]) return globalSymbols[key];
+			return (globalSymbols[key] = Symbol(String(key)));
+		}),
+		keyFor: d(function (s) {
+			var key;
+			validateSymbol(s);
+			for (key in globalSymbols) if (globalSymbols[key] === s) return key;
+		}),
+		hasInstance: d('', Symbol('hasInstance')),
+		isConcatSpreadable: d('', Symbol('isConcatSpreadable')),
+		iterator: d('', Symbol('iterator')),
+		match: d('', Symbol('match')),
+		replace: d('', Symbol('replace')),
+		search: d('', Symbol('search')),
+		species: d('', Symbol('species')),
+		split: d('', Symbol('split')),
+		toPrimitive: d('', Symbol('toPrimitive')),
+		toStringTag: d('', Symbol('toStringTag')),
+		unscopables: d('', Symbol('unscopables'))
+	});
+	defineProperties(HiddenSymbol.prototype, {
+		constructor: d(Symbol),
+		toString: d('', function () { return this.__name__; })
+	});
+	
+	defineProperties(Symbol.prototype, {
+		toString: d(function () { return 'Symbol (' + validateSymbol(this).__description__ + ')'; }),
+		valueOf: d(function () { return validateSymbol(this); })
+	});
+	defineProperty(Symbol.prototype, Symbol.toPrimitive, d('',
+		function () { return validateSymbol(this); }));
+	defineProperty(Symbol.prototype, Symbol.toStringTag, d('c', 'Symbol'));
+	
+	defineProperty(HiddenSymbol.prototype, Symbol.toPrimitive,
+		d('c', Symbol.prototype[Symbol.toPrimitive]));
+	defineProperty(HiddenSymbol.prototype, Symbol.toStringTag,
+		d('c', Symbol.prototype[Symbol.toStringTag]));
+
+
+/***/ },
+/* 111 */
+/*!************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/keys/index.js ***!
+  \************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! ./is-implemented */ 116)()
+		? Object.keys
+		: __webpack_require__(/*! ./shim */ 117);
+
+
+/***/ },
+/* 112 */
+/*!**********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/for-each.js ***!
+  \**********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! ./_iterate */ 118)('forEach');
+
+
+/***/ },
+/* 113 */
+/*!******************************************************************************************!*\
+  !*** ./~/cyclejs/~/vdom-to-html/~/param-case/~/sentence-case/~/lower-case/lower-case.js ***!
+  \******************************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	/**
+	 * Special language-specific overrides.
+	 *
+	 * Source: ftp://ftp.unicode.org/Public/UCD/latest/ucd/SpecialCasing.txt
+	 *
+	 * @type {Object}
+	 */
+	var LANGUAGES = {
+	  tr: {
+	    regexp: /\u0130|\u0049|\u0049\u0307/g,
+	    map: {
+	      '\u0130': '\u0069',
+	      '\u0049': '\u0131',
+	      '\u0049\u0307': '\u0069'
+	    }
+	  },
+	  az: {
+	    regexp: /[\u0130]/g,
+	    map: {
+	      '\u0130': '\u0069',
+	      '\u0049': '\u0131',
+	      '\u0049\u0307': '\u0069'
+	    }
+	  },
+	  lt: {
+	    regexp: /[\u0049\u004A\u012E\u00CC\u00CD\u0128]/g,
+	    map: {
+	      '\u0049': '\u0069\u0307',
+	      '\u004A': '\u006A\u0307',
+	      '\u012E': '\u012F\u0307',
+	      '\u00CC': '\u0069\u0307\u0300',
+	      '\u00CD': '\u0069\u0307\u0301',
+	      '\u0128': '\u0069\u0307\u0303'
+	    }
+	  }
+	}
+	
+	/**
+	 * Lowercase a string.
+	 *
+	 * @param  {String} str
+	 * @return {String}
+	 */
+	module.exports = function (str, locale) {
+	  var lang = LANGUAGES[locale]
+	
+	  str = str == null ? '' : String(str)
+	
+	  if (lang) {
+	    str = str.replace(lang.regexp, function (m) { return lang.map[m] })
+	  }
+	
+	  return str.toLowerCase()
+	}
+
+
+/***/ },
+/* 114 */
+/*!**********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/math/sign/index.js ***!
+  \**********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = __webpack_require__(/*! ./is-implemented */ 119)()
+		? Math.sign
+		: __webpack_require__(/*! ./shim */ 120);
+
+
+/***/ },
+/* 115 */
+/*!****************************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/~/es6-symbol/validate-symbol.js ***!
+  \****************************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var isSymbol = __webpack_require__(/*! ./is-symbol */ 121);
+	
+	module.exports = function (value) {
+		if (!isSymbol(value)) throw new TypeError(value + " is not a symbol");
+		return value;
+	};
+
+
+/***/ },
+/* 116 */
+/*!*********************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/keys/is-implemented.js ***!
+  \*********************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function () {
+		try {
+			Object.keys('primitive');
+			return true;
+		} catch (e) { return false; }
+	};
+
+
+/***/ },
+/* 117 */
+/*!***********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/keys/shim.js ***!
+  \***********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	var keys = Object.keys;
+	
+	module.exports = function (object) {
+		return keys(object == null ? object : Object(object));
+	};
+
+
+/***/ },
+/* 118 */
+/*!**********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/object/_iterate.js ***!
+  \**********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	// Internal method, used by iteration functions.
+	// Calls a function for each key-value pair found in object
+	// Optionally takes compareFn to iterate object in specific order
+	
+	'use strict';
+	
+	var isCallable = __webpack_require__(/*! ./is-callable */ 78)
+	  , callable   = __webpack_require__(/*! ./valid-callable */ 69)
+	  , value      = __webpack_require__(/*! ./valid-value */ 70)
+	
+	  , call = Function.prototype.call, keys = Object.keys
+	  , propertyIsEnumerable = Object.prototype.propertyIsEnumerable;
+	
+	module.exports = function (method, defVal) {
+		return function (obj, cb/*, thisArg, compareFn*/) {
+			var list, thisArg = arguments[2], compareFn = arguments[3];
+			obj = Object(value(obj));
+			callable(cb);
+	
+			list = keys(obj);
+			if (compareFn) {
+				list.sort(isCallable(compareFn) ? compareFn.bind(obj) : undefined);
+			}
+			return list[method](function (key, index) {
+				if (!propertyIsEnumerable.call(obj, key)) return defVal;
+				return call.call(cb, thisArg, obj[key], key, obj, index);
+			});
+		};
+	};
+
+
+/***/ },
+/* 119 */
+/*!*******************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/math/sign/is-implemented.js ***!
+  \*******************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function () {
+		var sign = Math.sign;
+		if (typeof sign !== 'function') return false;
+		return ((sign(10) === 1) && (sign(-20) === -1));
+	};
+
+
+/***/ },
+/* 120 */
+/*!*********************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es5-ext/math/sign/shim.js ***!
+  \*********************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function (value) {
+		value = Number(value);
+		if (isNaN(value) || (value === 0)) return value;
+		return (value > 0) ? 1 : -1;
+	};
+
+
+/***/ },
+/* 121 */
+/*!**********************************************************************!*\
+  !*** ./~/cyclejs/~/es6-map/~/es6-iterator/~/es6-symbol/is-symbol.js ***!
+  \**********************************************************************/
+/***/ function(module, exports, __webpack_require__) {
+
+	'use strict';
+	
+	module.exports = function (x) {
+		return (x && ((typeof x === 'symbol') || (x['@@toStringTag'] === 'Symbol'))) || false;
+	};
+
 
 /***/ }
 /******/ ]);
