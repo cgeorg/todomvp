@@ -12,7 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "body-parser": "^1.12.4",
-    "cyclejs": "0.23",
+    "cyclejs": "^0.23.1",
     "express": "^4.12.4",
     "jade": "^1.10.0",
     "lodash": "^3.9.3",

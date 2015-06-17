@@ -4,13 +4,25 @@ import Model from './model';
 import View from './view';
 import Intent from './intent';
 import InitialModel from './initial';
-import {WebSocketSinks, WebSocketIntents} from './webSockets';
+import SocketIO from './wsDriver';
+import WsIntent from './wsIntent';
+import WsEffects from './wsEffects';
 
 var computer = function (interactions) {
     const intent = Intent(interactions);
-    const model = Model(intent, InitialModel(), WebSocketIntents());
-    WebSocketSinks(intent, model);
-    return View(model);
+    const wsIntent = WsIntent(interactions);
+
+    const model = Model(intent, InitialModel(), wsIntent);
+
+    const wsEffects$ = WsEffects(intent, model);
+    const vtree$ = View(model);
+
+    return {DOM: vtree$, WS: wsEffects$}
 };
 
-Cycle.applyToDOM(document.body, computer);
+var wsDriver = SocketIO.createSocketIODriver(window.location.origin);
+var domDriver = Cycle.makeDOMDriver(document.body);
+Cycle.run(computer, {
+    DOM: domDriver,
+    WS: wsDriver
+});

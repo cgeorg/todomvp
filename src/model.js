@@ -110,8 +110,8 @@ export default function Model(intent, initial, webSocket) {
             })
             .tap(model => model.numServings = _(model.gathering.eaters).map('servings').reduce((sum, num) => sum + num) || 0)
             .tap(model => model.purchaseOptions = mvp(model.gathering.eaters, _.find(model.menus, {_id: model.gathering.menu}).pizzas, model.gathering.servingSize, model.sortBy))
-            //.combineLatest(route$, determineFilter)
-            .share(),
+            .shareReplay(1),
         serverUpdated$: serverUpdate$
+            .shareReplay(1)
     }
 };

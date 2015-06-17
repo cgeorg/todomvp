@@ -1,6 +1,7 @@
 /** @jsx */
 import _ from 'lodash';
 import propHook from './propHook';
+import Cycle from 'cyclejs';
 
 function renderOptions(model) {
     return [
@@ -97,13 +98,6 @@ function renderEaters(gathering) {
 }
 
 function renderEater(eater, index) {
-    function propHook(element) {
-        if (eater.editing) {
-            element.focus();
-            element.selectionStart = element.value.length;
-        }
-    }
-
     return (
         <li className={eater.editing ? 'editing' : ''}>
             <span className='eater-name'
@@ -121,15 +115,13 @@ function renderEater(eater, index) {
 }
 
 export default function View(model) {
-    return {
-        vtree$: model.model$.map(model =>
-                <div>
-                    <h1>TODO: Order Minimum Viable Pizza</h1>
-                    {renderSave(model.gathering)}
-                    {renderEaters(model.gathering)}
-                    {renderMenuSelection(model.menus, model.gathering, model.numServings)}
-                    {renderOptions(model)}
-                </div>
-        )
-    }
+    return model.model$.map(model =>
+            <div>
+                <h1>TODO: Order Minimum Viable Pizza</h1>
+                {renderSave(model.gathering)}
+                {renderEaters(model.gathering)}
+                {renderMenuSelection(model.menus, model.gathering, model.numServings)}
+                {renderOptions(model)}
+            </div>
+    );
 };
