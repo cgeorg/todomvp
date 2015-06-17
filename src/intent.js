@@ -1,17 +1,17 @@
 import {Rx} from 'cyclejs';
 
-export default function Intent(interactions) {
+export default function Intent({dom}) {
     return {
-        sortBy$: interactions.get('DOM', 'th', 'click')
+        sortBy$: dom.get('th', 'click')
             .map(ev => ev.target.getAttribute('data-order'))
             .filter(order => !!order)
             .shareReplay(1),
 
-        selectMenu$: interactions.get('DOM', '.menu', 'change')
+        selectMenu$: dom.get('.menu', 'change')
             .map(ev => ev.target.options[ev.target.selectedIndex].value)
             .shareReplay(1),
 
-        eaterAdd$: interactions.get('DOM', '.new-eater', 'keypress')
+        eaterAdd$: dom.get('.new-eater', 'keypress')
             .filter(ev => ev.keyCode === 13)
             .map(ev => ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/))
             .filter(match => match)
@@ -19,14 +19,14 @@ export default function Intent(interactions) {
             .shareReplay(1),
 
         eaterStartEdit$: Rx.Observable.merge(
-            interactions.get('DOM', '.init-edit', 'click'),
-            interactions.get('DOM', '.eater-name', 'dblclick'))
+            dom.get('.init-edit', 'click'),
+            dom.get('.eater-name', 'dblclick'))
             .map(ev => ev.target.getAttribute('data-index'))
             .shareReplay(1),
 
-        eaterFinishEdit$: interactions.get('DOM', '.edit-eater', 'keypress')
+        eaterFinishEdit$: dom.get('.edit-eater', 'keypress')
             .filter(ev => ev.keyCode === 13)
-            .merge(interactions.get('DOM', '.edit-eater', 'blur'))
+            .merge(dom.get('.edit-eater', 'blur'))
             .map(ev => ({
                 index: ev.target.getAttribute('data-index'),
                 match: ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/)
@@ -39,12 +39,12 @@ export default function Intent(interactions) {
             }))
             .shareReplay(1),
 
-        eaterCancelEdit$: interactions.get('DOM', '.edit-eater', 'keypress')
+        eaterCancelEdit$: dom.get('.edit-eater', 'keypress')
             .filter(ev => ev.keyCode === 27)
             .map(ev => ev.target.getAttribute('data-index'))
             .shareReplay(1),
 
-        saveGathering$: interactions.get('DOM', 'button.save', 'click')
+        saveGathering$: dom.get('button.save', 'click')
             .map(ev => true)
             .shareReplay(1)
 

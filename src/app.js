@@ -17,12 +17,12 @@ var computer = function (interactions) {
     const wsEffects$ = WsEffects(intent, model);
     const vtree$ = View(model);
 
-    return {DOM: vtree$, WS: wsEffects$}
+    return {dom: vtree$, socketIO: wsEffects$}
 };
 
-var wsDriver = SocketIO.createSocketIODriver(window.location.origin);
+var socketIODriver = SocketIO.createSocketIODriver(window.location.origin);
 var domDriver = Cycle.makeDOMDriver(document.body);
 Cycle.run(computer, {
-    DOM: domDriver,
-    WS: wsDriver
+    dom: domDriver,
+    socketIO: socketIODriver
 });

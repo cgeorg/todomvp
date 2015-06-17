@@ -92,14 +92,14 @@
 	    var wsEffects$ = (0, _wsEffects2['default'])(intent, model);
 	    var vtree$ = (0, _view2['default'])(model);
 	
-	    return { DOM: vtree$, WS: wsEffects$ };
+	    return { dom: vtree$, socketIO: wsEffects$ };
 	};
 	
-	var wsDriver = _wsDriver2['default'].createSocketIODriver(window.location.origin);
+	var socketIODriver = _wsDriver2['default'].createSocketIODriver(window.location.origin);
 	var domDriver = _cyclejs2['default'].makeDOMDriver(document.body);
 	_cyclejs2['default'].run(computer, {
-	    DOM: domDriver,
-	    WS: wsDriver
+	    dom: domDriver,
+	    socketIO: socketIODriver
 	});
 
 /***/ },
@@ -184,12 +184,9 @@
 	   *
 	   * The `app` function expects a collection of "driver response" Observables as
 	   * input, and should return a collection of "driver request" Observables.
-	   * The driver response collection can be queried using a getter function:
-	   * `responses.get(driverName, ...params)`, returns an Observable. The
-	   * structure of `params` is defined by the API of the corresponding
-	   * `driverName`. The driver request collection should be a simple object where
-	   * keys match the driver names used by `responses.get()` and defined on the
-	   * second parameter given to `run()`.
+	   * A "collection of Observables" is a JavaScript object where
+	   * keys match the driver names registered by the `drivers` object, and values
+	   * are Observables or a collection of Observables.
 	   *
 	   * @param {Function} app a function that takes `responses` as input
 	   * and outputs a collection of `requests` Observables.
@@ -206,15 +203,19 @@
 	   * A factory for the DOM driver function. Takes a `container` to define the
 	   * target on the existing DOM which this driver will operate on. All custom
 	   * elements which this driver can detect should be given as the second
-	   * parameter.
+	   * parameter. The output of this driver is a collection of Observables queried
+	   * by a getter function: `domDriverOutput.get(selector, eventType)` returns an
+	   * Observable of events of `eventType` happening on the element determined by
+	   * `selector`. Also, `domDriverOutput.get(':root')` returns an Observable of
+	   * DOM element corresponding to the root (or container) of the app on the DOM.
 	   *
 	   * @param {(String|HTMLElement)} container the DOM selector for the element
 	   * (or the element itself) to contain the rendering of the VTrees.
-	   * @param {Object} a collection of custom element definitions. The key of each
-	   * property should be the tag name of the custom element, and the value should
-	   * be a function defining the implementation of the custom element. This
-	   * function follows the same contract as the top-most `app` function: input
-	   * are driver responses, output are requests to drivers.
+	   * @param {Object} customElements a collection of custom element definitions.
+	   * The key of each property should be the tag name of the custom element, and
+	   * the value should be a function defining the implementation of the custom
+	   * element. This function follows the same contract as the top-most `app`
+	   * function: input are driver responses, output are requests to drivers.
 	   * @return {Function} the DOM driver function. The function expects an
 	   * Observable of VTree as input, and outputs the response object for this
 	   * driver, containing functions `get()` and `dispose()` that can be used for
@@ -229,18 +230,15 @@
 	   * the custom element registry to detect custom element on the VTree and apply
 	   * their implementations.
 	   *
-	   * @param {Object} a collection of custom element definitions. The key of each
-	   * property should be the tag name of the custom element, and the value should
-	   * be a function defining the implementation of the custom element. This
-	   * function follows the same contract as the top-most `app` function: input
-	   * are driver responses, output are requests to drivers.
+	   * @param {Object} customElements a collection of custom element definitions.
+	   * The key of each property should be the tag name of the custom element, and
+	   * the value should be a function defining the implementation of the custom
+	   * element. This function follows the same contract as the top-most `app`
+	   * function: input are driver responses, output are requests to drivers.
 	   * @return {Function} the HTML driver function. The function expects an
-	   * Observable of Virtual DOM elements as input, and outputs the response
-	   * object for this driver, containing functions `get()` and `dispose()` that
-	   * can be used for debugging and testing. To get the Observable of strings as
-	   * the HTML renderization of the virtual DOM elements, call simply
-	   * `get(htmlDriverName)` on the responses object returned by Cycle.run();
-	   * @function renderAsHTML
+	   * Observable of Virtual DOM elements as input, and outputs an Observable of
+	   * strings as the HTML renderization of the virtual DOM elements.
+	   * @function makeHTMLDriver
 	   */
 	  makeHTMLDriver: makeHTMLDriver,
 	
@@ -429,7 +427,7 @@
 	  };
 	}
 	
-	function makeGet(rootElem$) {
+	function makeResponseGetter(rootElem$) {
 	  return function get(selector, eventName) {
 	    if (typeof selector !== 'string') {
 	      throw new Error('DOM driver\'s get() expects first argument to be a ' + 'string as a CSS selector');
@@ -459,7 +457,7 @@
 	    var rootElem$ = fixRootElem$(rawRootElem$, container);
 	    var disposable = rootElem$.connect();
 	    return {
-	      get: makeGet(rootElem$),
+	      get: makeResponseGetter(rootElem$),
 	      dispose: disposable.dispose.bind(disposable)
 	    };
 	  };
@@ -491,7 +489,7 @@
 	  makeDiffAndPatchToElement$: makeDiffAndPatchToElement$,
 	  getRenderRootElem: getRenderRootElem,
 	  renderRawRootElem$: renderRawRootElem$,
-	  makeGet: makeGet,
+	  makeResponseGetter: makeResponseGetter,
 	  validateDOMDriverInput: validateDOMDriverInput,
 	  makeDOMDriverWithRegistry: makeDOMDriverWithRegistry,
 	
@@ -13311,6 +13309,9 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	'use strict';
+	
+	function _defineProperty(obj, key, value) { return Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); }
+	
 	var Rx = __webpack_require__(/*! rx */ 4);
 	var ALL_PROPS = '*';
 	var PROPS_DRIVER_NAME = 'props';
@@ -13320,7 +13321,7 @@
 	  return function dispatchCustomEvent(evData) {
 	    //console.log('%cdispatchCustomEvent ' + eventName,
 	    //  'background-color: #CCCCFF; color: black');
-	    var event;
+	    var event = undefined;
 	    try {
 	      event = new Event(eventName);
 	    } catch (err) {
@@ -13373,10 +13374,12 @@
 	  });
 	  Object.defineProperty(propertiesDriver, 'get', {
 	    enumerable: false,
-	    value: function get() {
-	      var streamKey = arguments[0] === undefined ? ALL_PROPS : arguments[0];
+	    value: function get(streamKey) {
 	      var comparer = arguments[1] === undefined ? defaultComparer : arguments[1];
 	
+	      if (typeof streamKey === 'undefined') {
+	        throw new Error('Custom element driver `props.get()` expects an ' + 'argument in the getter.');
+	      }
 	      if (typeof this[streamKey] === 'undefined') {
 	        this[streamKey] = new Rx.ReplaySubject(1);
 	      }
@@ -13407,21 +13410,9 @@
 	}
 	
 	function makeCustomElementInput(domOutput, propertiesDriver, domDriverName) {
-	  return {
-	    get: function get(driverName) {
-	      for (var _len = arguments.length, params = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-	        params[_key - 1] = arguments[_key];
-	      }
+	  var _ref;
 	
-	      if (driverName === domDriverName) {
-	        return domOutput.get.apply(null, params);
-	      } else if (driverName === PROPS_DRIVER_NAME) {
-	        return propertiesDriver.get.apply(propertiesDriver, params);
-	      } else {
-	        throw new Error('No such internal driver named \'' + driverName + '\' for ' + ('custom elements. Use \'' + domDriverName + '\' or ') + ('\'' + PROPS_DRIVER_NAME + '\' instead.'));
-	      }
-	    }
-	  };
+	  return (_ref = {}, _defineProperty(_ref, domDriverName, domOutput), _defineProperty(_ref, PROPS_DRIVER_NAME, propertiesDriver), _ref);
 	}
 	
 	function makeConstructor() {
@@ -13576,8 +13567,9 @@
 	  makeInit: makeInit,
 	  updateCustomElement: updateCustomElement,
 	  destroyCustomElement: destroyCustomElement,
-	  makeCustomElementInput: makeCustomElementInput,
 	
+	  ALL_PROPS: ALL_PROPS,
+	  makeCustomElementInput: makeCustomElementInput,
 	  makeWidgetClass: makeWidgetClass
 	};
 
@@ -15760,11 +15752,16 @@
 	var _require2 = __webpack_require__(/*! ./custom-element-widget */ 43);
 	
 	var makeCustomElementInput = _require2.makeCustomElementInput;
+	var ALL_PROPS = _require2.ALL_PROPS;
 	
 	function makePropertiesDriverFromVTree(vtree) {
 	  return {
 	    get: function get(propertyName) {
-	      return Rx.Observable.just(vtree.properties[propertyName]);
+	      if (propertyName === ALL_PROPS) {
+	        return Rx.Observable.just(vtree.properties);
+	      } else {
+	        return Rx.Observable.just(vtree.properties[propertyName]);
+	      }
 	    }
 	  };
 	}
@@ -15815,27 +15812,27 @@
 	  return vtree$.map(makeReplaceCustomElementsWithVTree$(CERegistry, driverName)).flatMap(transposeVTree);
 	}
 	
+	function makeResponseGetter() {
+	  return function get(selector) {
+	    if (selector === ':root') {
+	      return this;
+	    } else {
+	      return Rx.Observable.empty();
+	    }
+	  };
+	}
+	
 	function makeHTMLDriver() {
 	  var customElementDefinitions = arguments[0] === undefined ? {} : arguments[0];
 	
 	  var registry = makeCustomElementsRegistry(customElementDefinitions);
 	  return function htmlDriver(vtree$, driverName) {
 	    var vtreeLast$ = vtree$.last();
-	    return {
-	      get: function get() {
-	        for (var _len2 = arguments.length, params = Array(_len2), _key2 = 0; _key2 < _len2; _key2++) {
-	          params[_key2] = arguments[_key2];
-	        }
-	
-	        if (params.length === 0) {
-	          return convertCustomElementsToVTree(vtreeLast$, registry, driverName).map(function (vtree) {
-	            return toHTML(vtree);
-	          });
-	        } else {
-	          return Rx.Observable.empty();
-	        }
-	      }
-	    };
+	    var output$ = convertCustomElementsToVTree(vtreeLast$, registry, driverName).map(function (vtree) {
+	      return toHTML(vtree);
+	    });
+	    output$.get = makeResponseGetter();
+	    return output$;
 	  };
 	}
 	
@@ -16481,29 +16478,6 @@
 	  return responses;
 	}
 	
-	function makeGet(rawResponses) {
-	  return function get(driverName) {
-	    for (var _len = arguments.length, params = Array(_len > 1 ? _len - 1 : 0), _key = 1; _key < _len; _key++) {
-	      params[_key - 1] = arguments[_key];
-	    }
-	
-	    if (!rawResponses.hasOwnProperty(driverName)) {
-	      throw new Error('get(' + driverName + ', ...) failed, no driver function ' + ('named ' + driverName + ' was found for this Cycle execution.'));
-	    }
-	
-	    var driverResponse = rawResponses[driverName];
-	    if (typeof driverResponse.subscribe === 'function') {
-	      return driverResponse; // is an Observable
-	    } else if (typeof driverResponse === 'object' && typeof driverResponse.get === 'function') {
-	      return rawResponses[driverName].get.apply(null, params);
-	    } else if (typeof driverResponse === 'object' && params.length > 0 && typeof params[0] === 'string' && driverResponse.hasOwnProperty(params[0])) {
-	      return rawResponses[driverName][params[0]];
-	    } else {
-	      throw new Error('get(' + driverName + ', ...) failed because driver was ' + 'not able to process parameters. Report this bug to the driver ' + 'function author.');
-	    }
-	  };
-	}
-	
 	function makeDispose(requestProxies, rawResponses) {
 	  return function dispose() {
 	    for (var x in requestProxies) {
@@ -16520,10 +16494,11 @@
 	}
 	
 	function makeAppInput(requestProxies, rawResponses) {
-	  return {
-	    get: makeGet(rawResponses),
-	    dispose: makeDispose(requestProxies, rawResponses)
-	  };
+	  Object.defineProperty(rawResponses, 'dispose', {
+	    enumerable: false,
+	    value: makeDispose(requestProxies, rawResponses)
+	  });
+	  return rawResponses;
 	}
 	
 	function replicateMany(original, imitators) {
@@ -29226,19 +29201,21 @@
 	
 	var _cyclejs = __webpack_require__(/*! cyclejs */ 2);
 	
-	function Intent(interactions) {
+	function Intent(_ref) {
+	    var dom = _ref.dom;
+	
 	    return {
-	        sortBy$: interactions.get('DOM', 'th', 'click').map(function (ev) {
+	        sortBy$: dom.get('th', 'click').map(function (ev) {
 	            return ev.target.getAttribute('data-order');
 	        }).filter(function (order) {
 	            return !!order;
 	        }).shareReplay(1),
 	
-	        selectMenu$: interactions.get('DOM', '.menu', 'change').map(function (ev) {
+	        selectMenu$: dom.get('.menu', 'change').map(function (ev) {
 	            return ev.target.options[ev.target.selectedIndex].value;
 	        }).shareReplay(1),
 	
-	        eaterAdd$: interactions.get('DOM', '.new-eater', 'keypress').filter(function (ev) {
+	        eaterAdd$: dom.get('.new-eater', 'keypress').filter(function (ev) {
 	            return ev.keyCode === 13;
 	        }).map(function (ev) {
 	            return ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/);
@@ -29248,13 +29225,13 @@
 	            return { name: match[1], servings: parseInt(match[2], 10) };
 	        }).shareReplay(1),
 	
-	        eaterStartEdit$: _cyclejs.Rx.Observable.merge(interactions.get('DOM', '.init-edit', 'click'), interactions.get('DOM', '.eater-name', 'dblclick')).map(function (ev) {
+	        eaterStartEdit$: _cyclejs.Rx.Observable.merge(dom.get('.init-edit', 'click'), dom.get('.eater-name', 'dblclick')).map(function (ev) {
 	            return ev.target.getAttribute('data-index');
 	        }).shareReplay(1),
 	
-	        eaterFinishEdit$: interactions.get('DOM', '.edit-eater', 'keypress').filter(function (ev) {
+	        eaterFinishEdit$: dom.get('.edit-eater', 'keypress').filter(function (ev) {
 	            return ev.keyCode === 13;
-	        }).merge(interactions.get('DOM', '.edit-eater', 'blur')).map(function (ev) {
+	        }).merge(dom.get('.edit-eater', 'blur')).map(function (ev) {
 	            return {
 	                index: ev.target.getAttribute('data-index'),
 	                match: ev.target.value.match(/^([^:]*)[:\s]+(\d+(\.\d*)?)$/)
@@ -29269,13 +29246,13 @@
 	            };
 	        }).shareReplay(1),
 	
-	        eaterCancelEdit$: interactions.get('DOM', '.edit-eater', 'keypress').filter(function (ev) {
+	        eaterCancelEdit$: dom.get('.edit-eater', 'keypress').filter(function (ev) {
 	            return ev.keyCode === 27;
 	        }).map(function (ev) {
 	            return ev.target.getAttribute('data-index');
 	        }).shareReplay(1),
 	
-	        saveGathering$: interactions.get('DOM', 'button.save', 'click').map(function (ev) {
+	        saveGathering$: dom.get('button.save', 'click').map(function (ev) {
 	            return true;
 	        }).shareReplay(1)
 	
@@ -29304,10 +29281,6 @@
 	
 	    var socket = io.connect(url);
 	
-	    function join(room) {
-	        socket.emit('setRoom', room);
-	    }
-	
 	    function get(eventName) {
 	        return _cyclejs.Rx.Observable.create(function (observer) {
 	            var sub = socket.on(eventName, function (message) {
@@ -29324,14 +29297,7 @@
 	    }
 	
 	    return function socketIODriver(events$) {
-	        events$.filter(function (event) {
-	            return event.type === 'join';
-	        }).map(function (event) {
-	            return event.room;
-	        }).forEach(join);
-	        events$.filter(function (event) {
-	            return event.type === 'emit';
-	        }).forEach(function (event) {
+	        events$.forEach(function (event) {
 	            return publish(event.messageType, event.message);
 	        });
 	        return {
@@ -29364,8 +29330,10 @@
 	
 	var _lodash2 = _interopRequireDefault(_lodash);
 	
-	function WsIntent(interactions) {
-	    var wsIntent = interactions.get('WS', 'intent').shareReplay(1);
+	function WsIntent(_ref) {
+	    var socketIO = _ref.socketIO;
+	
+	    var wsIntent = socketIO.get('intent').shareReplay(1);
 	    return (0, _lodash2['default'])(['eaterAdd$', 'eaterFinishEdit$']).indexBy(function (name) {
 	        return name;
 	    }).mapValues(function (name) {
@@ -29398,19 +29366,19 @@
 	function WebSocketEffects(intent, model) {
 	    // Create room joining observable
 	    // Once something fires, shut it down and start pumping intent events to the same stream
-	    var join = model.model$.map(function (model) {
+	    var joinRoom = model.model$.map(function (model) {
 	        return model.gathering && model.gathering._id;
 	    }).filter(function (modelId) {
 	        return modelId;
 	    }).map(function (modelId) {
-	        return { type: 'join', room: modelId };
+	        return { messageType: 'setRoom', message: modelId };
 	    }).first();
 	
 	    return _cyclejs.Rx.Observable.merge(['eaterAdd$', 'eaterFinishEdit$'].map(function (name) {
 	        return intent[name].map(function (event) {
-	            return { type: 'emit', messageType: 'intent', message: { name: name, event: event } };
+	            return { messageType: 'intent', message: { name: name, event: event } };
 	        });
-	    })).skipUntil(join).merge(join).shareReplay(1);
+	    })).skipUntil(joinRoom).merge(joinRoom).shareReplay(1);
 	}
 	
 	module.exports = exports['default'];
